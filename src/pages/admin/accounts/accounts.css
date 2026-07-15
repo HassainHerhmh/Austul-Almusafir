@@ -11,6 +11,11 @@
   --nav-highlight-color: var(--sea-deep);
   --row-muted-bg: var(--soft-tint);
   --row-child-bg: color-mix(in srgb, var(--sea) 10%, transparent);
+  /* أسطح صلبة للقوائم والنوافذ — تجنب شفافية --surface */
+  --acc-solid: #ffffff;
+  --acc-solid-2: #eef3f1;
+  --acc-input: #ffffff;
+  --acc-dropdown: #ffffff;
   color: var(--text);
 }
 
@@ -20,8 +25,11 @@
   --nav-highlight-color: #5eb4c4;
   --row-muted-bg: rgba(61, 154, 171, 0.1);
   --surface2: rgba(232, 238, 242, 0.14);
+  --acc-solid: #1a2833;
+  --acc-solid-2: #121c24;
+  --acc-input: #0f1820;
+  --acc-dropdown: #1e2e3a;
 }
-
 
 .acc-title {
   color: var(--text);
@@ -57,7 +65,7 @@
 }
 
 .acc-subnav {
-  background: var(--surface);
+  background: var(--acc-solid);
   border: 1px solid var(--surface2);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
@@ -80,7 +88,7 @@
 }
 
 .acc-panel {
-  background: var(--surface);
+  background: var(--acc-solid);
   border: 1px solid var(--surface2);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
@@ -88,14 +96,27 @@
 }
 
 .acc-card {
-  background: var(--surface2);
+  background: var(--acc-solid);
   border: 1px solid var(--surface2);
   border-radius: var(--radius);
   color: var(--text);
 }
 
 .acc-surface {
-  background: var(--surface);
+  background: var(--acc-solid);
+  color: var(--text);
+}
+
+.acc-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 1rem;
+  border-radius: var(--radius);
+  background: var(--acc-solid-2);
+  border: 1px solid var(--surface2);
   color: var(--text);
 }
 
@@ -144,54 +165,61 @@
   background: var(--hover-bg);
 }
 
+.acc-btn-danger {
+  background: var(--danger);
+  color: #fff;
+}
+
 .acc-table-wrap {
   overflow-x: auto;
   border-radius: var(--radius);
-  background: var(--surface);
+  background: var(--acc-solid);
   border: 1px solid var(--surface2);
-  box-shadow: var(--shadow);
 }
 
 .acc-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.875rem;
-}
-
-.acc-table thead {
-  background: var(--primary);
-  color: #fff;
+  color: var(--text);
 }
 
 .acc-table th,
 .acc-table td {
   border: 1px solid var(--surface2);
-  padding: 0.5rem 0.75rem;
-  text-align: right;
+  padding: 0.5rem 0.65rem;
+}
+
+.acc-table thead th {
+  background: var(--acc-solid-2);
   color: var(--text);
+  font-weight: 700;
 }
 
 .acc-table tbody tr:hover {
   background: var(--hover-bg);
 }
 
-.acc-table tbody tr.acc-row-selected {
-  background: var(--nav-highlight-bg);
+.acc-row-selected {
+  background: var(--nav-highlight-bg) !important;
 }
 
 .acc-input,
 .acc-select,
 .acc-textarea {
   width: 100%;
-  background: var(--surface);
+  padding: 0.65rem 0.75rem;
+  border-radius: 8px;
   border: 1px solid var(--surface2);
-  border-radius: 10px;
-  padding: 0.55rem 0.75rem;
+  background: var(--acc-input);
   color: var(--text);
   font-family: inherit;
-  font-size: 0.875rem;
-  outline: none;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.acc-input:disabled,
+.acc-select:disabled,
+.acc-textarea:disabled {
+  opacity: 0.75;
+  background: var(--acc-solid-2);
 }
 
 .acc-input:focus,
@@ -199,6 +227,7 @@
 .acc-textarea:focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 3px var(--nav-highlight-bg);
+  outline: none;
 }
 
 .acc-input::placeholder,
@@ -219,15 +248,31 @@
 }
 
 .acc-modal-overlay {
-  background: var(--overlay);
+  background: var(--overlay) !important;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
 
-.acc-modal {
-  background: var(--surface);
+.acc-modal,
+.acc-modal-panel {
+  background: var(--acc-solid) !important;
   border: 1px solid var(--surface2);
   color: var(--text);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
+  opacity: 1 !important;
+  isolation: isolate;
+}
+
+.acc-dropdown {
+  background: var(--acc-dropdown) !important;
+  border: 1px solid var(--surface2);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+.acc-dropdown-item:hover {
+  background: var(--hover-bg);
 }
 
 .acc-credit {
@@ -256,7 +301,7 @@
 }
 
 .acc-report-header {
-  background: var(--surface);
+  background: var(--acc-solid);
   border: 1px solid var(--surface2);
   border-right: 4px solid var(--primary);
   border-radius: var(--radius);
@@ -265,7 +310,7 @@
 }
 
 .acc-filter-panel {
-  background: var(--surface);
+  background: var(--acc-solid);
   border: 1px solid var(--surface2);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
@@ -296,12 +341,12 @@
 }
 
 .acc-currency-header {
-  background: var(--surface2);
+  background: var(--acc-solid-2);
   color: var(--text);
   border-bottom: 1px solid var(--surface2);
 }
 
-[data-theme="dark"] .acc-table tbody tr.acc-opening-row {
+[data-theme='dark'] .acc-table tbody tr.acc-opening-row {
   background: var(--row-child-bg);
 }
 
@@ -310,67 +355,100 @@
   font-weight: 700;
 }
 
-/* Override legacy ebham green / light-only grays inside accounts pages */
+/* Override legacy light-only utilities inside accounts pages */
 .acc-shell .bg-white,
 .acc-panel .bg-white,
-.acc-subnav.bg-white {
-  background: var(--surface) !important;
-}
-
-.acc-shell [class*="bg-gray-50"],
-.acc-shell [class*="bg-gray-100"] {
-  background: var(--row-muted-bg) !important;
-}
-
-.acc-shell [class*="text-gray-800"],
-.acc-shell [class*="text-gray-700"],
-.acc-shell [class*="text-gray-900"] {
+.acc-subnav.bg-white,
+.acc-shell [class*='bg-white'] {
+  background: var(--acc-solid) !important;
   color: var(--text) !important;
 }
 
-.acc-shell [class*="text-gray-500"],
-.acc-shell [class*="text-gray-400"],
-.acc-shell [class*="text-gray-600"] {
+.acc-shell [class*='bg-gray-50'],
+.acc-shell [class*='bg-gray-100'],
+.acc-shell .bg-\[\#e9efe6\] {
+  background: var(--acc-solid-2) !important;
+  color: var(--text) !important;
+}
+
+.acc-shell [class*='text-gray-800'],
+.acc-shell [class*='text-gray-700'],
+.acc-shell [class*='text-gray-900'] {
+  color: var(--text) !important;
+}
+
+.acc-shell [class*='text-gray-500'],
+.acc-shell [class*='text-gray-400'],
+.acc-shell [class*='text-gray-600'] {
   color: var(--muted) !important;
 }
 
-.acc-shell [class*="border-gray-300"],
-.acc-shell [class*="border-gray-200"],
-.acc-shell [class*="border-gray-700"] {
+.acc-shell [class*='border-gray-300'],
+.acc-shell [class*='border-gray-200'],
+.acc-shell [class*='border-gray-700'] {
   border-color: var(--surface2) !important;
 }
 
-.acc-shell [class*="divide-gray-700"] > * + * {
+.acc-shell [class*='divide-gray-700'] > * + * {
   border-color: var(--surface2) !important;
 }
 
-.acc-shell input[type="text"],
-.acc-shell input[type="number"],
-.acc-shell input[type="date"],
+.acc-shell input[type='text'],
+.acc-shell input[type='number'],
+.acc-shell input[type='date'],
+.acc-shell input[type='month'],
 .acc-shell select,
-.acc-shell textarea {
-  background: var(--surface);
-  border-color: var(--surface2);
-  color: var(--text);
+.acc-shell textarea,
+.acc-shell .input {
+  background: var(--acc-input) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--surface2) !important;
+  border-radius: 8px;
 }
 
 .acc-shell input:focus,
 .acc-shell select:focus,
-.acc-shell textarea:focus {
-  border-color: var(--primary);
+.acc-shell textarea:focus,
+.acc-shell .input:focus {
+  border-color: var(--primary) !important;
   outline: none;
   box-shadow: 0 0 0 3px var(--nav-highlight-bg);
+}
+
+.acc-shell .btn-green {
+  background: var(--primary) !important;
+  color: #fff !important;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-weight: 600;
+}
+
+.acc-shell .btn-gray {
+  background: var(--acc-solid) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--surface2) !important;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-weight: 600;
+}
+
+.acc-shell .btn-red {
+  background: var(--danger) !important;
+  color: #fff !important;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-weight: 600;
 }
 
 .acc-row-alt {
   background: var(--row-muted-bg);
 }
 
-.acc-modal-panel {
-  background: var(--surface);
-  border: 1px solid var(--surface2);
-  color: var(--text);
-  box-shadow: var(--shadow);
+.acc-shell .fixed.inset-0 {
+  background: var(--overlay) !important;
+  backdrop-filter: blur(6px);
 }
 
 @media print {

@@ -58,7 +58,15 @@ async function listPostableAccounts() {
     }
   }
 
-  return postable
+  // إزالة التكرار بنفس الكود (تظهر مرة واحدة في قوائم السندات)
+  const seenCodes = new Set<string>()
+  const unique: typeof postable = []
+  for (const a of postable) {
+    if (seenCodes.has(a.code)) continue
+    seenCodes.add(a.code)
+    unique.push(a)
+  }
+  return unique
 }
 
 accountsRouter.get(
@@ -129,6 +137,8 @@ accountsRouter.get(
           return 'عمولة'
         case 'admin_settlement':
           return 'تسديد (أدمن)'
+        case 'manual_journal':
+          return 'قيد يومي'
         default:
           return t
       }
@@ -151,6 +161,73 @@ accountsRouter.get(
         created_at: l.createdAt.toISOString(),
       })),
     })
+  }),
+)
+
+accountsRouter.post(
+  '/journal-manual',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const body = z
+      .object({
+        journal_date: z.string().min(1),
+        amount: z.number().positive(),
+        debit_account_id: z.number().int().positive(),
+        credit_account_id: z.number().int().positive(),
+        notes: z.string().optional(),
+      })
+      .safeParse(req.body)
+    if (!body.success) return fail(res, 'بيانات القيد غير صالحة')
+    if (body.data.debit_account_id === body.data.credit_account_id) {
+      return fail(res, 'الحساب المدين والدائن يجب أن يختلفا')
+    }
+
+    const [debitAcc, creditAcc] = await Promise.all([
+      prisma.account.findUnique({ where: { id: body.data.debit_account_id } }),
+      prisma.account.findUnique({ where: { id: body.data.credit_account_id } }),
+    ])
+    if (!debitAcc || !creditAcc) return fail(res, 'أحد الحسابات غير موجود', 404)
+
+    const ref = Math.abs(Date.now() % 2_000_000_000) || 1
+    const notes = body.data.notes?.trim() || 'قيد يومي'
+    await prisma.journalLine.createMany({
+      data: [
+        {
+          referenceId: ref,
+          referenceType: 'manual_journal',
+          journalDate: body.data.journal_date,
+          accountId: body.data.debit_account_id,
+          debit: body.data.amount,
+          credit: 0,
+          notes,
+        },
+        {
+          referenceId: ref,
+          referenceType: 'manual_journal',
+          journalDate: body.data.journal_date,
+          accountId: body.data.credit_account_id,
+          debit: 0,
+          credit: body.data.amount,
+          notes,
+        },
+      ],
+    })
+
+    return ok(res, { referenceId: ref }, 201)
+  }),
+)
+
+accountsRouter.delete(
+  '/journal-manual/:ref',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const ref = Number(paramId(req, 'ref'))
+    if (!ref) return fail(res, 'مرجع غير صالح')
+    const result = await prisma.journalLine.deleteMany({
+      where: { referenceId: ref, referenceType: 'manual_journal' },
+    })
+    if (!result.count) return fail(res, 'القيد غير موجود', 404)
+    return ok(res, { deleted: result.count })
   }),
 )
 

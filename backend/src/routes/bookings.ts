@@ -3,9 +3,11 @@ import { z } from 'zod'
 import { prisma } from '../config'
 import { authRequired, requireRoles } from '../middleware/auth'
 import {
-  ensureOfficeLedgerAccount,
+  findOfficeLedgerAccount,
   postBookingCharge,
   postBookingCommission,
+  resolveCommissionsTransitAccount,
+  resolveTicketRevenueTransitAccount,
   reverseBookingCharge,
 } from '../services/ledger'
 import { asyncHandler, fail, ok, paramId } from '../utils/http'
@@ -62,6 +64,43 @@ bookingsRouter.post(
         ? body.data.officeId
         : req.user!.officeId
     if (!officeId) return fail(res, 'المكتب مطلوب')
+
+    let office = await prisma.office.findUnique({ where: { id: officeId } })
+    if (!office) return fail(res, 'المكتب غير موجود', 404)
+
+    let ledgerAccountId = office.ledgerAccountId
+    if (!ledgerAccountId) {
+      ledgerAccountId = await findOfficeLedgerAccount(office.name)
+      if (ledgerAccountId) {
+        office = await prisma.office.update({
+          where: { id: office.id },
+          data: { ledgerAccountId },
+        })
+      }
+    }
+    if (!ledgerAccountId) {
+      return fail(
+        res,
+        `المكتب غير مربوط بحساب ذمة — أنشئ حساب «${office.name}» تحت ذمم مكاتب السفريات واربطه من إدارة المكاتب`,
+      )
+    }
+
+    const ticketTransit = await resolveTicketRevenueTransitAccount()
+    if (!ticketTransit) {
+      return fail(
+        res,
+        'حساب وسيط إيراد التذاكر غير موجود — أضفه يدوياً واضبطه من الحسابات الوسيطة',
+      )
+    }
+    if ((office.commissionPercent || 0) > 0) {
+      const commissionAcc = await resolveCommissionsTransitAccount()
+      if (!commissionAcc) {
+        return fail(
+          res,
+          'حساب عمولات المكاتب غير موجود — أضفه يدوياً واضبطه من الحسابات الوسيطة',
+        )
+      }
+    }
 
     const trip = await prisma.trip.findUnique({
       where: { id: body.data.tripId },
@@ -172,31 +211,21 @@ bookingsRouter.post(
       },
     })
 
-    let office = await prisma.office.findUnique({ where: { id: officeId } })
-    if (office && !office.ledgerAccountId) {
-      const ledgerAccountId = await ensureOfficeLedgerAccount(office.name)
-      office = await prisma.office.update({
-        where: { id: office.id },
-        data: { ledgerAccountId },
-      })
-    }
-    if (office?.ledgerAccountId) {
-      await postBookingCharge({
-        bookingId: booking.id,
-        ledgerAccountId: office.ledgerAccountId,
-        amount: booking.price,
-        passengerName: booking.passengerName,
-        seatNumber: booking.seatNumber,
-      })
-      await postBookingCommission({
-        bookingId: booking.id,
-        ledgerAccountId: office.ledgerAccountId,
-        commissionPercent: office.commissionPercent,
-        ticketPrice: booking.price,
-        passengerName: booking.passengerName,
-        seatNumber: booking.seatNumber,
-      })
-    }
+    await postBookingCharge({
+      bookingId: booking.id,
+      ledgerAccountId,
+      amount: booking.price,
+      passengerName: booking.passengerName,
+      seatNumber: booking.seatNumber,
+    })
+    await postBookingCommission({
+      bookingId: booking.id,
+      ledgerAccountId,
+      commissionPercent: office.commissionPercent,
+      ticketPrice: booking.price,
+      passengerName: booking.passengerName,
+      seatNumber: booking.seatNumber,
+    })
 
     return ok(
       res,

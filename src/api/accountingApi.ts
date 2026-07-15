@@ -473,70 +473,7 @@ function loadStore(): Store {
             typeof t.ticket_revenue_account === 'number' ? t.ticket_revenue_account : null,
         }
 
-        // تأكد ظهور عمولات المكاتب تحت المصروفات في الواجهة
-        // لا تلمس 1132 إن كان وسيط إيراد التذاكر
-        const expenses = parsed.accounts.find((a) => a.code === '5')
-        let commission = parsed.accounts.find(
-          (a) =>
-            a.code === '53' ||
-            a.name_ar === 'عمولات المكاتب' ||
-            (a.code === '1132' && a.name_ar === 'عمولات المكاتب'),
-        )
-
-        // وسيط إيراد التذاكر إن لم يوجد
-        const receivables = parsed.accounts.find((a) => a.code === '113')
-        const ticketTransit = parsed.accounts.find(
-          (a) => a.code === '1132' || a.name_ar === 'وسيط إيراد التذاكر',
-        )
-        if (!ticketTransit && receivables) {
-          const id = Math.max(0, ...parsed.accounts.map((a) => a.id)) + 1
-          parsed.accounts.push({
-            id,
-            code: '1132',
-            name_ar: 'وسيط إيراد التذاكر',
-            name_en: 'Ticket Revenue Transit',
-            parent_id: receivables.id,
-            account_group_id: 1,
-            account_level: 'فرعي',
-            financial_statement: 'الميزانية العمومية',
-            created_at: now(),
-            branch_name: BRANCH,
-            group_name: 'الأصول',
-            parent_name: receivables.name_ar,
-          })
-        }
-        if (commission && expenses) {
-          commission = {
-            ...commission,
-            code: '53',
-            name_ar: 'عمولات المكاتب',
-            name_en: 'Office Commissions',
-            parent_id: expenses.id,
-            account_level: 'فرعي',
-            financial_statement: 'أرباح وخسائر',
-            group_name: 'المصروفات',
-            parent_name: 'المصروفات',
-            account_group_id: 5,
-          }
-          parsed.accounts = parsed.accounts.map((a) => (a.id === commission!.id ? commission! : a))
-        } else if (!commission && expenses) {
-          const id = Math.max(0, ...parsed.accounts.map((a) => a.id)) + 1
-          parsed.accounts.push({
-            id,
-            code: '53',
-            name_ar: 'عمولات المكاتب',
-            name_en: 'Office Commissions',
-            parent_id: expenses.id,
-            account_group_id: 5,
-            account_level: 'فرعي',
-            financial_statement: 'أرباح وخسائر',
-            created_at: now(),
-            branch_name: BRANCH,
-            group_name: 'المصروفات',
-            parent_name: 'المصروفات',
-          })
-        }
-
+        // لا نضيف حسابات تلقائياً — الدليل يُدار يدوياً
         saveStore(parsed)
         return parsed
       }
@@ -675,12 +612,18 @@ function handleGet(url: string, config?: { params?: Record<string, any> }): any 
     const parentIds = new Set(
       store.accounts.map((a) => a.parent_id).filter((id): id is number => id != null),
     )
+    const seenCodes = new Set<string>()
     const list = store.accounts
       .filter(
         (a) =>
           a.account_level === 'فرعي' ||
           (a.parent_id != null && !parentIds.has(a.id)),
       )
+      .filter((a) => {
+        if (seenCodes.has(a.code)) return false
+        seenCodes.add(a.code)
+        return true
+      })
       .map((a) => {
         if (a.account_level !== 'فرعي' && a.parent_id != null && !parentIds.has(a.id)) {
           a.account_level = 'فرعي'
@@ -1758,55 +1701,23 @@ function bookingRefId(bookingId: string): number {
   return Math.abs(h) || 1
 }
 
-/** Create (or return) a receivable leaf account under ذمم مكاتب السفريات */
+/** إرجاع حساب ذمة مكتب موجود فقط — بدون إنشاء */
 export function ensureOfficeLedgerAccount(officeName: string): number {
-  let parent = store.accounts.find((a) => a.code === OFFICES_RECEIVABLE_PARENT_CODE)
+  const parent = store.accounts.find((a) => a.code === OFFICES_RECEIVABLE_PARENT_CODE)
   if (!parent) {
-    const receivables =
-      store.accounts.find((a) => a.code === '113') ||
-      store.accounts.find((a) => a.name_ar === 'الذمم المدينة')
-    parent = {
-      id: nextId('accounts'),
-      code: OFFICES_RECEIVABLE_PARENT_CODE,
-      name_ar: 'ذمم مكاتب السفريات',
-      name_en: 'Travel Offices Receivables',
-      parent_id: receivables?.id ?? 9,
-      account_group_id: 1,
-      account_level: 'رئيسي',
-      financial_statement: 'الميزانية العمومية',
-      created_at: now(),
-      branch_name: BRANCH,
-      group_name: 'الأصول',
-      parent_name: receivables?.name_ar ?? 'الذمم المدينة',
-    }
-    store.accounts.push(parent)
+    throw new Error(
+      `حساب ذمم مكاتب السفريات غير موجود — أنشئه يدوياً ثم أضف حساب «${officeName}» تحته`,
+    )
   }
 
   const existing = store.accounts.find(
-    (a) => a.parent_id === parent!.id && a.name_ar === officeName,
+    (a) => a.parent_id === parent.id && a.name_ar === officeName,
   )
   if (existing) return existing.id
 
-  const siblings = store.accounts.filter((a) => a.parent_id === parent!.id)
-  const seq = siblings.length + 1
-  const code = `${OFFICES_RECEIVABLE_PARENT_CODE}${String(seq).padStart(2, '0')}`
-  const row: Account = {
-    id: nextId('accounts'),
-    code,
-    name_ar: officeName,
-    name_en: officeName,
-    parent_id: parent.id,
-    account_group_id: 1,
-    account_level: 'فرعي',
-    financial_statement: 'الميزانية العمومية',
-    created_at: now(),
-    branch_name: BRANCH,
-    group_name: 'الأصول',
-    parent_name: parent.name_ar,
-  }
-  store.accounts.push(row)
-  persist()
-  return row.id
+  throw new Error(
+    `حساب ذمة المكتب «${officeName}» غير موجود — أنشئه يدوياً تحت ذمم مكاتب السفريات`,
+  )
 }
 
 /** Dr مكتب / Cr إيرادات التذاكر when a booking is confirmed */

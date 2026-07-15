@@ -36,8 +36,8 @@ async function readTransitSettings(): Promise<TransitSettings> {
   return (setting?.value as TransitSettings | null) ?? {}
 }
 
-/** حساب وسيط إيراد التذاكر — دائن قيد الحجز (مقابل مدين المكتب) */
-export async function ensureTicketRevenueTransitAccount() {
+/** حساب وسيط إيراد التذاكر — يُستخدم الموجود فقط (لا إنشاء تلقائي) */
+export async function resolveTicketRevenueTransitAccount(): Promise<number | null> {
   const configuredId = (await readTransitSettings()).ticket_revenue_account
   if (configuredId) {
     const configured = await prisma.account.findUnique({ where: { id: configuredId } })
@@ -48,24 +48,20 @@ export async function ensureTicketRevenueTransitAccount() {
     (await prisma.account.findFirst({ where: { code: TICKET_TRANSIT_CODE } })) ||
     (await prisma.account.findFirst({ where: { nameAr: TICKET_TRANSIT_NAME } }))
 
-  if (existing) return existing.id
-
-  const receivables = await prisma.account.findFirst({ where: { code: '113' } })
-  const row = await prisma.account.create({
-    data: {
-      code: TICKET_TRANSIT_CODE,
-      nameAr: TICKET_TRANSIT_NAME,
-      nameEn: 'Ticket Revenue Transit',
-      parentId: receivables?.id ?? null,
-      accountLevel: 'فرعي',
-      financialStatement: 'الميزانية العمومية',
-    },
-  })
-  return row.id
+  return existing?.id ?? null
 }
 
-/** مصروف عمولات المكاتب — تحت المصروفات (أرباح وخسائر) */
-export async function ensureCommissionsTransitAccount() {
+/** @deprecated استخدم resolveTicketRevenueTransitAccount — لا ينشئ حسابات */
+export async function ensureTicketRevenueTransitAccount() {
+  const id = await resolveTicketRevenueTransitAccount()
+  if (!id) {
+    throw new Error('حساب وسيط إيراد التذاكر غير موجود — أضفه يدوياً من دليل الحسابات أو الحسابات الوسيطة')
+  }
+  return id
+}
+
+/** مصروف عمولات المكاتب — موجود فقط */
+export async function resolveCommissionsTransitAccount(): Promise<number | null> {
   const configuredId = (await readTransitSettings()).office_commissions_account
   if (configuredId) {
     const configured = await prisma.account.findUnique({ where: { id: configuredId } })
@@ -76,56 +72,37 @@ export async function ensureCommissionsTransitAccount() {
     (await prisma.account.findFirst({ where: { code: COMMISSION_EXPENSE_CODE } })) ||
     (await prisma.account.findFirst({ where: { nameAr: COMMISSION_EXPENSE_NAME } }))
 
-  if (existing) return existing.id
-
-  const expenses = await prisma.account.findFirst({ where: { code: '5' } })
-  const row = await prisma.account.create({
-    data: {
-      code: COMMISSION_EXPENSE_CODE,
-      nameAr: COMMISSION_EXPENSE_NAME,
-      nameEn: 'Office Commissions Expense',
-      parentId: expenses?.id ?? null,
-      accountLevel: 'فرعي',
-      financialStatement: 'أرباح وخسائر',
-    },
-  })
-  return row.id
+  return existing?.id ?? null
 }
 
-export async function ensureOfficeLedgerAccount(officeName: string) {
-  let parent = await prisma.account.findFirst({ where: { code: '1131' } })
-  if (!parent) {
-    const receivables = await prisma.account.findFirst({ where: { code: '113' } })
-    parent = await prisma.account.create({
-      data: {
-        code: '1131',
-        nameAr: 'ذمم مكاتب السفريات',
-        nameEn: 'Travel Offices Receivables',
-        parentId: receivables?.id ?? null,
-        accountLevel: 'رئيسي',
-        financialStatement: 'الميزانية العمومية',
-      },
-    })
+/** @deprecated استخدم resolveCommissionsTransitAccount — لا ينشئ حسابات */
+export async function ensureCommissionsTransitAccount() {
+  const id = await resolveCommissionsTransitAccount()
+  if (!id) {
+    throw new Error('حساب عمولات المكاتب غير موجود — أضفه يدوياً من دليل الحسابات أو الحسابات الوسيطة')
   }
+  return id
+}
 
+/** ربط ذمة مكتب موجود بالاسم فقط — بدون إنشاء */
+export async function findOfficeLedgerAccount(officeName: string): Promise<number | null> {
+  const parent = await prisma.account.findFirst({ where: { code: '1131' } })
+  if (!parent) return null
   const existing = await prisma.account.findFirst({
     where: { parentId: parent.id, nameAr: officeName },
   })
-  if (existing) return existing.id
+  return existing?.id ?? null
+}
 
-  const siblings = await prisma.account.count({ where: { parentId: parent.id } })
-  const code = `1131${String(siblings + 1).padStart(2, '0')}`
-  const row = await prisma.account.create({
-    data: {
-      code,
-      nameAr: officeName,
-      nameEn: officeName,
-      parentId: parent.id,
-      accountLevel: 'فرعي',
-      financialStatement: 'الميزانية العمومية',
-    },
-  })
-  return row.id
+/** @deprecated لا ينشئ حسابات بعد الآن */
+export async function ensureOfficeLedgerAccount(officeName: string) {
+  const id = await findOfficeLedgerAccount(officeName)
+  if (!id) {
+    throw new Error(
+      `حساب ذمة المكتب «${officeName}» غير موجود — أنشئه يدوياً تحت ذمم مكاتب السفريات واربطه من إدارة المكاتب`,
+    )
+  }
+  return id
 }
 
 export async function postBookingCharge(input: {
@@ -136,8 +113,13 @@ export async function postBookingCharge(input: {
   seatNumber: number
 }) {
   /** مدين: حساب الوكيل · دائن: وسيط إيراد التذاكر */
-  const revenueTransitId = await ensureTicketRevenueTransitAccount()
-  if (!revenueTransitId || input.amount <= 0) return
+  const revenueTransitId = await resolveTicketRevenueTransitAccount()
+  if (!revenueTransitId) {
+    throw new Error(
+      'حساب وسيط إيراد التذاكر غير موجود — أضفه يدوياً واضبطه من الحسابات الوسيطة',
+    )
+  }
+  if (input.amount <= 0) return
 
   const ref = bookingRefId(input.bookingId)
   const exists = await prisma.journalLine.findFirst({
@@ -190,7 +172,12 @@ export async function postBookingCommission(input: {
   const amount = Math.round(((input.ticketPrice * percent) / 100) * 100) / 100
   if (amount <= 0) return
 
-  const transitId = await ensureCommissionsTransitAccount()
+  const transitId = await resolveCommissionsTransitAccount()
+  if (!transitId) {
+    throw new Error(
+      'حساب عمولات المكاتب غير موجود — أضفه يدوياً واضبطه من الحسابات الوسيطة',
+    )
+  }
   const ref = bookingRefId(input.bookingId)
   const exists = await prisma.journalLine.findFirst({
     where: { referenceType: 'booking_commission', referenceId: ref },
@@ -238,24 +225,11 @@ function voucherRefId(voucherId: string): number {
   return bookingRefId(`voucher:${voucherId}`)
 }
 
-async function ensureCashAccount() {
+async function resolveCashAccount(): Promise<number | null> {
   const existing =
     (await prisma.account.findFirst({ where: { code: '11101' } })) ||
     (await prisma.account.findFirst({ where: { nameAr: 'الصندوق الرئيسي' } }))
-  if (existing) return existing.id
-
-  const parent = await prisma.account.findFirst({ where: { code: '111' } })
-  const row = await prisma.account.create({
-    data: {
-      code: '11101',
-      nameAr: 'الصندوق الرئيسي',
-      nameEn: 'Main Cash',
-      parentId: parent?.id ?? null,
-      accountLevel: 'فرعي',
-      financialStatement: 'الميزانية العمومية',
-    },
-  })
-  return row.id
+  return existing?.id ?? null
 }
 
 /**
@@ -277,7 +251,10 @@ export async function postAdminOfficeSettlement(input: {
   })
   if (exists) return
 
-  const cashId = await ensureCashAccount()
+  const cashId = await resolveCashAccount()
+  if (!cashId) {
+    throw new Error('حساب الصندوق الرئيسي غير موجود — أضفه يدوياً من دليل الحسابات')
+  }
   const notes = input.description
 
   await prisma.journalLine.createMany({
@@ -324,6 +301,8 @@ function entryLabel(referenceType: string): string {
       return 'عمولة'
     case 'admin_settlement':
       return 'تسديد (أدمن)'
+    case 'manual_journal':
+      return 'قيد يومي'
     default:
       return referenceType
   }

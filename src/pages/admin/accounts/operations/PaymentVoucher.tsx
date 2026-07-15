@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import api from '../../../../api/accountingApi';
+import { serverApi } from '../../../../api/serverApi';
 import { DEFAULT_BRANCH_NAME } from "../constants";
 
 type PaymentType = "cash" | "bank" | "";
@@ -37,6 +38,7 @@ type Bank = {
 
 type Account = {
   id: number;
+  code?: string;
   name_ar: string;
 };
 
@@ -167,14 +169,32 @@ const PaymentVoucher: React.FC = () => {
   };
 
   const fetchAccounts = async () => {
-    const res = await api.get("/accounts/sub-for-ceiling");
-    const data =
-      res.data?.list ||
-      res.data?.accounts ||
-      res.data?.data ||
-      res.data ||
-      [];
-    setAccounts(Array.isArray(data) ? data : []);
+    try {
+      const res = await serverApi.accounts.sub();
+      const list = (res.list ?? []).map((a: any) => ({
+        id: a.id,
+        code: a.code,
+        name_ar: a.name_ar,
+      }));
+      const seen = new Set<string>();
+      setAccounts(
+        list.filter((a: { code?: string; id: number }) => {
+          const key = a.code || String(a.id);
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        }),
+      );
+    } catch {
+      const res = await api.get("/accounts/sub-for-ceiling");
+      const data =
+        res.data?.list ||
+        res.data?.accounts ||
+        res.data?.data ||
+        res.data ||
+        [];
+      setAccounts(Array.isArray(data) ? data : []);
+    }
   };
 
   const fetchCurrencies = async () => {
@@ -603,7 +623,7 @@ const PaymentVoucher: React.FC = () => {
                 <option value="">-- الحساب --</option>
                 {accounts.map((a) => (
                   <option key={a.id} value={a.id}>
-                    {a.name_ar}
+                    {a.code ? `${a.code} — ` : ''}{a.name_ar}
                   </option>
                 ))}
               </select>

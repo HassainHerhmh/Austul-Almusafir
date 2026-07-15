@@ -1,384 +1,487 @@
-import React, { useEffect, useState } from "react";
-import api from '../../../../api/accountingApi';
-import { DEFAULT_BRANCH_NAME } from "../constants";
-
-/* =========================
-   Journal Entry
-========================= */
+import React, { useEffect, useState } from 'react'
+import api from '../../../../api/accountingApi'
+import { serverApi } from '../../../../api/serverApi'
+import { DEFAULT_BRANCH_NAME } from '../constants'
 
 type Account = {
-  id: number;
-  code?: string;
-  name_ar: string;
-};
+  id: number
+  code?: string
+  name_ar: string
+}
 
 type Currency = {
-  id: number;
-  name_ar: string;
-  code: string;
-};
+  id: number
+  name_ar: string
+  code: string
+}
 
 type Row = {
-  id: number;
-  reference_id: number;      // 🔴 مهم
-  reference_type?: string;   // اختياري
-  journal_date: string;
-  amount: number;
-  currency_name: string;
-  from_account: string;
-  to_account: string;
-  notes: string;
-  user_name: string;
-  branch_name: string;
-};
+  id: number
+  reference_id: number
+  reference_type?: string
+  journal_date: string
+  amount: number
+  currency_name: string
+  from_account: string
+  to_account: string
+  notes: string
+  user_name: string
+  branch_name: string
+}
 
-const today = new Date().toLocaleDateString("en-CA");
+const today = new Date().toLocaleDateString('en-CA')
 
 const JournalEntry: React.FC = () => {
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [currencies, setCurrencies] = useState<Currency[]>([]);
-  const [rows, setRows] = useState<Row[]>([]);
-  const [filtered, setFiltered] = useState<Row[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([])
+  const [currencies, setCurrencies] = useState<Currency[]>([])
+  const [rows, setRows] = useState<Row[]>([])
+  const [filtered, setFiltered] = useState<Row[]>([])
 
-  const [showModal, setShowModal] = useState(false);
-  const [selectedRow, setSelectedRow] = useState<Row | null>(null);
-  const [isEdit, setIsEdit] = useState(false);
+  const [showModal, setShowModal] = useState(false)
+  const [selectedRow, setSelectedRow] = useState<Row | null>(null)
+  const [busy, setBusy] = useState(false)
 
-  const [date, setDate] = useState(today);
-  const [amount, setAmount] = useState("");
-  const [currencyId, setCurrencyId] = useState("");
-  const [notes, setNotes] = useState("");
+  const [date, setDate] = useState(today)
+  const [amount, setAmount] = useState('')
+  const [currencyId, setCurrencyId] = useState('')
+  const [notes, setNotes] = useState('')
 
-  const [fromAccount, setFromAccount] = useState("");
-  const [fromAccountName, setFromAccountName] = useState("");
+  const [fromAccount, setFromAccount] = useState('')
+  const [fromAccountName, setFromAccountName] = useState('')
 
-  const [toAccount, setToAccount] = useState("");
-  const [toAccountName, setToAccountName] = useState("");
+  const [toAccount, setToAccount] = useState('')
+  const [toAccountName, setToAccountName] = useState('')
 
-  const [search, setSearch] = useState("");
-
-  useEffect(() => {
-    fetchAccounts();
-    fetchCurrencies();
-    loadRows();
-  }, []);
+  const [search, setSearch] = useState('')
 
   useEffect(() => {
-    const q = search.trim();
-    if (!q) setFiltered(rows);
+    void fetchAccounts()
+    void fetchCurrencies()
+    void loadRows()
+  }, [])
+
+  useEffect(() => {
+    const q = search.trim()
+    if (!q) setFiltered(rows)
     else {
       setFiltered(
         rows.filter(
-          r =>
+          (r) =>
             r.from_account.includes(q) ||
             r.to_account.includes(q) ||
-            (r.notes || "").includes(q)
-        )
-      );
+            (r.notes || '').includes(q),
+        ),
+      )
     }
-  }, [search, rows]);
+  }, [search, rows])
 
   const fetchAccounts = async () => {
-    const res = await api.get("/accounts/sub-for-ceiling");
-    const data = res.data?.list || res.data || [];
-    setAccounts(Array.isArray(data) ? data : []);
-  };
+    try {
+      const res = await serverApi.accounts.sub()
+      const seen = new Set<string>()
+      setAccounts(
+        (res.list ?? [])
+          .map((a: any) => ({
+            id: a.id,
+            code: a.code,
+            name_ar: a.name_ar,
+          }))
+          .filter((a: Account) => {
+            const key = a.code || String(a.id)
+            if (seen.has(key)) return false
+            seen.add(key)
+            return true
+          }),
+      )
+    } catch {
+      const res = await api.get('/accounts/sub-for-ceiling')
+      const data = res.data?.list || res.data || []
+      setAccounts(Array.isArray(data) ? data : [])
+    }
+  }
 
   const fetchCurrencies = async () => {
-    const res = await api.get("/currencies");
+    const res = await api.get('/currencies')
     const data =
       res.data?.currencies ||
       res.data?.list ||
       res.data?.data ||
-      (Array.isArray(res.data) ? res.data : []);
-    setCurrencies(Array.isArray(data) ? data : []);
-  };
+      (Array.isArray(res.data) ? res.data : [])
+    setCurrencies(Array.isArray(data) ? data : [])
+  }
 
   const loadRows = async () => {
-    const res = await api.get("/journal-entries");
-    if (res.data?.success) {
-      setRows(res.data.list || []);
-      setFiltered(res.data.list || []);
+    try {
+      const res = await serverApi.accounts.journalLines({
+        types: 'manual_journal',
+      })
+      const lines = res.list ?? []
+      const byRef = new Map<number, typeof lines>()
+      lines.forEach((l) => {
+        const arr = byRef.get(l.reference_id) || []
+        arr.push(l)
+        byRef.set(l.reference_id, arr)
+      })
+
+      const mapped: Row[] = []
+      byRef.forEach((pair, ref) => {
+        const debit = pair.find((x) => x.debit > 0)
+        const credit = pair.find((x) => x.credit > 0)
+        if (!debit && !credit) return
+        mapped.push({
+          id: debit?.id || credit!.id,
+          reference_id: ref,
+          reference_type: 'manual_journal',
+          journal_date: (debit || credit)!.journal_date,
+          amount: debit?.debit || credit?.credit || 0,
+          currency_name: '—',
+          from_account: debit
+            ? `${debit.account_code} — ${debit.account_name}`
+            : '—',
+          to_account: credit
+            ? `${credit.account_code} — ${credit.account_name}`
+            : '—',
+          notes: debit?.notes || credit?.notes || '',
+          user_name: 'مدير النظام',
+          branch_name: DEFAULT_BRANCH_NAME,
+        })
+      })
+      mapped.sort((a, b) => b.journal_date.localeCompare(a.journal_date) || b.id - a.id)
+      setRows(mapped)
+      setFiltered(mapped)
+    } catch {
+      const res = await api.get('/journal-entries')
+      if (res.data?.success) {
+        setRows(res.data.list || [])
+        setFiltered(res.data.list || [])
+      }
     }
-  };
+  }
 
   const resetForm = () => {
-    setDate(today);
-    setAmount("");
-    setCurrencyId("");
-    setFromAccount("");
-    setFromAccountName("");
-    setToAccount("");
-    setToAccountName("");
-    setNotes("");
-    setIsEdit(false);
-    setSelectedRow(null);
-  };
+    setDate(today)
+    setAmount('')
+    setCurrencyId(currencies[0] ? String(currencies[0].id) : '')
+    setFromAccount('')
+    setFromAccountName('')
+    setToAccount('')
+    setToAccountName('')
+    setNotes('')
+    setSelectedRow(null)
+  }
 
   const openAdd = () => {
-    resetForm();
-    setShowModal(true);
-  };
+    resetForm()
+    setShowModal(true)
+  }
 
-  const openEdit = () => {
+  const remove = async () => {
     if (!selectedRow) {
-      alert("حدد قيدًا أولاً");
-      return;
+      alert('حدد قيدًا أولاً')
+      return
     }
-    setIsEdit(true);
-    setShowModal(true);
+    if (!selectedRow.reference_id) {
+      alert('هذا السطر لا يملك رقم سند صالح')
+      return
+    }
+    if (!window.confirm('هل أنت متأكد من حذف القيد بالكامل؟')) return
 
-    setDate(selectedRow.journal_date.slice(0, 10));
-    setAmount(String(selectedRow.amount));
-    setNotes(selectedRow.notes || "");
-    setFromAccountName(selectedRow.from_account);
-    setToAccountName(selectedRow.to_account);
-  };
-
-const remove = async () => {
-  if (!selectedRow) {
-    alert("حدد قيدًا أولاً");
-    return;
+    try {
+      await serverApi.accounts.deleteManualJournal(selectedRow.reference_id)
+      await loadRows()
+      setSelectedRow(null)
+      alert('تم حذف القيد')
+    } catch (err) {
+      console.error(err)
+      alert(err instanceof Error ? err.message : 'حدث خطأ أثناء حذف القيد')
+    }
   }
-
-  if (!selectedRow.reference_id) {
-    alert("هذا السطر لا يملك رقم سند صالح");
-    return;
-  }
-
-  if (!window.confirm("هل أنت متأكد من حذف القيد بالكامل؟")) return;
-
-  try {
-    await api.delete(
-      `/journal-entries/by-ref/${selectedRow.reference_id}`
-    );
-
-    await loadRows();
-    setSelectedRow(null);
-
-    alert("تم حذف القيد بالكامل");
-  } catch (err) {
-    console.error(err);
-    alert("حدث خطأ أثناء حذف القيد");
-  }
-};
-
-
-
 
   const saveEntry = async () => {
-    if (!fromAccount || !toAccount || !amount || !currencyId) {
-      alert("يرجى إدخال جميع البيانات");
-      return;
+    if (!fromAccount || !toAccount || !amount) {
+      alert('يرجى إدخال الحسابات والمبلغ')
+      return
     }
-const refId = Date.now(); // أو uuid()
+    if (fromAccount === toAccount) {
+      alert('الحساب المدين والدائن يجب أن يختلفا')
+      return
+    }
 
-const base = {
-  journal_type_id: 1,
-  reference_type: "manual",
-  reference_id: refId,          // 🔴 مهم جداً
-  journal_date: date,
-  currency_id: Number(currencyId),
-  notes: notes || "قيد يومي",
-  cost_center_id: null,
-};
+    setBusy(true)
+    try {
+      await serverApi.accounts.createManualJournal({
+        journal_date: date,
+        amount: Number(amount),
+        debit_account_id: Number(fromAccount),
+        credit_account_id: Number(toAccount),
+        notes: notes || 'قيد يومي',
+      })
+      await loadRows()
+      setShowModal(false)
+      resetForm()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'فشل حفظ القيد')
+    } finally {
+      setBusy(false)
+    }
+  }
 
-
-    await api.post("/journal-entries", {
-      ...base,
-      account_id: Number(fromAccount),
-      debit: Number(amount),
-      credit: 0,
-    });
-
-    await api.post("/journal-entries", {
-      ...base,
-      account_id: Number(toAccount),
-      debit: 0,
-      credit: Number(amount),
-    });
-
-    await loadRows();
-    setShowModal(false);
-    resetForm();
-  };
-
-  const AccountInput = ({ value, setValue, setId, placeholder }: any) => {
-    const [open, setOpen] = useState(false);
+  const AccountInput = ({
+    value,
+    setValue,
+    setId,
+    placeholder,
+  }: {
+    value: string
+    setValue: (v: string) => void
+    setId: (v: string) => void
+    placeholder: string
+  }) => {
+    const [open, setOpen] = useState(false)
 
     const list =
-      value.trim() === ""
+      value.trim() === ''
         ? accounts
-        : accounts.filter(a =>
-            a.name_ar.toLowerCase().includes(value.toLowerCase())
-          );
+        : accounts.filter(
+            (a) =>
+              a.name_ar.toLowerCase().includes(value.toLowerCase()) ||
+              (a.code || '').includes(value),
+          )
 
     return (
       <div className="relative w-full">
         <input
-          className="input w-full"
+          className="acc-input w-full"
           placeholder={placeholder}
           value={value}
           onFocus={() => setOpen(true)}
+          onBlur={() => setTimeout(() => setOpen(false), 150)}
           onChange={(e) => {
-            setValue(e.target.value);
-            setOpen(true);
+            setValue(e.target.value)
+            setOpen(true)
           }}
         />
 
         {open && (
-          <div className="absolute z-50 bg-white border rounded-lg mt-1 w-full max-h-48 overflow-y-auto">
-            {list.map(a => (
+          <div className="acc-dropdown absolute z-50 mt-1 w-full max-h-48 overflow-y-auto rounded-lg">
+            {list.map((a) => (
               <div
                 key={a.id}
-                className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                className="acc-dropdown-item cursor-pointer px-3 py-2"
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={() => {
-                  setValue(a.name_ar);
-                  setId(String(a.id));
-                  setOpen(false);
+                  setValue(a.name_ar)
+                  setId(String(a.id))
+                  setOpen(false)
                 }}
               >
+                {a.code ? `${a.code} — ` : ''}
                 {a.name_ar}
               </div>
             ))}
 
             {list.length === 0 && (
-              <div className="px-3 py-2 text-gray-400">
-                لا توجد نتائج
-              </div>
+              <div className="acc-muted px-3 py-2">لا توجد نتائج</div>
             )}
           </div>
         )}
       </div>
-    );
-  };
+    )
+  }
 
-  const getCode = (id: string) =>
-    accounts.find(a => a.id === Number(id))?.code || "";
+  const getCode = (id: string) => accounts.find((a) => a.id === Number(id))?.code || ''
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center bg-[#e9efe6] p-4 rounded-lg">
-        <div className="flex gap-2">
-          <button onClick={openAdd} className="btn-green">➕ إضافة</button>
-          <button onClick={openEdit} className="btn-gray">✏️ تعديل</button>
-          <button onClick={remove} className="btn-red">🗑️ حذف</button>
-          <button onClick={loadRows} className="btn-gray">🔄 تحديث</button>
+      <div className="acc-toolbar">
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={openAdd} className="acc-btn acc-btn-primary px-4 py-2 rounded-lg">
+            إضافة
+          </button>
+          <button
+            type="button"
+            onClick={() => void remove()}
+            className="acc-btn acc-btn-danger px-4 py-2 rounded-lg"
+          >
+            حذف
+          </button>
+          <button
+            type="button"
+            onClick={() => void loadRows()}
+            className="acc-btn acc-btn-outline px-4 py-2 rounded-lg"
+          >
+            تحديث
+          </button>
         </div>
 
         <input
-          placeholder="🔍 بحث..."
-          className="input w-56"
+          placeholder="بحث..."
+          className="acc-input w-56"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
       </div>
 
       <div className="acc-table-wrap">
-  <table className="acc-table text-center">
-    <thead>
-      <tr>
-        <th className="border px-2 py-1">رقم السند</th>
-        <th className="border px-2 py-1">التاريخ</th>
-        <th className="border px-2 py-1">المبلغ</th>
-        <th className="border px-2 py-1">العملة</th>
-        <th className="border px-2 py-1">من حساب</th>
-        <th className="border px-2 py-1">إلى حساب</th>
-        <th className="border px-2 py-1">ملاحظات</th>
-        <th className="border px-2 py-1">المستخدم</th>
-        <th className="border px-2 py-1">الفرع</th>
-      </tr>
-    </thead>
-    <tbody>
-      {filtered.length ? (
-        filtered.map(r => (
-          <tr
-            key={r.id}
-            onClick={() => setSelectedRow(r)}
-            className={`cursor-pointer ${
-              selectedRow?.id === r.id ? "acc-row-selected" : ""
-            }`}
-          >
-            <td className="border px-2 py-1">{r.reference_id}</td>
-            <td className="border px-2 py-1">{r.journal_date}</td>
-            <td className="border px-2 py-1">{r.amount}</td>
-            <td className="border px-2 py-1">{r.currency_name}</td>
-            <td className="border px-2 py-1">{r.from_account}</td>
-            <td className="border px-2 py-1">{r.to_account}</td>
-            <td className="border px-2 py-1">{r.notes}</td>
-            <td className="border px-2 py-1">{r.user_name}</td>
-            <td className="border px-2 py-1">{r.branch_name || DEFAULT_BRANCH_NAME}</td>
-          </tr>
-        ))
-      ) : (
-        <tr>
-          <td colSpan={9} className="py-6 text-gray-400 border">
-            لا توجد بيانات
-          </td>
-        </tr>
-      )}
-    </tbody>
-  </table>
-</div>
-
+        <table className="acc-table text-center">
+          <thead>
+            <tr>
+              <th>رقم السند</th>
+              <th>التاريخ</th>
+              <th>المبلغ</th>
+              <th>من حساب</th>
+              <th>إلى حساب</th>
+              <th>ملاحظات</th>
+              <th>المستخدم</th>
+              <th>الفرع</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.length ? (
+              filtered.map((r) => (
+                <tr
+                  key={r.reference_id}
+                  onClick={() => setSelectedRow(r)}
+                  className={`cursor-pointer ${
+                    selectedRow?.reference_id === r.reference_id ? 'acc-row-selected' : ''
+                  }`}
+                >
+                  <td>{r.reference_id}</td>
+                  <td>{r.journal_date}</td>
+                  <td>{r.amount.toLocaleString('ar-YE')}</td>
+                  <td>{r.from_account}</td>
+                  <td>{r.to_account}</td>
+                  <td>{r.notes}</td>
+                  <td>{r.user_name}</td>
+                  <td>{r.branch_name || DEFAULT_BRANCH_NAME}</td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={8} className="acc-muted py-6">
+                  لا توجد بيانات
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="acc-modal-panel w-[720px] rounded-xl p-6 space-y-4">
-            <h3 className="text-lg font-bold text-center">
-              {isEdit ? "تعديل قيد يومي" : "إضافة قيد يومي"}
-            </h3>
+        <div className="acc-modal-overlay fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="acc-modal-panel w-full max-w-[720px] space-y-4 rounded-xl p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="acc-heading text-center text-lg">إضافة قيد يومي</h3>
 
-            <div className="grid grid-cols-3 gap-4">
-              <input type="date" className="input" value={date} onChange={(e) => setDate(e.target.value)} />
-              <select className="input" value={currencyId} onChange={(e) => setCurrencyId(e.target.value)}>
-                <option value="">-- العملة --</option>
-                {currencies.map(c => (
-                  <option key={c.id} value={c.id}>{c.name_ar} ({c.code})</option>
-                ))}
-              </select>
-              <input className="input" placeholder="المبلغ" value={amount} onChange={(e) => setAmount(e.target.value)} />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div>
-                <AccountInput value={fromAccountName} setValue={setFromAccountName} setId={setFromAccount} placeholder="الحساب المدين" />
-                <input disabled className="input mt-1 bg-gray-100" placeholder="كود الحساب" value={getCode(fromAccount)} />
+                <label className="acc-muted mb-1 block text-sm">التاريخ</label>
+                <input
+                  type="date"
+                  className="acc-input"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                />
               </div>
               <div>
-                <AccountInput value={toAccountName} setValue={setToAccountName} setId={setToAccount} placeholder="الحساب الدائن" />
-                <input disabled className="input mt-1 bg-gray-100" placeholder="كود الحساب" value={getCode(toAccount)} />
+                <label className="acc-muted mb-1 block text-sm">العملة</label>
+                <select
+                  className="acc-select"
+                  value={currencyId}
+                  onChange={(e) => setCurrencyId(e.target.value)}
+                >
+                  <option value="">— اختياري —</option>
+                  {currencies.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name_ar} ({c.code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="acc-muted mb-1 block text-sm">المبلغ</label>
+                <input
+                  className="acc-input"
+                  type="number"
+                  min={1}
+                  placeholder="المبلغ"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                />
               </div>
             </div>
 
-            <textarea className="input" placeholder="ملاحظات" value={notes} onChange={(e) => setNotes(e.target.value)} />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label className="acc-muted mb-1 block text-sm">الحساب المدين</label>
+                <AccountInput
+                  value={fromAccountName}
+                  setValue={setFromAccountName}
+                  setId={setFromAccount}
+                  placeholder="ابحث عن الحساب المدين"
+                />
+                <input
+                  disabled
+                  className="acc-input mt-1"
+                  placeholder="كود الحساب"
+                  value={getCode(fromAccount)}
+                />
+              </div>
+              <div>
+                <label className="acc-muted mb-1 block text-sm">الحساب الدائن</label>
+                <AccountInput
+                  value={toAccountName}
+                  setValue={setToAccountName}
+                  setId={setToAccount}
+                  placeholder="ابحث عن الحساب الدائن"
+                />
+                <input
+                  disabled
+                  className="acc-input mt-1"
+                  placeholder="كود الحساب"
+                  value={getCode(toAccount)}
+                />
+              </div>
+            </div>
 
-            <div className="flex justify-between">
+            <div>
+              <label className="acc-muted mb-1 block text-sm">ملاحظات</label>
+              <textarea
+                className="acc-textarea"
+                rows={3}
+                placeholder="ملاحظات"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+              />
+            </div>
+
+            <div className="flex justify-between gap-3">
               <button
+                type="button"
                 onClick={() => {
-                  setShowModal(false);
-                  resetForm();
+                  setShowModal(false)
+                  resetForm()
                 }}
-                className="btn-gray"
+                className="acc-btn acc-btn-outline rounded-lg px-5 py-2"
               >
                 إلغاء
               </button>
-              <button onClick={saveEntry} className="btn-green">
-                حفظ
+              <button
+                type="button"
+                onClick={() => void saveEntry()}
+                disabled={busy}
+                className="acc-btn acc-btn-primary rounded-lg px-5 py-2"
+              >
+                {busy ? 'جاري الحفظ…' : 'حفظ'}
               </button>
             </div>
           </div>
         </div>
       )}
-
-      <style>{`
-        .input { padding:10px; border-radius:8px; border:1px solid #ccc; }
-        .btn-green { background:#14532d; color:#fff; padding:8px 16px; border-radius:8px; }
-        .btn-gray { background:#e5e7eb; padding:8px 16px; border-radius:8px; }
-        .btn-red { background:#dc2626; color:#fff; padding:8px 16px; border-radius:8px; }
-      `}</style>
     </div>
-  );
-};
+  )
+}
 
-export default JournalEntry;
+export default JournalEntry

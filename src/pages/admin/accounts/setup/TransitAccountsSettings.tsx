@@ -24,7 +24,17 @@ const TransitAccountsSettings = () => {
           code: a.code,
           name_ar: a.name_ar,
         }))
-        setAccounts(rows.sort((a, b) => a.code.localeCompare(b.code, 'ar')))
+        const seen = new Set<string>()
+        setAccounts(
+          rows
+            .filter((a) => {
+              const key = a.code || String(a.id)
+              if (seen.has(key)) return false
+              seen.add(key)
+              return true
+            })
+            .sort((a, b) => a.code.localeCompare(b.code, 'ar')),
+        )
       } catch {
         try {
           const res = await (api as any).accounts.getAccounts()
@@ -88,7 +98,7 @@ const TransitAccountsSettings = () => {
 
       <div className="acc-card border rounded-xl p-4 space-y-4 shadow-sm" style={{ maxWidth: 480 }}>
         <div className="space-y-2">
-          <div className="text-sm font-semibold text-gray-700">حساب وسيط إيراد التذاكر</div>
+          <div className="text-sm font-semibold text-[var(--ink)]">حساب وسيط إيراد التذاكر</div>
           <select
             className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
             value={ticketRevenue}
@@ -105,7 +115,7 @@ const TransitAccountsSettings = () => {
         </div>
 
         <div className="space-y-2">
-          <div className="text-sm font-semibold text-gray-700">حساب عمولات المكاتب (مصروف)</div>
+          <div className="text-sm font-semibold text-[var(--ink)]">حساب عمولات المكاتب (مصروف)</div>
           <select
             className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
             value={officeCommissions}

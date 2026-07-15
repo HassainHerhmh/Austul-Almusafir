@@ -276,6 +276,21 @@ export const serverApi = {
         }>
       }>(`/api/accounts/journal-lines${qs ? `?${qs}` : ''}`)
     },
+    createManualJournal: (data: {
+      journal_date: string
+      amount: number
+      debit_account_id: number
+      credit_account_id: number
+      notes?: string
+    }) =>
+      apiRequest<{ referenceId: number }>('/api/accounts/journal-manual', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    deleteManualJournal: (ref: number) =>
+      apiRequest<{ deleted: number }>(`/api/accounts/journal-manual/${ref}`, {
+        method: 'DELETE',
+      }),
   },
 
   settings: {

@@ -2,10 +2,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { prisma } from '../config'
 import { authRequired, requireRoles } from '../middleware/auth'
-import {
-  ensureOfficeLedgerAccount,
-  postAdminOfficeSettlement,
-} from '../services/ledger'
+import { postAdminOfficeSettlement } from '../services/ledger'
 import { asyncHandler, fail, ok } from '../utils/http'
 
 export const customersRouter = Router()
@@ -112,23 +109,20 @@ vouchersRouter.post(
       !body.data.relatedBookingId &&
       body.data.type === 'payment'
     ) {
-      let office = await prisma.office.findUnique({ where: { id: officeId } })
-      if (office && !office.ledgerAccountId) {
-        const ledgerAccountId = await ensureOfficeLedgerAccount(office.name)
-        office = await prisma.office.update({
-          where: { id: office.id },
-          data: { ledgerAccountId },
-        })
+      const office = await prisma.office.findUnique({ where: { id: officeId } })
+      if (!office?.ledgerAccountId) {
+        return fail(
+          res,
+          `المكتب غير مربوط بحساب ذمة — اربطه من إدارة المكاتب قبل تسجيل التسديد`,
+        )
       }
-      if (office?.ledgerAccountId) {
-        await postAdminOfficeSettlement({
-          voucherId: voucher.id,
-          ledgerAccountId: office.ledgerAccountId,
-          amount: voucher.amount,
-          description: voucher.description,
-          date: voucher.date,
-        })
-      }
+      await postAdminOfficeSettlement({
+        voucherId: voucher.id,
+        ledgerAccountId: office.ledgerAccountId,
+        amount: voucher.amount,
+        description: voucher.description,
+        date: voucher.date,
+      })
     }
 
     return ok(res, { voucher }, 201)

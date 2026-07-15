@@ -2,10 +2,6 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { prisma } from '../config'
 import { authRequired, requireAdmin } from '../middleware/auth'
-import {
-  ensureCommissionsTransitAccount,
-  ensureTicketRevenueTransitAccount,
-} from '../services/ledger'
 import { asyncHandler, fail, ok } from '../utils/http'
 
 export const settingsRouter = Router()
@@ -55,17 +51,13 @@ async function saveTransit(input: {
   if (input.office_commissions_account !== undefined) {
     const v = await validateSubAccount(commissionsId)
     if (!v.ok) return v
-    commissionsId = v.accountId ?? (await ensureCommissionsTransitAccount())
-  } else if (!commissionsId) {
-    commissionsId = await ensureCommissionsTransitAccount()
+    commissionsId = v.accountId
   }
 
   if (input.ticket_revenue_account !== undefined) {
     const v = await validateSubAccount(ticketId)
     if (!v.ok) return v
-    ticketId = v.accountId ?? (await ensureTicketRevenueTransitAccount())
-  } else if (!ticketId) {
-    ticketId = await ensureTicketRevenueTransitAccount()
+    ticketId = v.accountId
   }
 
   const value: TransitValue = {
@@ -85,12 +77,10 @@ settingsRouter.get(
   asyncHandler(async (_req, res) => {
     const row = await prisma.appSetting.findUnique({ where: { key: TRANSIT_KEY } })
     const raw = (row?.value as Partial<TransitValue> | null) ?? null
-    const officeId = raw?.office_commissions_account ?? (await ensureCommissionsTransitAccount())
-    const ticketId = raw?.ticket_revenue_account ?? (await ensureTicketRevenueTransitAccount())
     return ok(res, {
       data: {
-        office_commissions_account: officeId,
-        ticket_revenue_account: ticketId,
+        office_commissions_account: raw?.office_commissions_account ?? null,
+        ticket_revenue_account: raw?.ticket_revenue_account ?? null,
       },
     })
   }),

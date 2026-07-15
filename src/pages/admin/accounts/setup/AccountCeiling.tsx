@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import api from '../../../../api/accountingApi';
+import { serverApi } from '../../../../api/serverApi';
 import { DEFAULT_BRANCH_NAME } from "../constants";
 import { extractList } from '../../../../utils/apiHelper';
 
@@ -70,24 +71,41 @@ const AccountCeiling: React.FC = () => {
   ========================= */
   const loadAll = async () => {
     try {
-      const [c1, c2, c3, c4] = await Promise.all([
+      const [c1, c3, c4] = await Promise.all([
         api.get("/account-ceilings"),
-        api.get("/accounts/sub-for-ceiling"), // 🔹 الحسابات الفرعية فقط
         api.get("/account-groups"),
         api.get("/currencies"),
       ]);
 
-      const ceilings = extractList<Ceiling>(c1);
-      setList(ceilings);
-      setFiltered(ceilings);
-
-      setAccounts(
-        extractList<Account>(c2).map((a) => ({
+      let subList: Account[] = [];
+      try {
+        const res = await serverApi.accounts.sub();
+        const seen = new Set<string>();
+        subList = (res.list ?? [])
+          .map((a: any) => ({
+            id: Number(a.id),
+            code: String(a.code),
+            name_ar: a.name_ar,
+          }))
+          .filter((a: Account) => {
+            const key = a.code || String(a.id);
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+      } catch {
+        const c2 = await api.get("/accounts/sub-for-ceiling");
+        subList = extractList<Account>(c2).map((a) => ({
           id: Number(a.id),
           code: String(a.code),
           name_ar: a.name_ar,
-        }))
-      );
+        }));
+      }
+
+      const ceilings = extractList<Ceiling>(c1);
+      setList(ceilings);
+      setFiltered(ceilings);
+      setAccounts(subList);
 
       const rawGroups = c3.data?.list || c3.data?.groups || [];
       setGroups(

@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { prisma } from '../config'
 import { authRequired, requireAdmin } from '../middleware/auth'
-import { ensureOfficeLedgerAccount, getAccountBalance, getOfficeLedgerStatement } from '../services/ledger'
+import { getAccountBalance, getOfficeLedgerStatement } from '../services/ledger'
 import { asyncHandler, fail, ok, paramId } from '../utils/http'
 
 export const officesRouter = Router()
@@ -43,13 +43,12 @@ officesRouter.get(
       return fail(res, 'ليس لديك صلاحية', 403)
     }
 
-    let ledgerAccountId = office.ledgerAccountId
+    const ledgerAccountId = office.ledgerAccountId
     if (!ledgerAccountId) {
-      ledgerAccountId = await ensureOfficeLedgerAccount(office.name)
-      await prisma.office.update({
-        where: { id: office.id },
-        data: { ledgerAccountId },
-      })
+      return fail(
+        res,
+        `المكتب غير مربوط بحساب ذمة — اربطه من إدارة المكاتب بحساب فرعي لـ «${office.name}»`,
+      )
     }
 
     const fromDate = typeof req.query.from === 'string' && req.query.from ? req.query.from : null
@@ -93,11 +92,6 @@ officesRouter.post(
       .safeParse(req.body)
     if (!body.success) return fail(res, 'بيانات غير صالحة')
 
-    let ledgerAccountId = body.data.ledgerAccountId ?? null
-    if (!ledgerAccountId) {
-      ledgerAccountId = await ensureOfficeLedgerAccount(body.data.name)
-    }
-
     const office = await prisma.office.create({
       data: {
         name: body.data.name,
@@ -105,7 +99,7 @@ officesRouter.post(
         phone: body.data.phone,
         status: body.data.status ?? 'active',
         subscription: body.data.subscription ?? 'trial',
-        ledgerAccountId,
+        ledgerAccountId: body.data.ledgerAccountId ?? null,
         commissionPercent: body.data.commissionPercent ?? 0,
       },
     })
@@ -133,20 +127,10 @@ officesRouter.put(
       .safeParse(req.body)
     if (!body.success) return fail(res, 'بيانات غير صالحة')
 
-    let ledgerAccountId = body.data.ledgerAccountId
-    if (ledgerAccountId === undefined) ledgerAccountId = existing.ledgerAccountId
-    if (!ledgerAccountId) {
-      ledgerAccountId = await ensureOfficeLedgerAccount(body.data.name ?? existing.name)
-    }
-
     const office = await prisma.office.update({
       where: { id: paramId(req) },
-      data: {
-        ...body.data,
-        ledgerAccountId,
-      },
+      data: body.data,
     })
     return ok(res, { office })
   }),
 )
-

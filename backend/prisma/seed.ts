@@ -83,62 +83,8 @@ async function main() {
     }
     console.log('تم إنشاء دليل الحسابات الأساسي')
   } else {
-    // انقل/أنشئ عمولات المكاتب تحت المصروفات (أرباح وخسائر) وليس الميزانية
-    // لا تلمس 1132 إلا إن كان ما زال باسم العمولات (ترقية قديمة)
-    const expenses = await prisma.account.findFirst({ where: { code: '5' } })
-    const byName = await prisma.account.findFirst({ where: { nameAr: 'عمولات المكاتب' } })
-    const byNewCode = await prisma.account.findFirst({ where: { code: '53' } })
-    const old1132AsCommission = await prisma.account.findFirst({
-      where: { code: '1132', nameAr: 'عمولات المكاتب' },
-    })
-    const target = byNewCode || byName || old1132AsCommission
-
-    if (target && expenses) {
-      await prisma.account.update({
-        where: { id: target.id },
-        data: {
-          code: '53',
-          nameAr: 'عمولات المكاتب',
-          nameEn: 'Office Commissions Expense',
-          parentId: expenses.id,
-          accountLevel: 'فرعي',
-          financialStatement: 'أرباح وخسائر',
-        },
-      })
-      console.log('تم ضبط حساب عمولات المكاتب (53) تحت المصروفات')
-    } else if (!target && expenses) {
-      await prisma.account.create({
-        data: {
-          code: '53',
-          nameAr: 'عمولات المكاتب',
-          nameEn: 'Office Commissions Expense',
-          parentId: expenses.id,
-          accountLevel: 'فرعي',
-          financialStatement: 'أرباح وخسائر',
-        },
-      })
-      console.log('تم إضافة مصروف عمولات المكاتب (53)')
-    }
-
-    // حساب وسيط إيراد التذاكر (1132)
-    const receivables = await prisma.account.findFirst({ where: { code: '113' } })
-    const ticketTransitByCode = await prisma.account.findFirst({ where: { code: '1132' } })
-    const ticketTransitByName = await prisma.account.findFirst({
-      where: { nameAr: 'وسيط إيراد التذاكر' },
-    })
-    if (!ticketTransitByCode && !ticketTransitByName && receivables) {
-      await prisma.account.create({
-        data: {
-          code: '1132',
-          nameAr: 'وسيط إيراد التذاكر',
-          nameEn: 'Ticket Revenue Transit',
-          parentId: receivables.id,
-          accountLevel: 'فرعي',
-          financialStatement: 'الميزانية العمومية',
-        },
-      })
-      console.log('تم إضافة وسيط إيراد التذاكر (1132)')
-    }
+    // دليل موجود — لا نضيف ولا نعدّل حسابات تلقائياً (تُدار يدوياً)
+    console.log(`دليل الحسابات موجود مسبقاً (${accCount} حساب) — بدون تعديل تلقائي`)
   }
 
   console.log('Seed مكتمل')

@@ -1,11 +1,17 @@
 import { prisma } from '../config'
 
 /** رصيد ذمم المكتب (مدين − دائن) = ما على المكتب لدى الوكالة */
-export async function getAccountBalance(accountId: number | null | undefined) {
+export async function getAccountBalance(
+  accountId: number | null | undefined,
+  beforeDate?: string | null,
+) {
   if (!accountId) return 0
   const rows = await prisma.journalLine.groupBy({
     by: ['accountId'],
-    where: { accountId },
+    where: {
+      accountId,
+      ...(beforeDate ? { journalDate: { lt: beforeDate } } : {}),
+    },
     _sum: { debit: true, credit: true },
   })
   const sum = rows[0]?._sum

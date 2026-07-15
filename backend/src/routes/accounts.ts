@@ -310,12 +310,112 @@ accountsRouter.delete(
 )
 
 accountsRouter.get(
+  '/:id/children-summary',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const parentId = Number(paramId(req))
+    if (!parentId) return fail(res, 'معرّف غير صالح')
+
+    const parent = await prisma.account.findUnique({ where: { id: parentId } })
+    if (!parent) return fail(res, 'الحساب غير موجود', 404)
+
+    const from = typeof req.query.from === 'string' && req.query.from ? req.query.from : null
+    const to = typeof req.query.to === 'string' && req.query.to ? req.query.to : null
+
+    const all = await prisma.account.findMany({ orderBy: { code: 'asc' } })
+    const childrenOf = (id: number) => all.filter((a) => a.parentId === id)
+
+    const subtreeIds = (rootId: number): number[] => {
+      const ids = [rootId]
+      for (const child of childrenOf(rootId)) {
+        ids.push(...subtreeIds(child.id))
+      }
+      return ids
+    }
+
+    const datePeriod =
+      from && to
+        ? { journalDate: { gte: from, lte: to } }
+        : to
+          ? { journalDate: { lte: to } }
+          : from
+            ? { journalDate: { gte: from } }
+            : {}
+
+    const dateClosing = to
+      ? { journalDate: { lte: to } }
+      : from
+        ? { journalDate: { lte: from } }
+        : {}
+
+    const direct = childrenOf(parentId)
+    const rows = []
+    let totalDebit = 0
+    let totalCredit = 0
+    let totalBalance = 0
+
+    for (const child of direct) {
+      const ids = subtreeIds(child.id)
+      const [period, closing] = await Promise.all([
+        prisma.journalLine.groupBy({
+          by: ['accountId'],
+          where: { accountId: { in: ids }, ...datePeriod },
+          _sum: { debit: true, credit: true },
+        }),
+        prisma.journalLine.groupBy({
+          by: ['accountId'],
+          where: { accountId: { in: ids }, ...dateClosing },
+          _sum: { debit: true, credit: true },
+        }),
+      ])
+
+      const debit = period.reduce((s, r) => s + (r._sum.debit ?? 0), 0)
+      const credit = period.reduce((s, r) => s + (r._sum.credit ?? 0), 0)
+      const balance = closing.reduce(
+        (s, r) => s + (r._sum.debit ?? 0) - (r._sum.credit ?? 0),
+        0,
+      )
+
+      totalDebit += debit
+      totalCredit += credit
+      totalBalance += balance
+
+      rows.push({
+        id: child.id,
+        code: child.code,
+        name_ar: child.nameAr,
+        account_level: child.accountLevel,
+        debit,
+        credit,
+        balance,
+      })
+    }
+
+    return ok(res, {
+      parent: mapAccount(parent),
+      from,
+      to,
+      list: rows,
+      totals: {
+        debit: totalDebit,
+        credit: totalCredit,
+        balance: totalBalance,
+      },
+    })
+  }),
+)
+
+accountsRouter.get(
   '/:id/balance',
   asyncHandler(async (req, res) => {
     const id = Number(paramId(req))
     if (!id) return fail(res, 'معرّف غير صالح')
-    const balance = await getAccountBalance(id)
-    return ok(res, { balance, accountId: id })
+    const before =
+      typeof req.query.before === 'string' && req.query.before
+        ? req.query.before
+        : null
+    const balance = await getAccountBalance(id, before)
+    return ok(res, { balance, accountId: id, before })
   }),
 )
 

@@ -236,6 +236,36 @@ export const serverApi = {
   accounts: {
     list: () => apiRequest<{ list: any[] }>('/api/accounts'),
     sub: () => apiRequest<{ list: any[] }>('/api/accounts/sub'),
+    balance: (id: number, before?: string | null) => {
+      const q = before ? `?before=${encodeURIComponent(before)}` : ''
+      return apiRequest<{ balance: number; accountId: number }>(
+        `/api/accounts/${id}/balance${q}`,
+      )
+    },
+    childrenSummary: (
+      parentId: number,
+      params?: { from?: string | null; to?: string | null },
+    ) => {
+      const q = new URLSearchParams()
+      if (params?.from) q.set('from', params.from)
+      if (params?.to) q.set('to', params.to)
+      const qs = q.toString()
+      return apiRequest<{
+        parent: any
+        from: string | null
+        to: string | null
+        list: Array<{
+          id: number
+          code: string
+          name_ar: string
+          account_level: string
+          debit: number
+          credit: number
+          balance: number
+        }>
+        totals: { debit: number; credit: number; balance: number }
+      }>(`/api/accounts/${parentId}/children-summary${qs ? `?${qs}` : ''}`)
+    },
     create: (data: unknown) =>
       apiRequest<{ account: any }>('/api/accounts', {
         method: 'POST',

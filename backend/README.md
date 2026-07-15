@@ -63,13 +63,10 @@ Authorization: Bearer <token>
 
 ## الإنتاج (Railway + MySQL)
 
-Railway يوفّر عادةً `MYSQL_URL`. إمّا:
-1. أضف متغيرًا: `DATABASE_URL` = نفس قيمة `MYSQL_URL`  
-2. أو لا تفعل شيئاً — السكربت يقرأ `MYSQL_URL` تلقائياً
+Railway يوفّر عادةً `MYSQL_URL` / `MYSQLHOST`. للإتصال السريع:
 
-تأكد أيضاً من:
-```
-JWT_SECRET=قيمة-طويلة-عشوائية
-```
+1. **فضّل الشبكة الداخلية:** اربط `MYSQL_PRIVATE_URL` أو تأكد أن `MYSQLHOST` = `*.railway.internal`  
+2. كاحتياط يعمل `MYSQL_PUBLIC_URL` (أبطأ)  
+3. `JWT_SECRET=قيمة-طويلة-عشوائية`
 
-ثم Redeploy.
+ثم Redeploy. التطبيق يختار الرابط الداخلي تلقائياً إن وُجد.

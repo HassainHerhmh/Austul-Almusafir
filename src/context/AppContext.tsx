@@ -136,6 +136,14 @@ const emptyState = (currentUserId: string | null = null): AppState => ({
   vouchers: [],
 })
 
+function upsertById<T extends { id: string }>(list: T[], item: T): T[] {
+  const idx = list.findIndex((x) => x.id === item.id)
+  if (idx === -1) return [item, ...list]
+  const next = list.slice()
+  next[idx] = item
+  return next
+}
+
 const AppContext = createContext<AppContextValue | null>(null)
 
 export function AppProvider({ children }: { children: ReactNode }) {
@@ -192,10 +200,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [currentUser, resolvedPermissions],
   )
 
-  const refreshBalances = async (offices: Office[]) => {
+  const refreshBalances = useCallback(async (offices: Office[], onlyOfficeId?: string | null) => {
+    const targets = onlyOfficeId
+      ? [{ id: onlyOfficeId } as Office]
+      : offices
+    if (!targets.length) return
+
     const next: Record<string, number> = {}
     await Promise.all(
-      offices.map(async (o) => {
+      targets.map(async (o) => {
         try {
           const res = await serverApi.offices.balance(o.id)
           next[o.id] = res.balance
@@ -204,8 +217,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
       }),
     )
-    setBalances(next)
-  }
+    setBalances((prev) => ({ ...prev, ...next }))
+  }, [])
 
   const refreshAll = useCallback(async () => {
     if (!getToken()) {
@@ -257,16 +270,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
       vouchers: vouchers.list ?? [],
     })
     setApiReady(true)
-    await refreshBalances(officeList)
-  }, [])
+    // الأرصدة في الخلفية — لا تحجب الواجهة
+    const balanceScope = meUser.role === 'admin' ? undefined : meUser.officeId
+    void refreshBalances(officeList, balanceScope)
+  }, [refreshBalances])
 
   const saveUserPermissions = async (
     userId: string,
     permissions: Record<string, { view: boolean; add: boolean; edit: boolean; delete: boolean }>,
   ) => {
     try {
-      await serverApi.users.savePermissions(userId, permissions)
-      await refreshAll()
+      const res = await serverApi.users.savePermissions(userId, permissions)
+      const user = asUser(res.user)
+      setState((s) => ({ ...s, users: upsertById(s.users, user) }))
       return null
     } catch (e) {
       return e instanceof ApiError ? e.message : 'فشل حفظ الصلاحيات'
@@ -351,15 +367,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }
 
   const upsertOffice: AppContextValue['upsertOffice'] = async (office) => {
-    if (office.id) {
-      await serverApi.offices.update(office.id, office)
-    } else {
-      await serverApi.offices.create(office)
-    }
-    await refreshAll()
+    const res = office.id
+      ? await serverApi.offices.update(office.id, office)
+      : await serverApi.offices.create(office)
+    const saved = asOffice(res.office)
+    setState((s) => ({ ...s, offices: upsertById(s.offices, saved) }))
   }
 
   const upsertUser: AppContextValue['upsertUser'] = async (user) => {
+    let saved: User
     if (user.id) {
       const payload: Record<string, unknown> = {
         username: user.username,
@@ -369,9 +385,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         active: user.active,
       }
       if (user.password) payload.password = user.password
-      await serverApi.users.update(user.id, payload)
+      const res = await serverApi.users.update(user.id, payload)
+      saved = asUser(res.user)
     } else {
-      await serverApi.users.create({
+      const res = await serverApi.users.create({
         username: user.username,
         password: user.password,
         name: user.name,
@@ -379,31 +396,38 @@ export function AppProvider({ children }: { children: ReactNode }) {
         officeId: user.officeId,
         active: user.active,
       })
+      saved = asUser(res.user)
     }
-    await refreshAll()
+    setState((s) => ({ ...s, users: upsertById(s.users, saved) }))
   }
 
   const deleteUser = async (id: string) => {
     await serverApi.users.remove(id)
-    await refreshAll()
+    setState((s) => ({ ...s, users: s.users.filter((u) => u.id !== id) }))
   }
 
   const upsertBus: AppContextValue['upsertBus'] = async (bus) => {
-    if (bus.id) await serverApi.buses.update(bus.id, bus)
-    else await serverApi.buses.create(bus)
-    await refreshAll()
+    const res = bus.id
+      ? await serverApi.buses.update(bus.id, bus)
+      : await serverApi.buses.create(bus)
+    setState((s) => ({ ...s, buses: upsertById(s.buses, res.bus) }))
   }
 
   const upsertDriver: AppContextValue['upsertDriver'] = async (driver) => {
-    if (driver.id) await serverApi.drivers.update(driver.id, driver)
-    else await serverApi.drivers.create(driver)
-    await refreshAll()
+    const res = driver.id
+      ? await serverApi.drivers.update(driver.id, driver)
+      : await serverApi.drivers.create(driver)
+    setState((s) => ({ ...s, drivers: upsertById(s.drivers, res.driver) }))
   }
 
   const upsertDestination: AppContextValue['upsertDestination'] = async (dest) => {
-    if (dest.id) await serverApi.destinations.update(dest.id, { name: dest.name })
-    else await serverApi.destinations.create({ name: dest.name })
-    await refreshAll()
+    const res = dest.id
+      ? await serverApi.destinations.update(dest.id, { name: dest.name })
+      : await serverApi.destinations.create({ name: dest.name })
+    setState((s) => ({
+      ...s,
+      destinations: upsertById(s.destinations, res.destination),
+    }))
   }
 
   const upsertTrip: AppContextValue['upsertTrip'] = async (trip) => {
@@ -417,24 +441,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
       status: trip.status,
       stops: trip.stops,
     }
-    if (trip.id) await serverApi.trips.update(trip.id, payload)
-    else await serverApi.trips.create(payload)
-    await refreshAll()
+    const res = trip.id
+      ? await serverApi.trips.update(trip.id, payload)
+      : await serverApi.trips.create(payload)
+    setState((s) => ({ ...s, trips: upsertById(s.trips, res.trip) }))
   }
 
   const cancelTrip = async (id: string) => {
-    await serverApi.trips.cancel(id)
-    await refreshAll()
+    const res = await serverApi.trips.cancel(id)
+    setState((s) => ({ ...s, trips: upsertById(s.trips, res.trip) }))
   }
 
   const upsertCustomer: AppContextValue['upsertCustomer'] = async (customer) => {
     if (customer.id) {
-      // لا يوجد update customers في الـ API حالياً — نعيد العميل المحلي بعد refresh
-      await refreshAll()
       return state.customers.find((c) => c.id === customer.id) ?? { ...customer, id: customer.id }
     }
     const res = await serverApi.customers.create(customer)
-    await refreshAll()
+    setState((s) => ({ ...s, customers: upsertById(s.customers, res.customer) }))
     return res.customer
   }
 
@@ -451,8 +474,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         paymentMethod: input.paymentMethod,
         notes: input.notes,
       })
-      await refreshAll()
-      return asBooking(res.booking)
+      const booking = asBooking(res.booking)
+      setState((s) => ({
+        ...s,
+        bookings: upsertById(s.bookings, booking),
+      }))
+      void refreshBalances(state.offices, input.officeId)
+      return booking
     } catch (e) {
       return e instanceof ApiError ? e.message : 'فشل إنشاء الحجز'
     }
@@ -460,8 +488,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const updateBooking: AppContextValue['updateBooking'] = async (id, patch) => {
     try {
-      await serverApi.bookings.patch(id, patch)
-      await refreshAll()
+      const res = await serverApi.bookings.patch(id, patch)
+      const booking = asBooking(res.booking)
+      setState((s) => ({ ...s, bookings: upsertById(s.bookings, booking) }))
+      if (patch.status === 'cancelled') {
+        void refreshBalances(state.offices, booking.officeId)
+      }
       return null
     } catch (e) {
       return e instanceof ApiError ? e.message : 'فشل تحديث الحجز'
@@ -469,7 +501,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }
 
   const addVoucher: AppContextValue['addVoucher'] = async (voucher) => {
-    await serverApi.vouchers.create({
+    const res = await serverApi.vouchers.create({
       officeId: voucher.officeId,
       type: voucher.type,
       amount: voucher.amount,
@@ -477,7 +509,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       date: voucher.date,
       relatedBookingId: voucher.relatedBookingId,
     })
-    await refreshAll()
+    setState((s) => ({ ...s, vouchers: upsertById(s.vouchers, res.voucher) }))
+    void refreshBalances(state.offices, voucher.officeId)
   }
 
   const value: AppContextValue = {

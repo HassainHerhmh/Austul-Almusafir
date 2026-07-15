@@ -188,6 +188,20 @@ export const serverApi = {
   accounts: {
     sub: () => apiRequest<{ list: any[] }>('/api/accounts/sub'),
   },
+
+  settings: {
+    transitAccounts: {
+      get: () =>
+        apiRequest<{ data: { office_commissions_account: number | null } }>(
+          '/api/settings/transit-accounts',
+        ),
+      save: (data: { office_commissions_account: number | null }) =>
+        apiRequest<{ data: { office_commissions_account: number | null } }>(
+          '/api/settings/transit-accounts',
+          { method: 'POST', body: JSON.stringify(data) },
+        ),
+    },
+  },
 }
 
 export { asOffice, asUser, asBooking }

@@ -7,6 +7,7 @@ import { bookingsRouter } from './routes/bookings'
 import { customersRouter, vouchersRouter } from './routes/customers'
 import { busesRouter, destinationsRouter, driversRouter } from './routes/fleet'
 import { officesRouter } from './routes/offices'
+import { settingsRouter } from './routes/settings'
 import { tripsRouter } from './routes/trips'
 import { usersRouter } from './routes/users'
 
@@ -40,6 +41,7 @@ export function createApp() {
   app.use('/api/customers', customersRouter)
   app.use('/api/vouchers', vouchersRouter)
   app.use('/api/accounts', accountsRouter)
+  app.use('/api/settings', settingsRouter)
 
   app.use(
     (

@@ -32,8 +32,16 @@ async function getTicketRevenueAccountId() {
   return acc?.id ?? null
 }
 
-/** حساب وسيط عمولات المكاتب — من هذا الحساب إلى ذمة المكتب عند كل حجز */
+/** حساب وسيط عمولات المكاتب — من الإعدادات أو إنشاء 1132 تلقائياً */
 export async function ensureCommissionsTransitAccount() {
+  const setting = await prisma.appSetting.findUnique({ where: { key: 'transit_accounts' } })
+  const configuredId = (setting?.value as { office_commissions_account?: number | null } | null)
+    ?.office_commissions_account
+  if (configuredId) {
+    const configured = await prisma.account.findUnique({ where: { id: configuredId } })
+    if (configured) return configured.id
+  }
+
   const existing =
     (await prisma.account.findFirst({ where: { code: COMMISSION_TRANSIT_CODE } })) ||
     (await prisma.account.findFirst({ where: { nameAr: COMMISSION_TRANSIT_NAME } }))

@@ -171,3 +171,8 @@ model JournalLine {
   @@index([accountId])
   @@index([referenceType, referenceId])
 }
+
+model AppSetting {
+  key   String @id
+  value Json
+}

@@ -190,13 +190,7 @@ type JournalLine = {
 }
 
 type TransitSettings = {
-  card_income_account: number | null
-  courier_commission_account: number | null
-  transfer_guarantee_account: number | null
-  currency_exchange_account: number | null
-  customer_guarantee_account: number | null
-  customer_credit_account: number | null
-  coupon_discount_account: number | null
+  office_commissions_account: number | null
 }
 
 type Store = {
@@ -428,13 +422,7 @@ function buildSeed(): Store {
     paymentVouchers,
     journalEntries,
     transitAccounts: {
-      card_income_account: 11,
-      courier_commission_account: 10,
-      transfer_guarantee_account: null,
-      currency_exchange_account: 20,
-      customer_guarantee_account: null,
-      customer_credit_account: 10,
-      coupon_discount_account: null,
+      office_commissions_account: null,
     },
     nextIds: {
       accounts: maxId(accounts) + 1,
@@ -462,7 +450,16 @@ function loadStore(): Store {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (raw) {
       const parsed = JSON.parse(raw) as Store
-      if (parsed?.accounts?.length) return parsed
+      if (parsed?.accounts?.length) {
+        const t = (parsed.transitAccounts || {}) as Record<string, unknown>
+        parsed.transitAccounts = {
+          office_commissions_account:
+            typeof t.office_commissions_account === 'number'
+              ? t.office_commissions_account
+              : null,
+        }
+        return parsed
+      }
     }
   } catch { /* ignore */ }
   const seed = buildSeed()
@@ -1215,13 +1212,7 @@ function handlePost(url: string, body: any = {}): any {
 
   if (path === '/settings/transit-accounts') {
     store.transitAccounts = {
-      card_income_account: body.card_income_account ?? null,
-      courier_commission_account: body.courier_commission_account ?? null,
-      transfer_guarantee_account: body.transfer_guarantee_account ?? null,
-      currency_exchange_account: body.currency_exchange_account ?? null,
-      customer_guarantee_account: body.customer_guarantee_account ?? null,
-      customer_credit_account: body.customer_credit_account ?? null,
-      coupon_discount_account: body.coupon_discount_account ?? null,
+      office_commissions_account: body.office_commissions_account ?? null,
     }
     persist()
     return ok({ data: store.transitAccounts })

@@ -2,17 +2,13 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from 'react'
-import {
-  ensureOfficeLedgerAccount,
-  getAccountBalance,
-  postBookingCharge,
-  reverseBookingCharge,
-} from '../api/accountingApi'
-import { loadState, resetState, saveState, uid } from '../data/seed'
+import { ApiError, getToken, setToken } from '../api/client'
+import { asBooking, asOffice, asUser, serverApi } from '../api/serverApi'
 import type {
   AppState,
   Booking,
@@ -30,13 +26,15 @@ import type {
 
 interface AppContextValue {
   state: AppState
+  loading: boolean
+  apiReady: boolean
   currentUser: User | null
   currentOffice: Office | null
   isAdmin: boolean
-  login: (username: string, password: string) => string | null
+  login: (username: string, password: string) => Promise<string | null>
   logout: () => void
+  refreshAll: () => Promise<void>
   resetData: () => void
-  // Lookups
   getDestination: (id: string) => Destination | undefined
   getBus: (id: string) => Bus | undefined
   getDriver: (id: string) => Driver | undefined
@@ -48,18 +46,16 @@ interface AppContextValue {
     remaining: number
     bookedSeats: number[]
   }
-  /** الرصيد على المكتب لدى الوكالة (ذمم مدينة) */
   getOfficeAgencyBalance: (officeId?: string) => number
-  // Mutations
-  upsertOffice: (office: Omit<Office, 'id' | 'createdAt'> & { id?: string }) => void
-  upsertUser: (user: Omit<User, 'id'> & { id?: string }) => void
-  deleteUser: (id: string) => void
-  upsertBus: (bus: Omit<Bus, 'id'> & { id?: string }) => void
-  upsertDriver: (driver: Omit<Driver, 'id'> & { id?: string }) => void
-  upsertDestination: (dest: Omit<Destination, 'id'> & { id?: string }) => void
-  upsertTrip: (trip: Omit<Trip, 'id'> & { id?: string }) => void
-  cancelTrip: (id: string) => void
-  upsertCustomer: (customer: Omit<Customer, 'id'> & { id?: string }) => Customer
+  upsertOffice: (office: Omit<Office, 'id' | 'createdAt'> & { id?: string }) => Promise<void>
+  upsertUser: (user: Omit<User, 'id'> & { id?: string }) => Promise<void>
+  deleteUser: (id: string) => Promise<void>
+  upsertBus: (bus: Omit<Bus, 'id'> & { id?: string }) => Promise<void>
+  upsertDriver: (driver: Omit<Driver, 'id'> & { id?: string }) => Promise<void>
+  upsertDestination: (dest: Omit<Destination, 'id'> & { id?: string }) => Promise<void>
+  upsertTrip: (trip: Omit<Trip, 'id'> & { id?: string }) => Promise<void>
+  cancelTrip: (id: string) => Promise<void>
+  upsertCustomer: (customer: Omit<Customer, 'id'> & { id?: string }) => Promise<Customer>
   createBooking: (input: {
     tripId: string
     officeId: string
@@ -71,7 +67,7 @@ interface AppContextValue {
     paymentMethod: PaymentMethod
     notes?: string
     bookedBy: string
-  }) => Booking | string
+  }) => Promise<Booking | string>
   updateBooking: (
     id: string,
     patch: Partial<
@@ -80,8 +76,8 @@ interface AppContextValue {
         'passengerName' | 'passportNumber' | 'seatNumber' | 'status' | 'paymentMethod' | 'notes'
       >
     >,
-  ) => string | null
-  addVoucher: (voucher: Omit<Voucher, 'id'> & { id?: string }) => void
+  ) => Promise<string | null>
+  addVoucher: (voucher: Omit<Voucher, 'id'> & { id?: string }) => Promise<void>
   can: (action: Permission) => boolean
 }
 
@@ -116,18 +112,26 @@ const ROLE_PERMS: Record<Role, Permission[]> = {
   accountant: ['view_accounts', 'view_reports'],
 }
 
+const emptyState = (currentUserId: string | null = null): AppState => ({
+  currentUserId,
+  offices: [],
+  users: [],
+  destinations: [],
+  buses: [],
+  drivers: [],
+  trips: [],
+  customers: [],
+  bookings: [],
+  vouchers: [],
+})
+
 const AppContext = createContext<AppContextValue | null>(null)
 
-function persist(next: AppState) {
-  saveState(next)
-  return next
-}
-
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<AppState>(() => loadState())
-  const [ledgerTick, setLedgerTick] = useState(0)
-
-  const bumpLedger = () => setLedgerTick((n) => n + 1)
+  const [state, setState] = useState<AppState>(() => emptyState())
+  const [balances, setBalances] = useState<Record<string, number>>({})
+  const [loading, setLoading] = useState(true)
+  const [apiReady, setApiReady] = useState(false)
 
   const currentUser = useMemo(
     () => state.users.find((u) => u.id === state.currentUserId) ?? null,
@@ -152,24 +156,118 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [currentUser],
   )
 
-  const login = (username: string, password: string) => {
-    const user = state.users.find(
-      (u) => u.username === username.trim() && u.password === password && u.active,
+  const refreshBalances = async (offices: Office[]) => {
+    const next: Record<string, number> = {}
+    await Promise.all(
+      offices.map(async (o) => {
+        try {
+          const res = await serverApi.offices.balance(o.id)
+          next[o.id] = res.balance
+        } catch {
+          next[o.id] = 0
+        }
+      }),
     )
-    if (!user) return 'اسم المستخدم أو كلمة المرور غير صحيحة'
-    if (user.officeId) {
-      const office = state.offices.find((o) => o.id === user.officeId)
-      if (!office || office.status === 'suspended') {
-        return 'هذا المكتب موقوف حالياً'
-      }
-    }
-    setState((s) => persist({ ...s, currentUserId: user.id }))
-    return null
+    setBalances(next)
   }
 
-  const logout = () => setState((s) => ({ ...s, currentUserId: null }))
+  const refreshAll = useCallback(async () => {
+    if (!getToken()) {
+      setState(emptyState())
+      setBalances({})
+      setApiReady(false)
+      return
+    }
 
-  const resetData = () => setState(persist(resetState()))
+    const [
+      me,
+      offices,
+      users,
+      destinations,
+      buses,
+      drivers,
+      trips,
+      bookings,
+      customers,
+      vouchers,
+    ] = await Promise.all([
+      serverApi.me(),
+      serverApi.offices.list(),
+      serverApi.users.list(),
+      serverApi.destinations.list(),
+      serverApi.buses.list(),
+      serverApi.drivers.list(),
+      serverApi.trips.list(),
+      serverApi.bookings.list(),
+      serverApi.customers.list(),
+      serverApi.vouchers.list(),
+    ])
+
+    const officeList = (offices.list ?? []).map(asOffice)
+    const userList = (users.list ?? []).map(asUser)
+    const meUser = asUser(me.user)
+    if (!userList.find((u) => u.id === meUser.id)) userList.unshift(meUser)
+
+    setState({
+      currentUserId: meUser.id,
+      offices: officeList,
+      users: userList,
+      destinations: destinations.list ?? [],
+      buses: buses.list ?? [],
+      drivers: drivers.list ?? [],
+      trips: trips.list ?? [],
+      customers: customers.list ?? [],
+      bookings: (bookings.list ?? []).map(asBooking),
+      vouchers: vouchers.list ?? [],
+    })
+    setApiReady(true)
+    await refreshBalances(officeList)
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        if (getToken()) await refreshAll()
+      } catch {
+        setToken(null)
+        if (!cancelled) {
+          setState(emptyState())
+          setApiReady(false)
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [refreshAll])
+
+  const login = async (username: string, password: string) => {
+    try {
+      const res = await serverApi.login(username, password)
+      setToken(res.token)
+      setLoading(true)
+      await refreshAll()
+      setLoading(false)
+      return null
+    } catch (e) {
+      setLoading(false)
+      return e instanceof ApiError ? e.message : 'تعذر تسجيل الدخول'
+    }
+  }
+
+  const logout = () => {
+    setToken(null)
+    setState(emptyState())
+    setBalances({})
+    setApiReady(false)
+  }
+
+  const resetData = () => {
+    alert('البيانات على السيرفر — لا يمكن إعادة التعيين من الواجهة.')
+  }
 
   const getDestination = (id: string) => state.destinations.find((d) => d.id === id)
   const getBus = (id: string) => state.buses.find((b) => b.id === id)
@@ -177,11 +275,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const getOffice = (id: string) => state.offices.find((o) => o.id === id)
 
   const getOfficeAgencyBalance = (officeId?: string) => {
-    void ledgerTick
     const id = officeId ?? currentOffice?.id
     if (!id) return 0
-    const office = state.offices.find((o) => o.id === id)
-    return getAccountBalance(office?.ledgerAccountId)
+    return balances[id] ?? 0
   }
 
   const getTripLabel = (trip: Trip) => {
@@ -205,329 +301,146 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const upsertOffice: AppContextValue['upsertOffice'] = (office) => {
-    let linkedAccount = false
-    setState((s) => {
-      if (office.id) {
-        const prev = s.offices.find((o) => o.id === office.id)
-        let ledgerAccountId = office.ledgerAccountId ?? prev?.ledgerAccountId ?? null
-        if (!ledgerAccountId) {
-          ledgerAccountId = ensureOfficeLedgerAccount(office.name)
-          linkedAccount = true
-        }
-        return persist({
-          ...s,
-          offices: s.offices.map((o) =>
-            o.id === office.id
-              ? { ...o, ...office, id: o.id, createdAt: o.createdAt, ledgerAccountId }
-              : o,
-          ),
-        })
-      }
-      const ledgerAccountId = office.ledgerAccountId ?? ensureOfficeLedgerAccount(office.name)
-      linkedAccount = true
-      const created: Office = {
-        ...office,
-        ledgerAccountId,
-        id: uid('off'),
-        createdAt: new Date().toISOString().slice(0, 10),
-      }
-      return persist({ ...s, offices: [...s.offices, created] })
-    })
-    if (linkedAccount) bumpLedger()
+  const upsertOffice: AppContextValue['upsertOffice'] = async (office) => {
+    if (office.id) {
+      await serverApi.offices.update(office.id, office)
+    } else {
+      await serverApi.offices.create(office)
+    }
+    await refreshAll()
   }
 
-  const upsertUser: AppContextValue['upsertUser'] = (user) => {
-    setState((s) => {
-      if (user.id) {
-        return persist({
-          ...s,
-          users: s.users.map((u) => (u.id === user.id ? { ...u, ...user, id: u.id } : u)),
-        })
+  const upsertUser: AppContextValue['upsertUser'] = async (user) => {
+    if (user.id) {
+      const payload: Record<string, unknown> = {
+        username: user.username,
+        name: user.name,
+        role: user.role,
+        officeId: user.officeId,
+        active: user.active,
       }
-      return persist({
-        ...s,
-        users: [...s.users, { ...user, id: uid('usr') }],
+      if (user.password) payload.password = user.password
+      await serverApi.users.update(user.id, payload)
+    } else {
+      await serverApi.users.create({
+        username: user.username,
+        password: user.password,
+        name: user.name,
+        role: user.role,
+        officeId: user.officeId,
+        active: user.active,
       })
-    })
-  }
-
-  const deleteUser = (id: string) => {
-    setState((s) => persist({ ...s, users: s.users.filter((u) => u.id !== id) }))
-  }
-
-  const upsertBus: AppContextValue['upsertBus'] = (bus) => {
-    setState((s) => {
-      if (bus.id) {
-        return persist({
-          ...s,
-          buses: s.buses.map((b) => (b.id === bus.id ? { ...b, ...bus, id: b.id } : b)),
-        })
-      }
-      return persist({ ...s, buses: [...s.buses, { ...bus, id: uid('bus') }] })
-    })
-  }
-
-  const upsertDriver: AppContextValue['upsertDriver'] = (driver) => {
-    setState((s) => {
-      if (driver.id) {
-        return persist({
-          ...s,
-          drivers: s.drivers.map((d) =>
-            d.id === driver.id ? { ...d, ...driver, id: d.id } : d,
-          ),
-        })
-      }
-      return persist({ ...s, drivers: [...s.drivers, { ...driver, id: uid('drv') }] })
-    })
-  }
-
-  const upsertDestination: AppContextValue['upsertDestination'] = (dest) => {
-    setState((s) => {
-      if (dest.id) {
-        return persist({
-          ...s,
-          destinations: s.destinations.map((d) =>
-            d.id === dest.id ? { ...d, ...dest, id: d.id } : d,
-          ),
-        })
-      }
-      return persist({
-        ...s,
-        destinations: [...s.destinations, { ...dest, id: uid('dest') }],
-      })
-    })
-  }
-
-  const upsertTrip: AppContextValue['upsertTrip'] = (trip) => {
-    setState((s) => {
-      if (trip.id) {
-        return persist({
-          ...s,
-          trips: s.trips.map((t) => (t.id === trip.id ? { ...t, ...trip, id: t.id } : t)),
-        })
-      }
-      return persist({ ...s, trips: [...s.trips, { ...trip, id: uid('trip') }] })
-    })
-  }
-
-  const cancelTrip = (id: string) => {
-    setState((s) =>
-      persist({
-        ...s,
-        trips: s.trips.map((t) => (t.id === id ? { ...t, status: 'cancelled' } : t)),
-      }),
-    )
-  }
-
-  const upsertCustomer: AppContextValue['upsertCustomer'] = (customer) => {
-    let result: Customer = { ...customer, id: customer.id ?? uid('cust') }
-    setState((s) => {
-      if (customer.id) {
-        const updated = s.customers.map((c) =>
-          c.id === customer.id ? { ...c, ...customer, id: c.id } : c,
-        )
-        result = updated.find((c) => c.id === customer.id)!
-        return persist({ ...s, customers: updated })
-      }
-      const existing = s.customers.find(
-        (c) =>
-          c.officeId === customer.officeId &&
-          (c.phone === customer.phone || c.nationalId === customer.nationalId),
-      )
-      if (existing) {
-        result = {
-          ...existing,
-          name: customer.name,
-          phone: customer.phone,
-          nationalId: customer.nationalId,
-          passportNumber: customer.passportNumber,
-        }
-        return persist({
-          ...s,
-          customers: s.customers.map((c) => (c.id === existing.id ? result : c)),
-        })
-      }
-      result = { ...customer, id: uid('cust') }
-      return persist({ ...s, customers: [...s.customers, result] })
-    })
-    return result
-  }
-
-  const createBooking: AppContextValue['createBooking'] = (input) => {
-    const seats = getTripSeats(input.tripId)
-    if (seats.bookedSeats.includes(input.seatNumber)) {
-      return 'هذا المقعد محجوز مسبقاً'
     }
-    if (input.seatNumber < 1 || input.seatNumber > seats.total) {
-      return 'رقم المقعد غير صالح'
+    await refreshAll()
+  }
+
+  const deleteUser = async (id: string) => {
+    await serverApi.users.remove(id)
+    await refreshAll()
+  }
+
+  const upsertBus: AppContextValue['upsertBus'] = async (bus) => {
+    if (bus.id) await serverApi.buses.update(bus.id, bus)
+    else await serverApi.buses.create(bus)
+    await refreshAll()
+  }
+
+  const upsertDriver: AppContextValue['upsertDriver'] = async (driver) => {
+    if (driver.id) await serverApi.drivers.update(driver.id, driver)
+    else await serverApi.drivers.create(driver)
+    await refreshAll()
+  }
+
+  const upsertDestination: AppContextValue['upsertDestination'] = async (dest) => {
+    if (dest.id) await serverApi.destinations.update(dest.id, { name: dest.name })
+    else await serverApi.destinations.create({ name: dest.name })
+    await refreshAll()
+  }
+
+  const upsertTrip: AppContextValue['upsertTrip'] = async (trip) => {
+    const payload = {
+      busId: trip.busId,
+      driverId: trip.driverId,
+      assistantDriverId: trip.assistantDriverId,
+      date: trip.date,
+      departureTime: trip.departureTime,
+      price: trip.price,
+      status: trip.status,
+      stops: trip.stops,
     }
-    const trip = state.trips.find((t) => t.id === input.tripId)
-    if (!trip || trip.status !== 'scheduled') {
-      return 'الرحلة غير متاحة للحجز'
+    if (trip.id) await serverApi.trips.update(trip.id, payload)
+    else await serverApi.trips.create(payload)
+    await refreshAll()
+  }
+
+  const cancelTrip = async (id: string) => {
+    await serverApi.trips.cancel(id)
+    await refreshAll()
+  }
+
+  const upsertCustomer: AppContextValue['upsertCustomer'] = async (customer) => {
+    if (customer.id) {
+      // لا يوجد update customers في الـ API حالياً — نعيد العميل المحلي بعد refresh
+      await refreshAll()
+      return state.customers.find((c) => c.id === customer.id) ?? { ...customer, id: customer.id }
     }
+    const res = await serverApi.customers.create(customer)
+    await refreshAll()
+    return res.customer
+  }
 
-    let created!: Booking
-
-    setState((s) => {
-      const existing = s.customers.find(
-        (c) =>
-          c.officeId === input.officeId &&
-          (c.phone === input.phone ||
-            c.nationalId === input.nationalId ||
-            (input.passportNumber && c.passportNumber === input.passportNumber)),
-      )
-      let customers = s.customers
-      let customerId: string
-      if (existing) {
-        customerId = existing.id
-        customers = s.customers.map((c) =>
-          c.id === existing.id
-            ? {
-                ...c,
-                name: input.passengerName,
-                phone: input.phone,
-                nationalId: input.nationalId,
-                passportNumber: input.passportNumber,
-              }
-            : c,
-        )
-      } else {
-        customerId = uid('cust')
-        customers = [
-          ...s.customers,
-          {
-            id: customerId,
-            name: input.passengerName,
-            phone: input.phone,
-            nationalId: input.nationalId,
-            passportNumber: input.passportNumber,
-            officeId: input.officeId,
-          },
-        ]
-      }
-
-      created = {
-        id: uid('bk'),
+  const createBooking: AppContextValue['createBooking'] = async (input) => {
+    try {
+      const res = await serverApi.bookings.create({
         tripId: input.tripId,
         officeId: input.officeId,
-        customerId,
         passengerName: input.passengerName,
+        phone: input.phone,
+        nationalId: input.nationalId,
         passportNumber: input.passportNumber,
         seatNumber: input.seatNumber,
-        price: trip.price,
         paymentMethod: input.paymentMethod,
-        notes: input.notes?.trim() ?? '',
-        status: 'confirmed',
-        bookedAt: new Date().toISOString(),
-        bookedBy: input.bookedBy,
-      }
-
-      const voucher: Voucher = {
-        id: uid('vch'),
-        officeId: input.officeId,
-        type: 'receipt',
-        amount: trip.price,
-        description: `حجز ${input.passengerName} — مقعد ${input.seatNumber}`,
-        date: new Date().toISOString().slice(0, 10),
-        relatedBookingId: created.id,
-      }
-
-      return persist({
-        ...s,
-        customers,
-        bookings: [...s.bookings, created],
-        vouchers: [...s.vouchers, voucher],
+        notes: input.notes,
       })
-    })
-
-    const office = state.offices.find((o) => o.id === input.officeId)
-    let ledgerAccountId = office?.ledgerAccountId ?? null
-    if (!ledgerAccountId && office) {
-      ledgerAccountId = ensureOfficeLedgerAccount(office.name)
-      setState((s) =>
-        persist({
-          ...s,
-          offices: s.offices.map((o) =>
-            o.id === office.id ? { ...o, ledgerAccountId } : o,
-          ),
-        }),
-      )
+      await refreshAll()
+      return asBooking(res.booking)
+    } catch (e) {
+      return e instanceof ApiError ? e.message : 'فشل إنشاء الحجز'
     }
-    if (ledgerAccountId) {
-      postBookingCharge({
-        bookingId: created.id,
-        ledgerAccountId,
-        amount: created.price,
-        passengerName: created.passengerName,
-        seatNumber: created.seatNumber,
-      })
-      bumpLedger()
-    }
-
-    return created
   }
 
-  const updateBooking: AppContextValue['updateBooking'] = (id, patch) => {
-    const booking = state.bookings.find((b) => b.id === id)
-    if (!booking) return 'الحجز غير موجود'
-
-    if (patch.seatNumber !== undefined && patch.seatNumber !== booking.seatNumber) {
-      const seats = getTripSeats(booking.tripId)
-      if (seats.bookedSeats.filter((n) => n !== booking.seatNumber).includes(patch.seatNumber)) {
-        return 'المقعد الجديد محجوز'
-      }
+  const updateBooking: AppContextValue['updateBooking'] = async (id, patch) => {
+    try {
+      await serverApi.bookings.patch(id, patch)
+      await refreshAll()
+      return null
+    } catch (e) {
+      return e instanceof ApiError ? e.message : 'فشل تحديث الحجز'
     }
-
-    setState((s) => {
-      const nextBookings = s.bookings.map((b) => {
-        if (b.id !== id) return b
-        return { ...b, ...patch }
-      })
-
-      let nextVouchers = s.vouchers
-      if (patch.status === 'cancelled' && booking.status === 'confirmed') {
-        nextVouchers = [
-          ...s.vouchers,
-          {
-            id: uid('vch'),
-            officeId: booking.officeId,
-            type: 'payment',
-            amount: booking.price,
-            description: `إلغاء حجز ${booking.passengerName}`,
-            date: new Date().toISOString().slice(0, 10),
-            relatedBookingId: booking.id,
-          },
-        ]
-      }
-
-      return persist({ ...s, bookings: nextBookings, vouchers: nextVouchers })
-    })
-
-    if (patch.status === 'cancelled' && booking.status === 'confirmed') {
-      reverseBookingCharge(booking.id)
-      bumpLedger()
-    }
-
-    return null
   }
 
-  const addVoucher: AppContextValue['addVoucher'] = (voucher) => {
-    setState((s) =>
-      persist({
-        ...s,
-        vouchers: [...s.vouchers, { ...voucher, id: voucher.id ?? uid('vch') }],
-      }),
-    )
+  const addVoucher: AppContextValue['addVoucher'] = async (voucher) => {
+    await serverApi.vouchers.create({
+      officeId: voucher.officeId,
+      type: voucher.type,
+      amount: voucher.amount,
+      description: voucher.description,
+      date: voucher.date,
+      relatedBookingId: voucher.relatedBookingId,
+    })
+    await refreshAll()
   }
 
   const value: AppContextValue = {
     state,
+    loading,
+    apiReady,
     currentUser,
     currentOffice,
     isAdmin,
     login,
     logout,
+    refreshAll,
     resetData,
     getDestination,
     getBus,

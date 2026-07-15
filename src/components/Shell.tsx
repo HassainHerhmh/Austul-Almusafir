@@ -26,13 +26,11 @@ const officeLinks = [
 ]
 
 export function Shell() {
-  const { currentUser, currentOffice, isAdmin, resetData, getOfficeAgencyBalance, state } =
-    useApp()
+  const { currentUser, currentOffice, isAdmin, getOfficeAgencyBalance, state } = useApp()
   const links = isAdmin ? adminLinks : officeLinks
   const agencyBalance =
     !isAdmin && currentOffice ? getOfficeAgencyBalance(currentOffice.id) : 0
 
-  // إعادة حساب الرصيد عند تغيّر الحجوزات
   void state.bookings
 
   return (
@@ -76,17 +74,6 @@ export function Shell() {
             <br />
             <span style={{ opacity: 0.7, fontSize: '0.78rem' }}>{currentUser?.username}</span>
           </div>
-          {isAdmin && (
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm sidebar-reset-btn"
-              onClick={() => {
-                if (confirm('إعادة تعيين جميع البيانات المحلية؟')) resetData()
-              }}
-            >
-              إعادة البيانات
-            </button>
-          )}
         </div>
       </aside>
 

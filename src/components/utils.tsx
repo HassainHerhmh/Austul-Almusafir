@@ -9,7 +9,14 @@ export function RequireAuth({
   children: React.ReactNode
   roles?: Role[]
 }) {
-  const { currentUser } = useApp()
+  const { currentUser, loading } = useApp()
+  if (loading) {
+    return (
+      <div className="panel">
+        <div className="empty">جاري التحميل…</div>
+      </div>
+    )
+  }
   if (!currentUser) return <Navigate to="/login" replace />
   if (roles && !roles.includes(currentUser.role)) {
     return <Navigate to={currentUser.role === 'admin' ? '/admin' : '/office'} replace />

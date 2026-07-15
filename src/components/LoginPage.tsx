@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Navigate, useNavigate } from 'react-router-dom'
+import { Navigate } from 'react-router-dom'
+import { API_BASE } from '../api/client'
 import { useApp } from '../context/AppContext'
 
 function toggleDocumentTheme() {
@@ -11,11 +12,11 @@ function toggleDocumentTheme() {
 }
 
 export function LoginPage() {
-  const { login, currentUser, isAdmin, state } = useApp()
-  const navigate = useNavigate()
+  const { login, currentUser, isAdmin, loading } = useApp()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
   const [theme, setTheme] = useState<'light' | 'dark'>(() =>
     document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light',
   )
@@ -24,21 +25,27 @@ export function LoginPage() {
     setTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light')
   }, [])
 
+  if (loading) {
+    return (
+      <div className="login-page">
+        <div className="login-card" style={{ margin: 'auto' }}>
+          جاري الاتصال بالسيرفر…
+        </div>
+      </div>
+    )
+  }
+
   if (currentUser) {
     return <Navigate to={isAdmin ? '/admin' : '/office'} replace />
   }
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const err = login(username, password)
-    if (err) {
-      setError(err)
-      return
-    }
-    const user = state.users.find(
-      (u) => u.username === username.trim() && u.password === password,
-    )
-    navigate(user?.role === 'admin' ? '/admin' : '/office')
+    setBusy(true)
+    setError(null)
+    const err = await login(username, password)
+    setBusy(false)
+    if (err) setError(err)
   }
 
   return (
@@ -65,9 +72,9 @@ export function LoginPage() {
       <section className="login-panel">
         <div className="login-card">
           <h2>تسجيل الدخول</h2>
-          <p>ادخل بحساب المدير أو حساب المكتب</p>
+          <p>متصل بالسيرفر: {API_BASE.replace(/^https?:\/\//, '')}</p>
 
-          <form onSubmit={submit}>
+          <form onSubmit={(e) => void submit(e)}>
             <div className="form-grid" style={{ gridTemplateColumns: '1fr' }}>
               <div className="field">
                 <label htmlFor="username">اسم المستخدم</label>
@@ -93,8 +100,13 @@ export function LoginPage() {
             </div>
             {error && <p className="error-msg">{error}</p>}
             <div className="actions" style={{ marginTop: '1rem' }}>
-              <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
-                دخول
+              <button
+                type="submit"
+                className="btn btn-primary"
+                style={{ width: '100%' }}
+                disabled={busy}
+              >
+                {busy ? 'جاري الدخول…' : 'دخول'}
               </button>
             </div>
           </form>

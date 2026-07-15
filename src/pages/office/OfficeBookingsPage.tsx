@@ -47,7 +47,7 @@ export function OfficeBookingsPage() {
     .filter((b) => b.officeId === officeId)
     .sort((a, b) => b.bookedAt.localeCompare(a.bookedAt))
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!can('book')) {
       setError('ليس لديك صلاحية الحجز')
@@ -57,7 +57,7 @@ export function OfficeBookingsPage() {
       setError('اختر الرحلة والمقعد')
       return
     }
-    const result = createBooking({
+    const result = await createBooking({
       tripId,
       officeId,
       passengerName,
@@ -83,8 +83,8 @@ export function OfficeBookingsPage() {
     setTicketBooking(result)
   }
 
-  const handleChangeSeat = (bookingId: string, newSeat: number) => {
-    const err = updateBooking(bookingId, { seatNumber: newSeat })
+  const handleChangeSeat = async (bookingId: string, newSeat: number) => {
+    const err = await updateBooking(bookingId, { seatNumber: newSeat })
     if (err) alert(err)
     else setChangeSeatId(null)
   }
@@ -111,7 +111,7 @@ export function OfficeBookingsPage() {
             )}
           </div>
 
-          <form onSubmit={submit}>
+          <form onSubmit={(e) => void submit(e)}>
             <div className="form-grid">
               <div className="field" style={{ gridColumn: '1 / -1' }}>
                 <label>الرحلة</label>
@@ -193,7 +193,7 @@ export function OfficeBookingsPage() {
             )}
 
             {error && <p className="error-msg">{error}</p>}
-            <div className="actions" style={{ justifyContent: 'center' }}>
+            <div className="actions" style={{ marginTop: '1rem' }}>
               <button type="submit" className="btn btn-primary" disabled={!seat}>
                 تأكيد الحجز {seat ? `(مقعد ${seat})` : ''}
               </button>
@@ -265,7 +265,7 @@ export function OfficeBookingsPage() {
                             type="button"
                             className="btn btn-danger btn-sm"
                             onClick={() => {
-                              if (confirm('إلغاء الحجز؟')) updateBooking(b.id, { status: 'cancelled' })
+                              if (confirm('إلغاء الحجز؟')) void updateBooking(b.id, { status: 'cancelled' })
                             }}
                           >
                             إلغاء

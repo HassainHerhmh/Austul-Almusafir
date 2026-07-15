@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import api from '../../api/accountingApi'
+import { serverApi } from '../../api/serverApi'
 import { useApp } from '../../context/AppContext'
 import type { Office, OfficeStatus, SubscriptionStatus } from '../../types'
 
@@ -27,8 +27,8 @@ export function OfficesPage() {
 
   const loadSubAccounts = async () => {
     try {
-      const list = await api.accounts.getSubAccounts()
-      const rows = (Array.isArray(list) ? list : []).map((a: SubAccount) => ({
+      const res = await serverApi.accounts.sub()
+      const rows = (res.list ?? []).map((a) => ({
         id: a.id,
         code: a.code,
         name_ar: a.name_ar,
@@ -49,9 +49,9 @@ export function OfficesPage() {
     return map
   }, [subAccounts])
 
-  const save = (e: React.FormEvent) => {
+  const save = async (e: React.FormEvent) => {
     e.preventDefault()
-    upsertOffice(editId ? { ...form, id: editId } : form)
+    await upsertOffice(editId ? { ...form, id: editId } : form)
     setForm(empty)
     setEditId(null)
     setOpen(false)
@@ -142,7 +142,7 @@ export function OfficesPage() {
                         type="button"
                         className="btn btn-sm btn-danger"
                         onClick={() =>
-                          upsertOffice({
+                          void upsertOffice({
                             ...o,
                             status: o.status === 'active' ? 'suspended' : 'active',
                           })
@@ -163,7 +163,7 @@ export function OfficesPage() {
         <div className="modal-backdrop" onClick={() => setOpen(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h2>{editId ? 'تعديل مكتب' : 'مكتب جديد'}</h2>
-            <form onSubmit={save}>
+            <form onSubmit={(e) => void save(e)}>
               <div className="form-grid">
                 <div className="field">
                   <label>اسم المكتب</label>

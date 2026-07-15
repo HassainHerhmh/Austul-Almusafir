@@ -1,15 +1,17 @@
 import 'dotenv/config'
 
 /**
- * ترتيب الاتصال بقاعدة البيانات على Railway:
- * 1) الشبكة الداخلية (أسرع) — MYSQL_PRIVATE_URL أو host فيه .railway.internal
- * 2) الرابط العام MYSQL_PUBLIC_URL كاحتياط
+ * على بعض مشاريع Railway العنوان الداخلي (.internal) لا يُستَجب —
+ * نفضّل MYSQL_PUBLIC_URL للموثوقية، مع إمكانية MYSQL_PRIVATE_URL إن ضُبطت يدوياً.
  */
 export function ensureDatabaseUrl() {
   const looksLocal = (url?: string) =>
     !!url && /127\.0\.0\.1|localhost|mysql:\/\/build:/.test(url)
 
-  const looksPrivate = (url?: string) => !!url && /railway\.internal/.test(url)
+  const withPool = (url: string) => {
+    if (/[?&]connection_limit=/.test(url)) return url
+    return url.includes('?') ? `${url}&connection_limit=5` : `${url}?connection_limit=5`
+  }
 
   const fromParts = (host: string, port?: string) => {
     const user = encodeURIComponent(process.env.MYSQLUSER || 'root')
@@ -19,39 +21,43 @@ export function ensureDatabaseUrl() {
   }
 
   let chosen: string | undefined
+  let via = 'unknown'
 
-  if (process.env.MYSQL_PRIVATE_URL && !looksLocal(process.env.MYSQL_PRIVATE_URL)) {
+  // صريح: إن طلب المستخدم الداخلي فقط عند توفر MYSQL_PRIVATE_URL + FORCE_PRIVATE_MYSQL=1
+  if (process.env.FORCE_PRIVATE_MYSQL === '1' && process.env.MYSQL_PRIVATE_URL) {
     chosen = process.env.MYSQL_PRIVATE_URL
-  } else if (looksPrivate(process.env.DATABASE_URL)) {
-    chosen = process.env.DATABASE_URL
-  } else if (looksPrivate(process.env.MYSQL_URL)) {
-    chosen = process.env.MYSQL_URL
-  } else if (process.env.MYSQLHOST && /railway\.internal/.test(process.env.MYSQLHOST)) {
-    chosen = fromParts(process.env.MYSQLHOST, process.env.MYSQLPORT || '3306')
+    via = 'private (forced)'
   } else if (process.env.MYSQL_PUBLIC_URL && !looksLocal(process.env.MYSQL_PUBLIC_URL)) {
     chosen = process.env.MYSQL_PUBLIC_URL
+    via = 'public'
+  } else if (process.env.DATABASE_URL && !looksLocal(process.env.DATABASE_URL) && !/railway\.internal/.test(process.env.DATABASE_URL)) {
+    chosen = process.env.DATABASE_URL
+    via = 'DATABASE_URL'
+  } else if (process.env.MYSQL_URL && !looksLocal(process.env.MYSQL_URL) && !/railway\.internal/.test(process.env.MYSQL_URL)) {
+    chosen = process.env.MYSQL_URL
+    via = 'MYSQL_URL'
+  } else if (process.env.MYSQLHOST && !/railway\.internal/.test(process.env.MYSQLHOST)) {
+    chosen = fromParts(process.env.MYSQLHOST, process.env.MYSQLPORT || process.env.MYSQL_PUBLIC_PORT || '3306')
+    via = 'MYSQLHOST'
+  } else if (process.env.MYSQL_PUBLIC_URL) {
+    chosen = process.env.MYSQL_PUBLIC_URL
+    via = 'public'
   } else if (process.env.DATABASE_URL && !looksLocal(process.env.DATABASE_URL)) {
     chosen = process.env.DATABASE_URL
-  } else if (process.env.MYSQL_URL && !looksLocal(process.env.MYSQL_URL)) {
+    via = 'DATABASE_URL (may be private)'
+  } else if (process.env.MYSQL_URL) {
     chosen = process.env.MYSQL_URL
-  } else if (process.env.MYSQLHOST) {
-    chosen = fromParts(process.env.MYSQLHOST, process.env.MYSQLPORT || '3306')
+    via = 'MYSQL_URL (may be private)'
   }
 
   if (!chosen || looksLocal(chosen)) {
     throw new Error(
-      'DATABASE_URL ناقص. على خدمة الـ API اربط MySQL عبر Variable Reference و JWT_SECRET.',
+      'DATABASE_URL ناقص. اربط MYSQL_PUBLIC_URL من خدمة MySQL على الـ API و JWT_SECRET.',
     )
   }
 
-  // تجنّب فتح اتصالات كثيرة على خطط Railway الصغيرة
-  if (!/[?&]connection_limit=/.test(chosen)) {
-    chosen += chosen.includes('?') ? '&connection_limit=5' : '?connection_limit=5'
-  }
-
-  process.env.DATABASE_URL = chosen
-  const via = looksPrivate(chosen) ? 'private' : 'public'
-  console.log(`[db] using ${via} MySQL URL`)
+  process.env.DATABASE_URL = withPool(chosen)
+  console.log(`[db] using ${via} MySQL connection`)
 }
 
 ensureDatabaseUrl()

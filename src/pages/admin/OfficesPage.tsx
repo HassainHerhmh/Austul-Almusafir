@@ -115,14 +115,6 @@ export function OfficesPage() {
         </button>
       </header>
 
-      <div className="panel" style={{ marginBottom: '1rem' }}>
-        <p style={{ margin: 0, color: 'var(--muted)', fontSize: '0.92rem', lineHeight: 1.7 }}>
-          عند كل حجز يُقيَّد سعر التذكرة على ذمة المكتب، ثم تُقيَّد عمولته:{' '}
-          <strong>من حساب وسيط عمولات المكاتب (1132)</strong> إلى{' '}
-          <strong>الحساب المحاسبي للمكتب</strong> بنسبة العمولة المحددة.
-        </p>
-      </div>
-
       <div className="panel">
         <div className="table-wrap">
           <table className="data">

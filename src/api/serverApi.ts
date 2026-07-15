@@ -146,6 +146,8 @@ export const serverApi = {
         method: 'PUT',
         body: JSON.stringify(data),
       }),
+    remove: (id: string) =>
+      apiRequest<{ deleted: boolean }>(`/api/drivers/${id}`, { method: 'DELETE' }),
   },
 
   trips: {

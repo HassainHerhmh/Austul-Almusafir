@@ -1,7 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
-import { serverApi } from '../../api/serverApi'
+import { useRef, useState } from 'react'
 import { DEFAULT_BRAND_NAME, useBrand } from '../../context/BrandContext'
-import type { PricingMode } from '../../types'
 
 const MAX_BYTES = 900_000
 
@@ -18,21 +16,9 @@ export function SettingsPage() {
   const { name, logoUrl, saveBrand, resetBrand } = useBrand()
   const [draftName, setDraftName] = useState(name)
   const [draftLogo, setDraftLogo] = useState<string | null>(logoUrl)
-  const [pricingMode, setPricingMode] = useState<PricingMode>('trip')
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    void serverApi.settings.pricing
-      .get()
-      .then((res) => {
-        setPricingMode(res.data?.mode === 'boarding' ? 'boarding' : 'trip')
-      })
-      .catch(() => {
-        setPricingMode('trip')
-      })
-  }, [])
 
   const onPickLogo = async (file: File | null) => {
     setError(null)
@@ -54,25 +40,18 @@ export function SettingsPage() {
     }
   }
 
-  const save = async (e: React.FormEvent) => {
+  const save = (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
-    try {
-      saveBrand({ name: draftName, logoUrl: draftLogo })
-      await serverApi.settings.pricing.save({ mode: pricingMode })
-      setMessage('تم حفظ إعدادات المنصة وتسعيرة الرحلة')
-    } catch {
-      setError('تعذر حفظ إعدادات التسعير')
-    }
+    saveBrand({ name: draftName, logoUrl: draftLogo })
+    setMessage('تم حفظ إعدادات المنصة')
   }
 
   const restore = () => {
     resetBrand()
     setDraftName(DEFAULT_BRAND_NAME)
     setDraftLogo(null)
-    setPricingMode('trip')
-    void serverApi.settings.pricing.save({ mode: 'trip' }).catch(() => {})
-    setMessage('تمت استعادة الاسم والشعار والتسعير الافتراضي')
+    setMessage('تمت استعادة الاسم والشعار الافتراضي')
     setError(null)
     if (fileRef.current) fileRef.current.value = ''
   }
@@ -82,12 +61,11 @@ export function SettingsPage() {
       <header className="page-header">
         <div>
           <h1>إعدادات المنصة</h1>
-          <p>الشعار واسم المنصة وتسعيرة الرحلة</p>
         </div>
       </header>
 
       <div className="panel settings-panel">
-        <form onSubmit={(e) => void save(e)} className="form-grid" style={{ gridTemplateColumns: '1fr' }}>
+        <form onSubmit={save} className="form-grid" style={{ gridTemplateColumns: '1fr' }}>
           <div className="field">
             <label htmlFor="platform-name">اسم المنصة</label>
             <input
@@ -108,26 +86,6 @@ export function SettingsPage() {
               accept="image/*"
               onChange={(e) => void onPickLogo(e.target.files?.[0] ?? null)}
             />
-            <p className="field-hint">يستبدل أيقونة الباص في الشريط الجانبي وصفحة الدخول</p>
-          </div>
-
-          <div className="field">
-            <label htmlFor="pricing-mode">تسعيرة الرحلة</label>
-            <select
-              id="pricing-mode"
-              value={pricingMode}
-              onChange={(e) => setPricingMode(e.target.value as PricingMode)}
-            >
-              <option value="trip">حسب الرحلة — يعتمد سعر التذكرة المحدد في الرحلة</option>
-              <option value="boarding">
-                حسب منطقة الصعود — يعتمد سعر المنطقة من إدارة الوجهات
-              </option>
-            </select>
-            <p className="field-hint">
-              {pricingMode === 'trip'
-                ? 'سعر الحجز = السعر المعرّف عند إنشاء الرحلة'
-                : 'سعر الحجز = سعر الوجهة المختارة كمنطقة صعود'}
-            </p>
           </div>
 
           <div className="settings-preview">

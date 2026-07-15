@@ -13,6 +13,7 @@ function mapTrip(t: {
   driverId: string
   assistantName: string
   assistantPhone: string
+  pricingMode: string
   date: string
   departureTime: string
   price: number
@@ -25,6 +26,7 @@ function mapTrip(t: {
     driverId: t.driverId,
     assistantName: t.assistantName ?? '',
     assistantPhone: t.assistantPhone ?? '',
+    pricingMode: t.pricingMode === 'boarding' ? 'boarding' : 'trip',
     date: t.date,
     departureTime: t.departureTime,
     price: t.price,
@@ -95,14 +97,20 @@ tripsRouter.post(
         driverId: z.string(),
         assistantName: z.string().optional(),
         assistantPhone: z.string().optional(),
+        pricingMode: z.enum(['trip', 'boarding']).optional(),
         date: z.string().min(1),
         departureTime: z.string().min(1),
-        price: z.number().positive(),
+        price: z.number().min(0),
         status: z.enum(['scheduled', 'departed', 'cancelled', 'completed']).optional(),
         stops: z.array(stopSchema).min(2),
       })
       .safeParse(req.body)
     if (!body.success) return fail(res, 'بيانات الرحلة غير صالحة')
+
+    const pricingMode = body.data.pricingMode === 'boarding' ? 'boarding' : 'trip'
+    if (pricingMode === 'trip' && body.data.price <= 0) {
+      return fail(res, 'أدخل سعر التذكرة للرحلة')
+    }
 
     const trip = await prisma.trip.create({
       data: {
@@ -110,6 +118,7 @@ tripsRouter.post(
         driverId: body.data.driverId,
         assistantName: body.data.assistantName?.trim() ?? '',
         assistantPhone: body.data.assistantPhone?.trim() ?? '',
+        pricingMode,
         date: body.data.date,
         departureTime: body.data.departureTime,
         price: body.data.price,
@@ -141,16 +150,17 @@ tripsRouter.put(
         driverId: z.string().optional(),
         assistantName: z.string().optional(),
         assistantPhone: z.string().optional(),
+        pricingMode: z.enum(['trip', 'boarding']).optional(),
         date: z.string().min(1).optional(),
         departureTime: z.string().min(1).optional(),
-        price: z.number().positive().optional(),
+        price: z.number().min(0).optional(),
         status: z.enum(['scheduled', 'departed', 'cancelled', 'completed']).optional(),
         stops: z.array(stopSchema).min(2).optional(),
       })
       .safeParse(req.body)
     if (!body.success) return fail(res, 'بيانات غير صالحة')
 
-    const { stops, assistantName, assistantPhone, ...rest } = body.data
+    const { stops, assistantName, assistantPhone, pricingMode, ...rest } = body.data
     if (stops) {
       await prisma.tripStop.deleteMany({ where: { tripId: paramId(req) } })
       await prisma.tripStop.createMany({
@@ -169,6 +179,9 @@ tripsRouter.put(
         ...rest,
         ...(assistantName !== undefined ? { assistantName: assistantName.trim() } : {}),
         ...(assistantPhone !== undefined ? { assistantPhone: assistantPhone.trim() } : {}),
+        ...(pricingMode !== undefined
+          ? { pricingMode: pricingMode === 'boarding' ? 'boarding' : 'trip' }
+          : {}),
       },
       include: { stops: true },
     })

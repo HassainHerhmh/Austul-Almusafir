@@ -31,7 +31,7 @@ function parseActive(v: string): boolean {
 }
 
 export function DriversPage() {
-  const { state, upsertDriver } = useApp()
+  const { state, upsertDriver, deleteDriver } = useApp()
   const [form, setForm] = useState(empty)
   const [editId, setEditId] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
@@ -162,7 +162,6 @@ export function DriversPage() {
       <header className="page-header">
         <div>
           <h1>إدارة السائقين</h1>
-          <p>سائق رسمي أو معاون — رقم الهوية والجنسية · استيراد وتصدير Excel</p>
         </div>
         <div className="actions">
           <button type="button" className="btn btn-ghost" onClick={downloadTemplate}>
@@ -205,6 +204,7 @@ export function DriversPage() {
           <table className="data">
             <thead>
               <tr>
+                <th style={{ width: 56 }}>#</th>
                 <th>الاسم</th>
                 <th>الهاتف</th>
                 <th>رقم الهوية</th>
@@ -215,8 +215,9 @@ export function DriversPage() {
               </tr>
             </thead>
             <tbody>
-              {state.drivers.map((d) => (
+              {state.drivers.map((d, i) => (
                 <tr key={d.id}>
+                  <td>{i + 1}</td>
                   <td>{d.name}</td>
                   <td>{d.phone}</td>
                   <td>{d.licenseNumber}</td>
@@ -234,13 +235,29 @@ export function DriversPage() {
                     </span>
                   </td>
                   <td>
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => startEdit(d)}
-                    >
-                      تعديل
-                    </button>
+                    <div className="actions">
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => startEdit(d)}
+                      >
+                        تعديل
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-danger btn-sm"
+                        onClick={() => {
+                          if (!confirm(`حذف السائق «${d.name}»؟`)) return
+                          void deleteDriver(d.id).catch((err: unknown) => {
+                            const msg =
+                              err instanceof Error ? err.message : 'تعذر حذف السائق'
+                            alert(msg)
+                          })
+                        }}
+                      >
+                        حذف
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

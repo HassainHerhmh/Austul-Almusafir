@@ -43,7 +43,6 @@ export function AdminReportsPage() {
       <header className="page-header">
         <div>
           <h1>التقارير العامة</h1>
-          <p>إجمالي الرحلات والمبيعات والإيرادات</p>
         </div>
       </header>
 

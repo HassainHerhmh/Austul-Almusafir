@@ -56,7 +56,6 @@ export function UsersPage() {
       <header className="page-header">
         <div>
           <h1>إدارة المستخدمين</h1>
-          <p>إنشاء المستخدمين والصلاحيات وكلمات المرور</p>
         </div>
         <button
           type="button"

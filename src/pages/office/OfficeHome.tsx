@@ -34,7 +34,6 @@ export function OfficeHome() {
       <header className="page-header">
         <div>
           <h1>{currentOffice?.name}</h1>
-          <p>رحلات اليوم والقادمة · المقاعد المتبقية · حجوزاتك</p>
         </div>
         {can('book') && (
           <Link to="/office/bookings" className="btn btn-primary">

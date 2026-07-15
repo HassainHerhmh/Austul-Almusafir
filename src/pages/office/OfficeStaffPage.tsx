@@ -131,7 +131,6 @@ export function OfficeStaffPage() {
       <header className="page-header">
         <div>
           <h1>موظفو المكتب</h1>
-          <p>إضافة وتعديل وتعطيل وحذف موظفي {currentOffice?.name}</p>
         </div>
         {(canPage('staff', 'add') || can('manage_office_users')) && (
           <button type="button" className="btn btn-amber" onClick={openAdd}>

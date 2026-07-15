@@ -128,7 +128,6 @@ const AccountStatement: React.FC = () => {
       <div className="acc-report-header flex flex-col md:flex-row justify-between items-center p-4 no-print gap-4">
         <div>
           <h2 className="acc-heading text-xl md:text-2xl">كشف الحساب التحليلي</h2>
-          <p className="text-xs acc-muted font-bold">إدارة التقارير والتدقيق المالي</p>
         </div>
 
         <div className="flex items-center gap-2">

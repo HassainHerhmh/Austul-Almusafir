@@ -58,7 +58,7 @@ export function BusesPage() {
       'الباصات.xlsx',
       state.buses.map((b) => ({
         'رقم اللوحة': b.plateNumber,
-        النوع: b.type,
+        'موديل الحافلة': b.type,
         المقاعد: b.seats,
         الحالة: statusLabel(b.status),
       })),
@@ -68,7 +68,7 @@ export function BusesPage() {
   const exportPdf = () => {
     exportTablePdf(
       'قائمة الباصات',
-      ['رقم اللوحة', 'النوع', 'المقاعد', 'الحالة'],
+      ['رقم اللوحة', 'موديل الحافلة', 'المقاعد', 'الحالة'],
       state.buses.map((b) => [b.plateNumber, b.type, b.seats, statusLabel(b.status)]),
     )
   }
@@ -77,7 +77,7 @@ export function BusesPage() {
     downloadExcel('نموذج_استيراد_باصات.xlsx', [
       {
         'رقم اللوحة': '22-12345',
-        النوع: 'مرسيدس',
+        'موديل الحافلة': 'مرسيدس',
         المقاعد: 50,
         الحالة: 'متاح',
       },
@@ -95,7 +95,16 @@ export function BusesPage() {
       const byPlate = new Map(state.buses.map((b) => [b.plateNumber, b.id]))
       for (const row of rows) {
         const plateNumber = pick(row, ['رقم اللوحة', 'اللوحة', 'plateNumber', 'plate'])
-        const type = pick(row, ['النوع', 'type', 'Type'])
+        const type = pick(row, [
+          'موديل الحافلة',
+          'الموديل',
+          'موديل',
+          'النوع',
+          'type',
+          'Type',
+          'model',
+          'Model',
+        ])
         const seatsRaw = pick(row, ['المقاعد', 'seats', 'Seats'])
         const seats = Math.max(1, Number(seatsRaw) || 0)
         if (!plateNumber || !type || seats < 1) {
@@ -128,7 +137,6 @@ export function BusesPage() {
       <header className="page-header">
         <div>
           <h1>إدارة الباصات</h1>
-          <p>اللوحات وأنواع الباصات · استيراد وتصدير Excel</p>
         </div>
         <div className="actions">
           <button type="button" className="btn btn-ghost" onClick={downloadTemplate}>
@@ -171,16 +179,18 @@ export function BusesPage() {
           <table className="data">
             <thead>
               <tr>
+                <th style={{ width: 56 }}>#</th>
                 <th>رقم اللوحة</th>
-                <th>النوع</th>
+                <th>موديل الحافلة</th>
                 <th>المقاعد</th>
                 <th>الحالة</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
-              {state.buses.map((b) => (
+              {state.buses.map((b, i) => (
                 <tr key={b.id}>
+                  <td>{i + 1}</td>
                   <td>{b.plateNumber}</td>
                   <td>{b.type}</td>
                   <td>{b.seats}</td>
@@ -224,11 +234,12 @@ export function BusesPage() {
                   />
                 </div>
                 <div className="field">
-                  <label>النوع</label>
+                  <label>موديل الحافلة</label>
                   <input
                     required
                     value={form.type}
                     onChange={(e) => setForm({ ...form, type: e.target.value })}
+                    placeholder="مثال: مرسيدس"
                   />
                 </div>
                 <div className="field">

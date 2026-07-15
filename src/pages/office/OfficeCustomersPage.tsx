@@ -11,7 +11,6 @@ export function OfficeCustomersPage() {
       <header className="page-header">
         <div>
           <h1>العملاء</h1>
-          <p>بيانات عملاء {currentOffice?.name} فقط</p>
         </div>
       </header>
 

@@ -59,6 +59,7 @@ interface AppContextValue {
   deleteUser: (id: string) => Promise<void>
   upsertBus: (bus: Omit<Bus, 'id'> & { id?: string }) => Promise<Bus>
   upsertDriver: (driver: Omit<Driver, 'id'> & { id?: string }) => Promise<Driver>
+  deleteDriver: (id: string) => Promise<void>
   upsertDestination: (dest: Omit<Destination, 'id'> & { id?: string }) => Promise<void>
   upsertTrip: (trip: Omit<Trip, 'id'> & { id?: string }) => Promise<void>
   cancelTrip: (id: string) => Promise<void>
@@ -429,6 +430,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return res.driver
   }
 
+  const deleteDriver = async (id: string) => {
+    await serverApi.drivers.remove(id)
+    setState((s) => ({ ...s, drivers: s.drivers.filter((d) => d.id !== id) }))
+  }
+
   const upsertDestination: AppContextValue['upsertDestination'] = async (dest) => {
     const payload = { name: dest.name, ticketPrice: dest.ticketPrice ?? 0 }
     const res = dest.id
@@ -446,6 +452,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       driverId: trip.driverId,
       assistantName: trip.assistantName ?? '',
       assistantPhone: trip.assistantPhone ?? '',
+      pricingMode: trip.pricingMode === 'boarding' ? 'boarding' : 'trip',
       date: trip.date,
       departureTime: trip.departureTime,
       price: trip.price,
@@ -547,6 +554,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     deleteUser,
     upsertBus,
     upsertDriver,
+    deleteDriver,
     upsertDestination,
     upsertTrip,
     cancelTrip,

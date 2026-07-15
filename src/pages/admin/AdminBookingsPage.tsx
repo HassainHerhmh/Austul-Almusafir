@@ -9,7 +9,6 @@ export function AdminBookingsPage() {
       <header className="page-header">
         <div>
           <h1>متابعة الحجوزات</h1>
-          <p>جميع حجوزات المكاتب على النظام المركزي</p>
         </div>
       </header>
 

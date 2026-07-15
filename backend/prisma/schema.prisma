@@ -78,6 +78,8 @@ model Trip {
   assistantName      String     @default("")
   /** جوال السائق المعاون (إدخال مباشر، اختياري) */
   assistantPhone     String     @default("")
+  /** trip = سعر الرحلة · boarding = سعر منطقة الصعود */
+  pricingMode        String     @default("trip")
   date               String
   departureTime      String
   price              Float

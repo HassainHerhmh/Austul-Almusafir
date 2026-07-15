@@ -70,14 +70,12 @@ export function LoginPage() {
             {logoUrl ? <img src={logoUrl} alt="" /> : <span aria-hidden>🚌</span>}
           </div>
           <h1>{name}</h1>
-          <p>منصة واحدة لإدارة مكاتب السفريات والرحلات والمقاعد — بشكل مركزي وفوري.</p>
         </div>
       </section>
 
       <section className="login-panel">
         <div className="login-card">
           <h2>تسجيل الدخول</h2>
-          <p>ادخل بحساب المدير أو حساب المكتب</p>
 
           <form onSubmit={(e) => void submit(e)}>
             <div className="form-grid" style={{ gridTemplateColumns: '1fr' }}>

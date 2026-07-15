@@ -108,7 +108,6 @@ export function OfficesPage() {
       <header className="page-header">
         <div>
           <h1>إدارة المكاتب</h1>
-          <p>إضافة وتعديل المكاتب والحساب المحاسبي ونسبة العمولة لكل مكتب</p>
         </div>
         <button type="button" className="btn btn-amber" onClick={() => void openModal()}>
           إضافة مكتب
@@ -270,9 +269,6 @@ export function OfficesPage() {
                       })
                     }
                   />
-                  <p className="field-hint">
-                    تُحسب من سعر التذكرة وتُقيَّد من مصروف عمولات المكاتب إلى حساب المكتب
-                  </p>
                 </div>
               </div>
               <div className="actions" style={{ marginTop: '1rem' }}>

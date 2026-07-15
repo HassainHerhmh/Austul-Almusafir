@@ -84,9 +84,7 @@ bookingsRouter.post(
     })
     if (taken) return fail(res, 'هذا المقعد محجوز مسبقاً')
 
-    const pricingRow = await prisma.appSetting.findUnique({ where: { key: 'trip_pricing' } })
-    const pricingMode =
-      (pricingRow?.value as { mode?: string } | null)?.mode === 'boarding' ? 'boarding' : 'trip'
+    const pricingMode = trip.pricingMode === 'boarding' ? 'boarding' : 'trip'
 
     let ticketPrice = trip.price
     if (pricingMode === 'boarding') {

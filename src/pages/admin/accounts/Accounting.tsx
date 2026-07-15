@@ -64,8 +64,6 @@ const Accounting = () => {
         >
           التقارير
         </Link>
-
-        <span className="acc-muted">إدارة الترحيلات</span>
       </div>
 
       {isSetup && (

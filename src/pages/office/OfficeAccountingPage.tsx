@@ -48,7 +48,6 @@ export function OfficeAccountingPage() {
       <header className="page-header">
         <div>
           <h1>المحاسبة</h1>
-          <p>صندوق · سندات قبض وصرف · كشف حساب {currentOffice?.name}</p>
         </div>
         <button type="button" className="btn btn-amber" onClick={() => setOpen(true)}>
           سند جديد

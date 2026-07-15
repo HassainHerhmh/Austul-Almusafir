@@ -214,7 +214,6 @@ export function OfficePermissionsPage() {
       <header className="page-header">
         <div>
           <h1>صلاحية المستخدمين</h1>
-          <p>تحديد عرض وإضافة وتعديل وحذف لكل صفحة — بنفس أسلوب منصة الكروت</p>
         </div>
       </header>
 

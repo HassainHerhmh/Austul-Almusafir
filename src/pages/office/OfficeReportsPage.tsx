@@ -25,7 +25,6 @@ export function OfficeReportsPage() {
       <header className="page-header">
         <div>
           <h1>تقارير المكتب</h1>
-          <p>مبيعات وإيرادات {currentOffice?.name}</p>
         </div>
       </header>
 

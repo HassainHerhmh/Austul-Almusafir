@@ -60,7 +60,6 @@ export function DestinationsPage() {
       <header className="page-header">
         <div>
           <h1>إدارة الوجهات</h1>
-          <p>حدّد سعر التذكرة لكل منطقة مباشرة من الجدول — يُستخدم عند تسعير «حسب منطقة الصعود»</p>
         </div>
       </header>
 

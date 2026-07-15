@@ -78,6 +78,8 @@ export interface Trip {
   assistantName: string
   /** جوال السائق المعاون */
   assistantPhone: string
+  /** تسعيرة هذه الرحلة: سعر الرحلة أو سعر منطقة الصعود */
+  pricingMode: PricingMode
   date: string
   departureTime: string
   price: number

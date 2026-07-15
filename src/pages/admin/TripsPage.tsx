@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { formatMoney, todayStr } from '../../components/utils'
 import { useApp } from '../../context/AppContext'
-import type { Trip, TripStatus, TripStop } from '../../types'
+import type { PricingMode, Trip, TripStatus, TripStop } from '../../types'
 import { emptyStop, tripRoutePoints } from '../../utils/trip'
 
 type TripForm = {
@@ -9,6 +9,7 @@ type TripForm = {
   driverId: string
   assistantName: string
   assistantPhone: string
+  pricingMode: PricingMode
   date: string
   departureTime: string
   price: number
@@ -21,6 +22,7 @@ const emptyForm = (): TripForm => ({
   driverId: '',
   assistantName: '',
   assistantPhone: '',
+  pricingMode: 'trip',
   date: todayStr(),
   departureTime: '08:00',
   price: 10000,
@@ -80,6 +82,10 @@ export function TripsPage() {
       alert('أدخل اسم السائق المعاون مع رقم الجوال')
       return
     }
+    if (form.pricingMode === 'trip' && !(form.price > 0)) {
+      alert('أدخل سعر التذكرة للرحلة')
+      return
+    }
     upsertTrip(
       editId
         ? {
@@ -106,6 +112,7 @@ export function TripsPage() {
       driverId: t.driverId,
       assistantName: t.assistantName ?? '',
       assistantPhone: t.assistantPhone ?? '',
+      pricingMode: t.pricingMode === 'boarding' ? 'boarding' : 'trip',
       date: t.date,
       departureTime: t.departureTime,
       price: t.price,
@@ -133,7 +140,6 @@ export function TripsPage() {
       <header className="page-header">
         <div>
           <h1>إدارة الرحلات</h1>
-          <p>إضافة وتعديل الرحلات ومحطات السير</p>
         </div>
         <button
           type="button"
@@ -166,6 +172,7 @@ export function TripsPage() {
                 <th>التاريخ</th>
                 <th>الوقت</th>
                 <th>الباص</th>
+                <th>موديل الحافلة</th>
                 <th>السائق الرسمي</th>
                 <th>السائق المعاون</th>
                 <th>السعر</th>
@@ -197,13 +204,18 @@ export function TripsPage() {
                       <td>{t.date}</td>
                       <td>{t.departureTime}</td>
                       <td>{getBus(t.busId)?.plateNumber}</td>
+                      <td>{getBus(t.busId)?.type || '—'}</td>
                       <td>{getDriver(t.driverId)?.name ?? '—'}</td>
                       <td>
                         {t.assistantName
                           ? `${t.assistantName}${t.assistantPhone ? ` — ${t.assistantPhone}` : ''}`
                           : '—'}
                       </td>
-                      <td>{formatMoney(t.price)}</td>
+                      <td>
+                        {t.pricingMode === 'boarding'
+                          ? 'حسب الصعود'
+                          : formatMoney(t.price)}
+                      </td>
                       <td>
                         {seats.booked}/{seats.total}
                         <div style={{ fontSize: '0.75rem', color: 'var(--success)' }}>
@@ -352,7 +364,7 @@ export function TripsPage() {
                   >
                     {state.buses.map((b) => (
                       <option key={b.id} value={b.id}>
-                        {b.plateNumber} ({b.seats} مقعد)
+                        {b.plateNumber} — {b.type} ({b.seats} مقعد)
                       </option>
                     ))}
                   </select>
@@ -391,16 +403,37 @@ export function TripsPage() {
                     inputMode="tel"
                   />
                 </div>
-                <div className="field">
-                  <label>السعر</label>
-                  <input
-                    type="number"
-                    min={0}
-                    required
-                    value={form.price}
-                    onChange={(e) => setForm({ ...form, price: Number(e.target.value) })}
-                  />
+                <div className="field" style={{ gridColumn: '1 / -1' }}>
+                  <label>تسعيرة الرحلة</label>
+                  <div className="actions" style={{ gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      className={`btn ${form.pricingMode === 'trip' ? 'btn-primary' : 'btn-ghost'}`}
+                      onClick={() => setForm({ ...form, pricingMode: 'trip' })}
+                    >
+                      حسب الرحلة
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn ${form.pricingMode === 'boarding' ? 'btn-primary' : 'btn-ghost'}`}
+                      onClick={() => setForm({ ...form, pricingMode: 'boarding' })}
+                    >
+                      حسب منطقة الصعود
+                    </button>
+                  </div>
                 </div>
+                {form.pricingMode === 'trip' && (
+                  <div className="field">
+                    <label>السعر</label>
+                    <input
+                      type="number"
+                      min={0}
+                      required
+                      value={form.price}
+                      onChange={(e) => setForm({ ...form, price: Number(e.target.value) })}
+                    />
+                  </div>
+                )}
                 {editId && (
                   <div className="field">
                     <label>الحالة</label>

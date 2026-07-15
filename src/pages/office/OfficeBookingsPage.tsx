@@ -123,7 +123,6 @@ export function OfficeBookingsPage() {
       <header className="page-header">
         <div>
           <h1>الحجوزات</h1>
-          <p>إنشاء حجز · خريطة المقاعد · التذاكر</p>
         </div>
       </header>
 

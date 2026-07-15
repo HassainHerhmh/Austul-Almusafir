@@ -20,7 +20,6 @@ export function AdminHome() {
       <header className="page-header">
         <div>
           <h1>لوحة مدير النظام</h1>
-          <p>إدارة مركزية لجميع المكاتب والرحلات والحجوزات</p>
         </div>
       </header>
 

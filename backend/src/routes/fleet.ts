@@ -181,3 +181,17 @@ driversRouter.put(
   }),
 )
 
+driversRouter.delete(
+  '/:id',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const id = paramId(req)
+    const linked = await prisma.trip.count({ where: { driverId: id } })
+    if (linked > 0) {
+      return fail(res, 'لا يمكن حذف السائق لارتباطه برحلات — أوقف السائق بدلاً من الحذف')
+    }
+    await prisma.driver.delete({ where: { id } })
+    return ok(res, { deleted: true })
+  }),
+)
+

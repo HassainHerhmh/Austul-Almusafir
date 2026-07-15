@@ -2,11 +2,18 @@ import { Router } from 'express'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 import { prisma } from '../config'
-import { authRequired, requireAdmin, requireRoles } from '../middleware/auth'
+import { authRequired, requireRoles } from '../middleware/auth'
 import { asyncHandler, fail, ok, paramId } from '../utils/http'
 
 export const usersRouter = Router()
 usersRouter.use(authRequired)
+
+const pagePermSchema = z.object({
+  view: z.boolean(),
+  add: z.boolean(),
+  edit: z.boolean(),
+  delete: z.boolean(),
+})
 
 function publicUser(u: {
   id: string
@@ -15,6 +22,7 @@ function publicUser(u: {
   role: string
   officeId: string | null
   active: boolean
+  permissions?: unknown
 }) {
   return {
     id: u.id,
@@ -23,7 +31,19 @@ function publicUser(u: {
     role: u.role,
     officeId: u.officeId,
     active: u.active,
+    permissions: (u.permissions as Record<string, unknown> | null) ?? null,
   }
+}
+
+function canManageUser(
+  actor: { id: string; role: string; officeId: string | null },
+  target: { officeId: string | null; role: string },
+) {
+  if (actor.role === 'admin') return true
+  if (actor.role !== 'office_manager') return false
+  if (!actor.officeId || target.officeId !== actor.officeId) return false
+  if (target.role === 'admin') return false
+  return true
 }
 
 usersRouter.get(
@@ -84,7 +104,7 @@ usersRouter.put(
   asyncHandler(async (req, res) => {
     const existing = await prisma.user.findUnique({ where: { id: paramId(req) } })
     if (!existing) return fail(res, 'المستخدم غير موجود', 404)
-    if (req.user!.role !== 'admin' && existing.officeId !== req.user!.officeId) {
+    if (!canManageUser(req.user!, existing)) {
       return fail(res, 'ليس لديك صلاحية', 403)
     }
 
@@ -113,13 +133,59 @@ usersRouter.put(
   }),
 )
 
+usersRouter.get(
+  '/:id/permissions',
+  requireRoles('admin', 'office_manager'),
+  asyncHandler(async (req, res) => {
+    const existing = await prisma.user.findUnique({ where: { id: paramId(req) } })
+    if (!existing) return fail(res, 'المستخدم غير موجود', 404)
+    if (!canManageUser(req.user!, existing)) {
+      return fail(res, 'ليس لديك صلاحية', 403)
+    }
+    return ok(res, {
+      permissions: (existing.permissions as Record<string, unknown> | null) ?? null,
+    })
+  }),
+)
+
+usersRouter.put(
+  '/:id/permissions',
+  requireRoles('admin', 'office_manager'),
+  asyncHandler(async (req, res) => {
+    const existing = await prisma.user.findUnique({ where: { id: paramId(req) } })
+    if (!existing) return fail(res, 'المستخدم غير موجود', 404)
+    if (!canManageUser(req.user!, existing)) {
+      return fail(res, 'ليس لديك صلاحية', 403)
+    }
+
+    const body = z
+      .object({
+        permissions: z.record(pagePermSchema),
+      })
+      .safeParse(req.body)
+    if (!body.success) return fail(res, 'بيانات الصلاحيات غير صالحة')
+
+    const user = await prisma.user.update({
+      where: { id: paramId(req) },
+      data: { permissions: body.data.permissions },
+    })
+    return ok(res, { user: publicUser(user) })
+  }),
+)
+
 usersRouter.delete(
   '/:id',
-  requireAdmin,
+  requireRoles('admin', 'office_manager'),
   asyncHandler(async (req, res) => {
     if (paramId(req) === req.user!.id) return fail(res, 'لا يمكن حذف حسابك الحالي')
+    const existing = await prisma.user.findUnique({ where: { id: paramId(req) } })
+    if (!existing) return fail(res, 'المستخدم غير موجود', 404)
+    if (!canManageUser(req.user!, existing)) {
+      return fail(res, 'ليس لديك صلاحية', 403)
+    }
+    if (existing.role === 'admin') return fail(res, 'لا يمكن حذف مدير النظام', 403)
+
     await prisma.user.delete({ where: { id: paramId(req) } })
     return ok(res, { deleted: true })
   }),
 )
-

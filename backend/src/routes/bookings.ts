@@ -44,8 +44,9 @@ bookingsRouter.post(
         officeId: z.string().optional(),
         passengerName: z.string().min(1),
         phone: z.string().min(1),
-        nationalId: z.string().min(1),
+        nationalId: z.string().default(''),
         passportNumber: z.string().default(''),
+        boardingDestinationId: z.string().min(1),
         seatNumber: z.number().int().positive(),
         paymentMethod: z.enum(['cash', 'transfer', 'credit']).default('cash'),
         notes: z.string().optional(),
@@ -61,11 +62,16 @@ bookingsRouter.post(
 
     const trip = await prisma.trip.findUnique({
       where: { id: body.data.tripId },
-      include: { bus: true },
+      include: { bus: true, stops: { orderBy: { sortOrder: 'asc' } } },
     })
     if (!trip || trip.status !== 'scheduled') return fail(res, 'الرحلة غير متاحة للحجز')
     if (body.data.seatNumber < 1 || body.data.seatNumber > trip.bus.seats) {
       return fail(res, 'رقم المقعد غير صالح')
+    }
+
+    const routeIds = trip.stops.map((s) => s.destinationId)
+    if (!routeIds.includes(body.data.boardingDestinationId)) {
+      return fail(res, 'منطقة الصعود ليست من مدن مسار الرحلة')
     }
 
     const taken = await prisma.booking.findFirst({
@@ -82,7 +88,7 @@ bookingsRouter.post(
         officeId,
         OR: [
           { phone: body.data.phone },
-          { nationalId: body.data.nationalId },
+          ...(body.data.nationalId ? [{ nationalId: body.data.nationalId }] : []),
           ...(body.data.passportNumber
             ? [{ passportNumber: body.data.passportNumber }]
             : []),
@@ -119,6 +125,7 @@ bookingsRouter.post(
         customerId: customer.id,
         passengerName: body.data.passengerName,
         passportNumber: body.data.passportNumber,
+        boardingDestinationId: body.data.boardingDestinationId,
         seatNumber: body.data.seatNumber,
         price: trip.price,
         paymentMethod: body.data.paymentMethod,

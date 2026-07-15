@@ -28,6 +28,8 @@ export interface User {
   role: Role
   officeId: string | null
   active: boolean
+  /** صلاحيات الصفحات المخصصة — null = افتراضي حسب الدور */
+  permissions?: Record<string, { view: boolean; add: boolean; edit: boolean; delete: boolean }> | null
 }
 
 export interface Destination {
@@ -90,6 +92,8 @@ export interface Booking {
   customerId: string
   passengerName: string
   passportNumber: string
+  /** محطة/مدينة الصعود من مسار الرحلة */
+  boardingDestinationId: string
   seatNumber: number
   price: number
   paymentMethod: PaymentMethod

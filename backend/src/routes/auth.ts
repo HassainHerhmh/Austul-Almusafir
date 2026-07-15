@@ -45,6 +45,7 @@ authRouter.post(
         role: user.role,
         officeId: user.officeId,
         active: user.active,
+        permissions: user.permissions ?? null,
       },
     })
   }),
@@ -64,6 +65,7 @@ authRouter.get(
         role: user.role,
         officeId: user.officeId,
         active: user.active,
+        permissions: user.permissions ?? null,
       },
     })
   }),

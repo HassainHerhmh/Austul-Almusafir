@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { SeatMap } from '../../components/SeatMap'
 import { TicketView } from '../../components/TicketView'
@@ -14,6 +14,7 @@ export function OfficeBookingsPage() {
     can,
     getTripLabel,
     getTripSeats,
+    getDestination,
     createBooking,
     updateBooking,
   } = useApp()
@@ -33,13 +34,38 @@ export function OfficeBookingsPage() {
   const [seat, setSeat] = useState<number | null>(null)
   const [passengerName, setPassengerName] = useState('')
   const [phone, setPhone] = useState('')
-  const [nationalId, setNationalId] = useState('')
   const [passportNumber, setPassportNumber] = useState('')
+  const [boardingDestinationId, setBoardingDestinationId] = useState('')
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
   const [notes, setNotes] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [ticketBooking, setTicketBooking] = useState<Booking | null>(null)
   const [changeSeatId, setChangeSeatId] = useState<string | null>(null)
+
+  const selectedTrip = useMemo(
+    () => state.trips.find((t) => t.id === tripId) ?? null,
+    [state.trips, tripId],
+  )
+
+  const boardingStops = useMemo(() => {
+    if (!selectedTrip?.stops?.length) return []
+    const seen = new Set<string>()
+    return selectedTrip.stops.filter((s) => {
+      if (!s.destinationId || seen.has(s.destinationId)) return false
+      seen.add(s.destinationId)
+      return true
+    })
+  }, [selectedTrip])
+
+  useEffect(() => {
+    if (!boardingStops.length) {
+      setBoardingDestinationId('')
+      return
+    }
+    if (!boardingStops.some((s) => s.destinationId === boardingDestinationId)) {
+      setBoardingDestinationId(boardingStops[0].destinationId)
+    }
+  }, [boardingStops, boardingDestinationId])
 
   const seats = tripId ? getTripSeats(tripId) : null
 
@@ -57,13 +83,17 @@ export function OfficeBookingsPage() {
       setError('اختر الرحلة والمقعد')
       return
     }
+    if (!boardingDestinationId) {
+      setError('اختر منطقة الصعود')
+      return
+    }
     const result = await createBooking({
       tripId,
       officeId,
       passengerName,
       phone,
-      nationalId,
       passportNumber,
+      boardingDestinationId,
       seatNumber: seat,
       paymentMethod,
       notes,
@@ -76,7 +106,6 @@ export function OfficeBookingsPage() {
     setError(null)
     setPassengerName('')
     setPhone('')
-    setNationalId('')
     setPassportNumber('')
     setNotes('')
     setSeat(null)
@@ -146,14 +175,6 @@ export function OfficeBookingsPage() {
                 <input required value={phone} onChange={(e) => setPhone(e.target.value)} />
               </div>
               <div className="field">
-                <label>رقم الهوية</label>
-                <input
-                  required
-                  value={nationalId}
-                  onChange={(e) => setNationalId(e.target.value)}
-                />
-              </div>
-              <div className="field">
                 <label>رقم الجواز</label>
                 <input
                   required
@@ -161,6 +182,22 @@ export function OfficeBookingsPage() {
                   onChange={(e) => setPassportNumber(e.target.value)}
                   placeholder="مثال: P-1234567"
                 />
+              </div>
+              <div className="field">
+                <label>منطقة الصعود</label>
+                <select
+                  required
+                  value={boardingDestinationId}
+                  onChange={(e) => setBoardingDestinationId(e.target.value)}
+                  disabled={!boardingStops.length}
+                >
+                  {!boardingStops.length && <option value="">اختر رحلة أولاً</option>}
+                  {boardingStops.map((s) => (
+                    <option key={s.destinationId} value={s.destinationId}>
+                      {getDestination(s.destinationId)?.name ?? s.destinationId}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div className="field">
                 <label>طريقة الدفع</label>
@@ -194,7 +231,11 @@ export function OfficeBookingsPage() {
 
             {error && <p className="error-msg">{error}</p>}
             <div className="actions" style={{ marginTop: '1rem' }}>
-              <button type="submit" className="btn btn-primary" disabled={!seat}>
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={!seat || !boardingDestinationId}
+              >
                 تأكيد الحجز {seat ? `(مقعد ${seat})` : ''}
               </button>
             </div>
@@ -212,6 +253,7 @@ export function OfficeBookingsPage() {
               <tr>
                 <th>الراكب</th>
                 <th>رقم الجواز</th>
+                <th>منطقة الصعود</th>
                 <th>الرحلة</th>
                 <th>المقعد</th>
                 <th>الدفع</th>
@@ -228,6 +270,7 @@ export function OfficeBookingsPage() {
                   <tr key={b.id}>
                     <td>{b.passengerName}</td>
                     <td>{b.passportNumber || '—'}</td>
+                    <td>{getDestination(b.boardingDestinationId)?.name || '—'}</td>
                     <td>{trip ? getTripLabel(trip) : '—'}</td>
                     <td>{b.seatNumber}</td>
                     <td>{PAYMENT_LABELS[b.paymentMethod]}</td>

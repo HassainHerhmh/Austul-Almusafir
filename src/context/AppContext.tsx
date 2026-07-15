@@ -9,6 +9,12 @@ import {
 } from 'react'
 import { ApiError, getToken, setToken } from '../api/client'
 import { asBooking, asOffice, asUser, serverApi } from '../api/serverApi'
+import {
+  LEGACY_ACTION_TO_PAGE,
+  normalizePermissions,
+  resolveUserPermissions,
+  type PageAction,
+} from '../data/permissions'
 import type {
   AppState,
   Booking,
@@ -61,8 +67,8 @@ interface AppContextValue {
     officeId: string
     passengerName: string
     phone: string
-    nationalId: string
     passportNumber: string
+    boardingDestinationId: string
     seatNumber: number
     paymentMethod: PaymentMethod
     notes?: string
@@ -79,6 +85,11 @@ interface AppContextValue {
   ) => Promise<string | null>
   addVoucher: (voucher: Omit<Voucher, 'id'> & { id?: string }) => Promise<void>
   can: (action: Permission) => boolean
+  canPage: (pageId: string, action?: PageAction) => boolean
+  saveUserPermissions: (
+    userId: string,
+    permissions: Record<string, { view: boolean; add: boolean; edit: boolean; delete: boolean }>,
+  ) => Promise<string | null>
 }
 
 export type Permission =
@@ -148,12 +159,37 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const isAdmin = currentUser?.role === 'admin'
 
+  const resolvedPermissions = useMemo(() => {
+    if (!currentUser) return null
+    if (currentUser.role === 'admin') return resolveUserPermissions('admin', null)
+    const saved = normalizePermissions(currentUser.permissions, currentUser.role)
+    return resolveUserPermissions(currentUser.role, saved)
+  }, [currentUser])
+
+  const canPage = useCallback(
+    (pageId: string, action: PageAction = 'view') => {
+      if (!currentUser) return false
+      if (currentUser.role === 'admin') return true
+      if (!resolvedPermissions) return false
+      return !!resolvedPermissions[pageId]?.[action]
+    },
+    [currentUser, resolvedPermissions],
+  )
+
   const can = useCallback(
     (action: Permission) => {
       if (!currentUser) return false
-      return ROLE_PERMS[currentUser.role].includes(action)
+      if (!ROLE_PERMS[currentUser.role].includes(action)) return false
+      if (currentUser.role === 'admin') return true
+      const mapped = LEGACY_ACTION_TO_PAGE[action]
+      if (!mapped || !resolvedPermissions) return true
+      // إذا وُجدت صلاحيات محفوظة للمستخدم طبّق تقييد الصفحة
+      if (currentUser.permissions && Object.keys(currentUser.permissions).length > 0) {
+        return !!resolvedPermissions[mapped.page]?.[mapped.action]
+      }
+      return true
     },
-    [currentUser],
+    [currentUser, resolvedPermissions],
   )
 
   const refreshBalances = async (offices: Office[]) => {
@@ -223,6 +259,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setApiReady(true)
     await refreshBalances(officeList)
   }, [])
+
+  const saveUserPermissions = async (
+    userId: string,
+    permissions: Record<string, { view: boolean; add: boolean; edit: boolean; delete: boolean }>,
+  ) => {
+    try {
+      await serverApi.users.savePermissions(userId, permissions)
+      await refreshAll()
+      return null
+    } catch (e) {
+      return e instanceof ApiError ? e.message : 'فشل حفظ الصلاحيات'
+    }
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -396,8 +445,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         officeId: input.officeId,
         passengerName: input.passengerName,
         phone: input.phone,
-        nationalId: input.nationalId,
         passportNumber: input.passportNumber,
+        boardingDestinationId: input.boardingDestinationId,
         seatNumber: input.seatNumber,
         paymentMethod: input.paymentMethod,
         notes: input.notes,
@@ -462,6 +511,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     updateBooking,
     addVoucher,
     can,
+    canPage,
+    saveUserPermissions,
   }
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

@@ -31,6 +31,8 @@ model User {
   officeId     String?
   office       Office?   @relation(fields: [officeId], references: [id])
   active       Boolean   @default(true)
+  /** صلاحيات الصفحات (عرض/إضافة/تعديل/حذف) — نفس أسلوب منصة الكروت */
+  permissions  Json?
   bookings     Booking[] @relation("BookedBy")
   createdAt    DateTime  @default(now())
 }
@@ -110,6 +112,8 @@ model Booking {
   customer       Customer  @relation(fields: [customerId], references: [id])
   passengerName  String
   passportNumber String    @default("")
+  /** مدينة/محطة الصعود من محطات مسار الرحلة */
+  boardingDestinationId String @default("")
   seatNumber     Int
   price          Float
   paymentMethod  String    @default("cash")

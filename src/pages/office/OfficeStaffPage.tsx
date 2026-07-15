@@ -1,23 +1,29 @@
 import { useState } from 'react'
 import { ROLE_LABELS } from '../../components/utils'
 import { useApp } from '../../context/AppContext'
-import type { Role } from '../../types'
+import type { Role, User } from '../../types'
+
+const emptyForm = {
+  name: '',
+  username: '',
+  password: '',
+  confirmPassword: '',
+  role: 'booking_clerk' as Role,
+  active: true,
+}
 
 export function OfficeStaffPage() {
-  const { state, currentOffice, currentUser, can, upsertUser, deleteUser } = useApp()
+  const { state, currentOffice, currentUser, can, canPage, upsertUser, deleteUser } = useApp()
   const officeId = currentOffice!.id
 
   const staff = state.users.filter((u) => u.officeId === officeId)
 
   const [open, setOpen] = useState(false)
-  const [form, setForm] = useState({
-    name: '',
-    username: '',
-    password: '123456',
-    role: 'booking_clerk' as Role,
-  })
+  const [editId, setEditId] = useState<string | null>(null)
+  const [form, setForm] = useState(emptyForm)
+  const [error, setError] = useState<string | null>(null)
 
-  if (!can('manage_office_users')) {
+  if (!can('manage_office_users') && !canPage('staff', 'view')) {
     return (
       <div className="panel">
         <div className="empty">فقط مدير المكتب يمكنه إدارة الموظفين</div>
@@ -25,16 +31,99 @@ export function OfficeStaffPage() {
     )
   }
 
-  const save = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (form.role === 'admin') return
-    upsertUser({
-      ...form,
-      officeId,
-      active: true,
-    })
+  const closeModal = () => {
     setOpen(false)
-    setForm({ name: '', username: '', password: '123456', role: 'booking_clerk' })
+    setEditId(null)
+    setForm(emptyForm)
+    setError(null)
+  }
+
+  const openAdd = () => {
+    setEditId(null)
+    setForm(emptyForm)
+    setError(null)
+    setOpen(true)
+  }
+
+  const openEdit = (u: User) => {
+    setEditId(u.id)
+    setForm({
+      name: u.name,
+      username: u.username,
+      password: '',
+      confirmPassword: '',
+      role: u.role,
+      active: u.active,
+    })
+    setError(null)
+    setOpen(true)
+  }
+
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError(null)
+    if (form.role === 'admin') return
+
+    if (!editId) {
+      if (!form.password || form.password.length < 4) {
+        setError('كلمة المرور مطلوبة (4 أحرف على الأقل)')
+        return
+      }
+      if (form.password !== form.confirmPassword) {
+        setError('كلمة المرور غير متطابقة')
+        return
+      }
+    } else if (form.password) {
+      if (form.password.length < 4) {
+        setError('كلمة المرور قصيرة جداً')
+        return
+      }
+      if (form.password !== form.confirmPassword) {
+        setError('كلمة المرور غير متطابقة')
+        return
+      }
+    }
+
+    try {
+      await upsertUser({
+        ...(editId ? { id: editId } : {}),
+        name: form.name,
+        username: form.username,
+        password: form.password || '',
+        role: form.role,
+        officeId,
+        active: form.active,
+      })
+      closeModal()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'تعذر حفظ الموظف')
+    }
+  }
+
+  const toggleActive = async (u: User) => {
+    if (u.id === currentUser?.id) {
+      alert('لا يمكن تعطيل حسابك الحالي')
+      return
+    }
+    try {
+      await upsertUser({
+        ...u,
+        password: '',
+        active: !u.active,
+      })
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'تعذر تغيير الحالة')
+    }
+  }
+
+  const remove = async (u: User) => {
+    if (u.id === currentUser?.id) return
+    if (!confirm(`هل تريد حذف الموظف "${u.name}"؟`)) return
+    try {
+      await deleteUser(u.id)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'تعذر الحذف')
+    }
   }
 
   return (
@@ -42,13 +131,13 @@ export function OfficeStaffPage() {
       <header className="page-header">
         <div>
           <h1>موظفو المكتب</h1>
-          <p>
-            صلاحيات الحجز والطباعة والمحاسبة — مثال: موظف الحجز لا يحذف، المحاسب لا ينشئ رحلات
-          </p>
+          <p>إضافة وتعديل وتعطيل وحذف موظفي {currentOffice?.name}</p>
         </div>
-        <button type="button" className="btn btn-amber" onClick={() => setOpen(true)}>
-          إضافة موظف
-        </button>
+        {(canPage('staff', 'add') || can('manage_office_users')) && (
+          <button type="button" className="btn btn-amber" onClick={openAdd}>
+            إضافة موظف
+          </button>
+        )}
       </header>
 
       <div className="panel">
@@ -75,64 +164,57 @@ export function OfficeStaffPage() {
                     </span>
                   </td>
                   <td>
-                    {u.id !== currentUser?.id && (
-                      <button
-                        type="button"
-                        className="btn btn-danger btn-sm"
-                        onClick={() => {
-                          if (confirm('حذف الموظف؟')) deleteUser(u.id)
-                        }}
-                      >
-                        حذف
-                      </button>
-                    )}
+                    <div className="actions">
+                      {(canPage('staff', 'edit') || can('manage_office_users')) && (
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => openEdit(u)}
+                        >
+                          تعديل
+                        </button>
+                      )}
+                      {u.id !== currentUser?.id &&
+                        (canPage('staff', 'edit') || can('manage_office_users')) && (
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-sm"
+                            onClick={() => void toggleActive(u)}
+                          >
+                            {u.active ? 'تعطيل' : 'تفعيل'}
+                          </button>
+                        )}
+                      {u.id !== currentUser?.id &&
+                        (canPage('staff', 'delete') || can('manage_office_users')) && (
+                          <button
+                            type="button"
+                            className="btn btn-danger btn-sm"
+                            onClick={() => void remove(u)}
+                          >
+                            حذف
+                          </button>
+                        )}
+                    </div>
                   </td>
                 </tr>
               ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div className="panel">
-        <div className="panel-head">
-          <h2>مرجع الصلاحيات</h2>
-        </div>
-        <div className="table-wrap">
-          <table className="data">
-            <thead>
-              <tr>
-                <th>الدور</th>
-                <th>يستطيع</th>
-                <th>لا يستطيع</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>موظف الحجز</td>
-                <td>الحجز · الطباعة</td>
-                <td>حذف الحجوزات · الحسابات</td>
-              </tr>
-              <tr>
-                <td>المحاسب</td>
-                <td>الحسابات · التقارير · الصندوق</td>
-                <td>إنشاء حجوزات أو رحلات</td>
-              </tr>
-              <tr>
-                <td>مدير المكتب</td>
-                <td>كل صلاحيات المكتب</td>
-                <td>إدارة النظام المركزي</td>
-              </tr>
+              {staff.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="empty">
+                    لا يوجد موظفون بعد
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
       </div>
 
       {open && (
-        <div className="modal-backdrop" onClick={() => setOpen(false)}>
+        <div className="modal-backdrop" onClick={closeModal}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h2>موظف جديد</h2>
-            <form onSubmit={save}>
+            <h2>{editId ? 'تعديل موظف' : 'موظف جديد'}</h2>
+            <form onSubmit={(e) => void save(e)}>
               <div className="form-grid">
                 <div className="field">
                   <label>الاسم</label>
@@ -151,11 +233,23 @@ export function OfficeStaffPage() {
                   />
                 </div>
                 <div className="field">
-                  <label>كلمة المرور</label>
+                  <label>{editId ? 'كلمة مرور جديدة (اختياري)' : 'كلمة المرور'}</label>
                   <input
-                    required
+                    type="password"
+                    required={!editId}
                     value={form.password}
                     onChange={(e) => setForm({ ...form, password: e.target.value })}
+                    autoComplete="new-password"
+                  />
+                </div>
+                <div className="field">
+                  <label>تأكيد كلمة المرور</label>
+                  <input
+                    type="password"
+                    required={!editId || !!form.password}
+                    value={form.confirmPassword}
+                    onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
+                    autoComplete="new-password"
                   />
                 </div>
                 <div className="field">
@@ -169,12 +263,23 @@ export function OfficeStaffPage() {
                     <option value="accountant">محاسب</option>
                   </select>
                 </div>
+                <div className="field">
+                  <label>الحالة</label>
+                  <select
+                    value={form.active ? '1' : '0'}
+                    onChange={(e) => setForm({ ...form, active: e.target.value === '1' })}
+                  >
+                    <option value="1">نشط</option>
+                    <option value="0">موقوف</option>
+                  </select>
+                </div>
               </div>
+              {error && <p className="error-msg">{error}</p>}
               <div className="actions" style={{ marginTop: '1rem' }}>
                 <button type="submit" className="btn btn-primary">
                   حفظ
                 </button>
-                <button type="button" className="btn btn-ghost" onClick={() => setOpen(false)}>
+                <button type="button" className="btn btn-ghost" onClick={closeModal}>
                   إلغاء
                 </button>
               </div>

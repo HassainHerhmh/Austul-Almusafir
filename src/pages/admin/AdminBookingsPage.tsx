@@ -2,7 +2,7 @@ import { formatMoney } from '../../components/utils'
 import { useApp } from '../../context/AppContext'
 
 export function AdminBookingsPage() {
-  const { state, getTripLabel, getOffice } = useApp()
+  const { state, getTripLabel, getOffice, getDestination } = useApp()
 
   return (
     <div>
@@ -20,6 +20,7 @@ export function AdminBookingsPage() {
               <tr>
                 <th>الراكب</th>
                 <th>رقم الجواز</th>
+                <th>منطقة الصعود</th>
                 <th>المقعد</th>
                 <th>المكتب</th>
                 <th>الرحلة</th>
@@ -38,6 +39,7 @@ export function AdminBookingsPage() {
                     <tr key={b.id}>
                       <td>{b.passengerName}</td>
                       <td>{b.passportNumber || '—'}</td>
+                      <td>{getDestination(b.boardingDestinationId)?.name || '—'}</td>
                       <td>{b.seatNumber}</td>
                       <td>{getOffice(b.officeId)?.name}</td>
                       <td>{trip ? getTripLabel(trip) : '—'}</td>

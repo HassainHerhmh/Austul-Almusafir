@@ -18,18 +18,26 @@ const adminLinks = [
   { to: '/admin/settings', label: 'الإعدادات' },
 ]
 
-const officeLinks = [
-  { to: '/office', end: true, label: 'لوحة المكتب' },
-  { to: '/office/bookings', label: 'الحجوزات' },
-  { to: '/office/customers', label: 'العملاء' },
-  { to: '/office/accounting', label: 'المحاسبة' },
-  { to: '/office/reports', label: 'التقارير' },
-  { to: '/office/staff', label: 'الموظفون' },
+const officeLinks: {
+  to: string
+  end?: boolean
+  label: string
+  pageId?: string
+}[] = [
+  { to: '/office', end: true, label: 'لوحة المكتب', pageId: 'dashboard' },
+  { to: '/office/staff', label: 'الموظفون', pageId: 'staff' },
+  { to: '/office/permissions', label: 'صلاحية المستخدمين', pageId: 'user-permissions' },
+  { to: '/office/bookings', label: 'الحجوزات', pageId: 'bookings' },
+  { to: '/office/customers', label: 'العملاء', pageId: 'customers' },
+  { to: '/office/accounting', label: 'المحاسبة', pageId: 'accounting' },
+  { to: '/office/reports', label: 'التقارير', pageId: 'reports' },
 ]
 
 export function Shell() {
-  const { currentUser, currentOffice, isAdmin, getOfficeAgencyBalance, state } = useApp()
-  const links = isAdmin ? adminLinks : officeLinks
+  const { currentUser, currentOffice, isAdmin, getOfficeAgencyBalance, state, canPage } = useApp()
+  const links = isAdmin
+    ? adminLinks
+    : officeLinks.filter((link) => !link.pageId || canPage(link.pageId, 'view'))
   const agencyBalance =
     !isAdmin && currentOffice ? getOfficeAgencyBalance(currentOffice.id) : 0
 

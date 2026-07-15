@@ -33,6 +33,7 @@ function asUser(u: any): User {
     role: u.role,
     officeId: u.officeId ?? null,
     active: !!u.active,
+    permissions: u.permissions ?? null,
   }
 }
 
@@ -44,6 +45,7 @@ function asBooking(b: any): Booking {
     customerId: b.customerId,
     passengerName: b.passengerName,
     passportNumber: b.passportNumber ?? '',
+    boardingDestinationId: b.boardingDestinationId ?? '',
     seatNumber: b.seatNumber,
     price: b.price,
     paymentMethod: b.paymentMethod,
@@ -87,6 +89,13 @@ export const serverApi = {
       }),
     remove: (id: string) =>
       apiRequest<{ deleted: boolean }>(`/api/users/${id}`, { method: 'DELETE' }),
+    getPermissions: (id: string) =>
+      apiRequest<{ permissions: Record<string, any> | null }>(`/api/users/${id}/permissions`),
+    savePermissions: (id: string, permissions: Record<string, any>) =>
+      apiRequest<{ user: any }>(`/api/users/${id}/permissions`, {
+        method: 'PUT',
+        body: JSON.stringify({ permissions }),
+      }),
   },
 
   destinations: {

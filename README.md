@@ -1,36 +1,20 @@
 # أسطول المسافر
 
-منصة مركزية لإدارة مكاتب السفريات — رحلات، باصات، مقاعد، حجوزات، ومحاسبة.
+## الباك اند (الأساسي)
 
-المستودع: [HassainHerhmh/Austul-Almusafir](https://github.com/HassainHerhmh/Austul-Almusafir)
-
-## التشغيل محلياً
+الـ API الحقيقي موجود في مجلد **`backend/`** (Node.js + Express + Prisma).
 
 ```bash
+cd backend
 npm install
+npm run setup
 npm run dev
 ```
 
-## حساب المدير الافتراضي
+التفاصيل: [backend/README.md](backend/README.md)
 
-| المستخدم | كلمة المرور |
-|---------|------------|
-| `admin` | `admin123` |
+المستودع: https://github.com/HassainHerhmh/Austul-Almusafir
 
-ابدأ بإضافة المكاتب والمستخدمين والوجهات والباصات من لوحة المدير. لا توجد بيانات تجريبية.
+## الواجهة (تطوير محلي)
 
-## الربط بالسيرفر
-
-حالياً الواجهة تعمل بتخزين محلي (`localStorage`). لربط API حقيقي لاحقاً عيّن عنوان السيرفر في `.env`:
-
-```env
-VITE_API_URL=https://your-api.example.com
-```
-
-## البناء للإنتاج
-
-```bash
-npm run build
-```
-
-المخرجات في مجلد `dist/` جاهزة للنشر على أي استضافة static (Nginx، cPanel، Vercel، …).
+مجلد الجذر يحتوي واجهة React/Vite اختيارية للتجربة المحلية — ليست بديلاً عن السيرفر.

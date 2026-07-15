@@ -1,0 +1,167 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Office {
+  id              String     @id @default(cuid())
+  name            String
+  city            String
+  phone           String
+  status          String     @default("active")
+  subscription    String     @default("trial")
+  ledgerAccountId Int?
+  createdAt       DateTime   @default(now())
+  users           User[]
+  customers       Customer[]
+  bookings        Booking[]
+  vouchers        Voucher[]
+}
+
+model User {
+  id           String    @id @default(cuid())
+  username     String    @unique
+  passwordHash String
+  name         String
+  role         String
+  officeId     String?
+  office       Office?   @relation(fields: [officeId], references: [id])
+  active       Boolean   @default(true)
+  bookings     Booking[] @relation("BookedBy")
+  createdAt    DateTime  @default(now())
+}
+
+model Destination {
+  id        String     @id @default(cuid())
+  name      String
+  tripStops TripStop[]
+}
+
+model Bus {
+  id          String @id @default(cuid())
+  plateNumber String @unique
+  type        String
+  seats       Int
+  status      String @default("available")
+  trips       Trip[]
+}
+
+model Driver {
+  id            String  @id @default(cuid())
+  name          String
+  phone         String
+  licenseNumber String
+  role          String  @default("primary")
+  active        Boolean @default(true)
+  trips         Trip[]  @relation("TripDriver")
+  assistTrips   Trip[]  @relation("TripAssistant")
+}
+
+model Trip {
+  id                 String     @id @default(cuid())
+  busId              String
+  bus                Bus        @relation(fields: [busId], references: [id])
+  driverId           String
+  driver             Driver     @relation("TripDriver", fields: [driverId], references: [id])
+  assistantDriverId  String?
+  assistantDriver    Driver?    @relation("TripAssistant", fields: [assistantDriverId], references: [id])
+  date               String
+  departureTime      String
+  price              Float
+  status             String     @default("scheduled")
+  stops              TripStop[]
+  bookings           Booking[]
+  createdAt          DateTime   @default(now())
+}
+
+model TripStop {
+  id            String      @id @default(cuid())
+  tripId        String
+  trip          Trip        @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  destinationId String
+  destination   Destination @relation(fields: [destinationId], references: [id])
+  point         String
+  sortOrder     Int         @default(0)
+}
+
+model Customer {
+  id             String    @id @default(cuid())
+  name           String
+  phone          String
+  nationalId     String
+  passportNumber String    @default("")
+  officeId       String
+  office         Office    @relation(fields: [officeId], references: [id])
+  bookings       Booking[]
+  createdAt      DateTime  @default(now())
+}
+
+model Booking {
+  id             String    @id @default(cuid())
+  tripId         String
+  trip           Trip      @relation(fields: [tripId], references: [id])
+  officeId       String
+  office         Office    @relation(fields: [officeId], references: [id])
+  customerId     String
+  customer       Customer  @relation(fields: [customerId], references: [id])
+  passengerName  String
+  passportNumber String    @default("")
+  seatNumber     Int
+  price          Float
+  paymentMethod  String    @default("cash")
+  notes          String    @default("")
+  status         String    @default("confirmed")
+  bookedAt       DateTime  @default(now())
+  bookedById     String
+  bookedBy       User      @relation("BookedBy", fields: [bookedById], references: [id])
+  vouchers       Voucher[]
+
+  @@index([officeId])
+  @@index([tripId])
+  @@index([tripId, seatNumber])
+}
+
+model Voucher {
+  id               String   @id @default(cuid())
+  officeId         String
+  office           Office   @relation(fields: [officeId], references: [id])
+  type             String
+  amount           Float
+  description      String
+  date             String
+  relatedBookingId String?
+  relatedBooking   Booking? @relation(fields: [relatedBookingId], references: [id])
+  createdAt        DateTime @default(now())
+}
+
+model Account {
+  id                  Int      @id @default(autoincrement())
+  code                String   @unique
+  nameAr              String
+  nameEn              String?
+  parentId            Int?
+  accountLevel        String
+  financialStatement  String?
+  createdAt           DateTime @default(now())
+  journalLines        JournalLine[]
+}
+
+model JournalLine {
+  id            Int      @id @default(autoincrement())
+  referenceId   Int
+  referenceType String
+  journalDate   String
+  accountId     Int
+  account       Account  @relation(fields: [accountId], references: [id])
+  debit         Float    @default(0)
+  credit        Float    @default(0)
+  notes         String?
+  createdAt     DateTime @default(now())
+
+  @@index([accountId])
+  @@index([referenceType, referenceId])
+}

@@ -125,8 +125,10 @@ model Booking {
   customer       Customer  @relation(fields: [customerId], references: [id])
   passengerName  String
   passportNumber String    @default("")
-  /** مدينة/محطة الصعود من محطات مسار الرحلة */
+  /** مدينة/محطة الانطلاق من محطات مسار الرحلة */
   boardingDestinationId String @default("")
+  /** مدينة/محطة الوصول من محطات مسار الرحلة */
+  arrivalDestinationId  String @default("")
   seatNumber     Int
   price          Float
   paymentMethod  String    @default("cash")

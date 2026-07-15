@@ -2,7 +2,10 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { prisma } from '../config'
 import { authRequired, requireAdmin } from '../middleware/auth'
-import { ensureCommissionsTransitAccount } from '../services/ledger'
+import {
+  ensureCommissionsTransitAccount,
+  ensureTicketRevenueTransitAccount,
+} from '../services/ledger'
 import { asyncHandler, fail, ok } from '../utils/http'
 
 export const settingsRouter = Router()
@@ -10,19 +13,65 @@ settingsRouter.use(authRequired)
 
 const TRANSIT_KEY = 'transit_accounts'
 
-async function saveTransit(officeCommissionsAccount: number | null) {
-  let accountId = officeCommissionsAccount
-  if (accountId) {
-    const acc = await prisma.account.findUnique({ where: { id: accountId } })
-    if (!acc) return { ok: false as const, message: 'الحساب غير موجود', status: 404 }
-    if (acc.accountLevel !== 'فرعي') {
-      return { ok: false as const, message: 'يجب اختيار حساب فرعي', status: 400 }
+type TransitValue = {
+  office_commissions_account: number | null
+  ticket_revenue_account: number | null
+}
+
+async function validateSubAccount(accountId: number | null) {
+  if (!accountId) return { ok: true as const, accountId: null }
+  const acc = await prisma.account.findUnique({ where: { id: accountId } })
+  if (!acc) return { ok: false as const, message: 'الحساب غير موجود', status: 404 as const }
+  if (acc.accountLevel !== 'فرعي') {
+    const kids = await prisma.account.count({ where: { parentId: accountId } })
+    if (acc.parentId && kids === 0) {
+      await prisma.account.update({
+        where: { id: accountId },
+        data: { accountLevel: 'فرعي' },
+      })
+      return { ok: true as const, accountId }
     }
-  } else {
-    accountId = await ensureCommissionsTransitAccount()
+    return { ok: false as const, message: 'يجب اختيار حساب فرعي', status: 400 as const }
+  }
+  return { ok: true as const, accountId }
+}
+
+async function saveTransit(input: {
+  office_commissions_account?: number | null
+  ticket_revenue_account?: number | null
+}) {
+  const existing = await prisma.appSetting.findUnique({ where: { key: TRANSIT_KEY } })
+  const prev = (existing?.value as Partial<TransitValue> | null) ?? {}
+
+  let commissionsId =
+    input.office_commissions_account !== undefined
+      ? input.office_commissions_account
+      : (prev.office_commissions_account ?? null)
+  let ticketId =
+    input.ticket_revenue_account !== undefined
+      ? input.ticket_revenue_account
+      : (prev.ticket_revenue_account ?? null)
+
+  if (input.office_commissions_account !== undefined) {
+    const v = await validateSubAccount(commissionsId)
+    if (!v.ok) return v
+    commissionsId = v.accountId ?? (await ensureCommissionsTransitAccount())
+  } else if (!commissionsId) {
+    commissionsId = await ensureCommissionsTransitAccount()
   }
 
-  const value = { office_commissions_account: accountId }
+  if (input.ticket_revenue_account !== undefined) {
+    const v = await validateSubAccount(ticketId)
+    if (!v.ok) return v
+    ticketId = v.accountId ?? (await ensureTicketRevenueTransitAccount())
+  } else if (!ticketId) {
+    ticketId = await ensureTicketRevenueTransitAccount()
+  }
+
+  const value: TransitValue = {
+    office_commissions_account: commissionsId,
+    ticket_revenue_account: ticketId,
+  }
   await prisma.appSetting.upsert({
     where: { key: TRANSIT_KEY },
     create: { key: TRANSIT_KEY, value },
@@ -35,22 +84,30 @@ settingsRouter.get(
   '/transit-accounts',
   asyncHandler(async (_req, res) => {
     const row = await prisma.appSetting.findUnique({ where: { key: TRANSIT_KEY } })
-    const raw = (row?.value as { office_commissions_account?: number | null } | null) ?? null
-    let officeId = raw?.office_commissions_account ?? null
-    if (!officeId) officeId = await ensureCommissionsTransitAccount()
-    return ok(res, { data: { office_commissions_account: officeId } })
+    const raw = (row?.value as Partial<TransitValue> | null) ?? null
+    const officeId = raw?.office_commissions_account ?? (await ensureCommissionsTransitAccount())
+    const ticketId = raw?.ticket_revenue_account ?? (await ensureTicketRevenueTransitAccount())
+    return ok(res, {
+      data: {
+        office_commissions_account: officeId,
+        ticket_revenue_account: ticketId,
+      },
+    })
   }),
 )
+
+const transitBody = z.object({
+  office_commissions_account: z.number().int().positive().nullable().optional(),
+  ticket_revenue_account: z.number().int().positive().nullable().optional(),
+})
 
 settingsRouter.put(
   '/transit-accounts',
   requireAdmin,
   asyncHandler(async (req, res) => {
-    const body = z
-      .object({ office_commissions_account: z.number().int().positive().nullable() })
-      .safeParse(req.body)
+    const body = transitBody.safeParse(req.body)
     if (!body.success) return fail(res, 'بيانات غير صالحة')
-    const result = await saveTransit(body.data.office_commissions_account)
+    const result = await saveTransit(body.data)
     if (!result.ok) return fail(res, result.message, result.status)
     return ok(res, { data: result.value })
   }),
@@ -60,11 +117,9 @@ settingsRouter.post(
   '/transit-accounts',
   requireAdmin,
   asyncHandler(async (req, res) => {
-    const body = z
-      .object({ office_commissions_account: z.number().int().positive().nullable() })
-      .safeParse(req.body)
+    const body = transitBody.safeParse(req.body)
     if (!body.success) return fail(res, 'بيانات غير صالحة')
-    const result = await saveTransit(body.data.office_commissions_account)
+    const result = await saveTransit(body.data)
     if (!result.ok) return fail(res, result.message, result.status)
     return ok(res, { data: result.value })
   }),

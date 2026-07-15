@@ -48,6 +48,7 @@ bookingsRouter.post(
         nationalId: z.string().default(''),
         passportNumber: z.string().default(''),
         boardingDestinationId: z.string().min(1),
+        arrivalDestinationId: z.string().min(1),
         seatNumber: z.number().int().positive(),
         paymentMethod: z.enum(['cash', 'transfer', 'credit']).default('cash'),
         notes: z.string().optional(),
@@ -72,7 +73,15 @@ bookingsRouter.post(
 
     const routeIds = trip.stops.map((s) => s.destinationId)
     if (!routeIds.includes(body.data.boardingDestinationId)) {
-      return fail(res, 'منطقة الصعود ليست من مدن مسار الرحلة')
+      return fail(res, 'منطقة الانطلاق ليست من مدن مسار الرحلة')
+    }
+    if (!routeIds.includes(body.data.arrivalDestinationId)) {
+      return fail(res, 'منطقة الوصول ليست من مدن مسار الرحلة')
+    }
+    const boardIdx = routeIds.indexOf(body.data.boardingDestinationId)
+    const arriveIdx = routeIds.indexOf(body.data.arrivalDestinationId)
+    if (arriveIdx <= boardIdx) {
+      return fail(res, 'منطقة الوصول يجب أن تكون بعد منطقة الانطلاق على المسار')
     }
 
     const taken = await prisma.booking.findFirst({
@@ -93,7 +102,7 @@ bookingsRouter.post(
       })
       ticketPrice = Number(boarding?.ticketPrice) || 0
       if (ticketPrice <= 0) {
-        return fail(res, 'لم يُحدَّد سعر تذكرة لمنطقة الصعود — راجع إدارة الوجهات')
+        return fail(res, 'لم يُحدَّد سعر تذكرة لمنطقة الانطلاق — راجع إدارة الوجهات')
       }
     }
 
@@ -140,6 +149,7 @@ bookingsRouter.post(
         passengerName: body.data.passengerName,
         passportNumber: body.data.passportNumber,
         boardingDestinationId: body.data.boardingDestinationId,
+        arrivalDestinationId: body.data.arrivalDestinationId,
         seatNumber: body.data.seatNumber,
         price: ticketPrice,
         paymentMethod: body.data.paymentMethod,

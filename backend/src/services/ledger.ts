@@ -21,22 +21,52 @@ function bookingRefId(bookingId: string): number {
   return Math.abs(h) || 1
 }
 
-const TICKET_REVENUE_CODE = '41'
+const TICKET_TRANSIT_CODE = '1132'
+const TICKET_TRANSIT_NAME = 'وسيط إيراد التذاكر'
 const COMMISSION_EXPENSE_CODE = '53'
 const COMMISSION_EXPENSE_NAME = 'عمولات المكاتب'
 
-async function getTicketRevenueAccountId() {
-  const acc =
-    (await prisma.account.findFirst({ where: { code: TICKET_REVENUE_CODE } })) ||
-    (await prisma.account.findFirst({ where: { nameAr: 'إيرادات التذاكر' } }))
-  return acc?.id ?? null
+type TransitSettings = {
+  office_commissions_account?: number | null
+  ticket_revenue_account?: number | null
+}
+
+async function readTransitSettings(): Promise<TransitSettings> {
+  const setting = await prisma.appSetting.findUnique({ where: { key: 'transit_accounts' } })
+  return (setting?.value as TransitSettings | null) ?? {}
+}
+
+/** حساب وسيط إيراد التذاكر — دائن قيد الحجز (مقابل مدين المكتب) */
+export async function ensureTicketRevenueTransitAccount() {
+  const configuredId = (await readTransitSettings()).ticket_revenue_account
+  if (configuredId) {
+    const configured = await prisma.account.findUnique({ where: { id: configuredId } })
+    if (configured) return configured.id
+  }
+
+  const existing =
+    (await prisma.account.findFirst({ where: { code: TICKET_TRANSIT_CODE } })) ||
+    (await prisma.account.findFirst({ where: { nameAr: TICKET_TRANSIT_NAME } }))
+
+  if (existing) return existing.id
+
+  const receivables = await prisma.account.findFirst({ where: { code: '113' } })
+  const row = await prisma.account.create({
+    data: {
+      code: TICKET_TRANSIT_CODE,
+      nameAr: TICKET_TRANSIT_NAME,
+      nameEn: 'Ticket Revenue Transit',
+      parentId: receivables?.id ?? null,
+      accountLevel: 'فرعي',
+      financialStatement: 'الميزانية العمومية',
+    },
+  })
+  return row.id
 }
 
 /** مصروف عمولات المكاتب — تحت المصروفات (أرباح وخسائر) */
 export async function ensureCommissionsTransitAccount() {
-  const setting = await prisma.appSetting.findUnique({ where: { key: 'transit_accounts' } })
-  const configuredId = (setting?.value as { office_commissions_account?: number | null } | null)
-    ?.office_commissions_account
+  const configuredId = (await readTransitSettings()).office_commissions_account
   if (configuredId) {
     const configured = await prisma.account.findUnique({ where: { id: configuredId } })
     if (configured) return configured.id
@@ -44,34 +74,11 @@ export async function ensureCommissionsTransitAccount() {
 
   const existing =
     (await prisma.account.findFirst({ where: { code: COMMISSION_EXPENSE_CODE } })) ||
-    (await prisma.account.findFirst({ where: { nameAr: COMMISSION_EXPENSE_NAME } })) ||
-    (await prisma.account.findFirst({ where: { code: '1132' } }))
+    (await prisma.account.findFirst({ where: { nameAr: COMMISSION_EXPENSE_NAME } }))
+
+  if (existing) return existing.id
 
   const expenses = await prisma.account.findFirst({ where: { code: '5' } })
-
-  if (existing) {
-    if (
-      expenses &&
-      (existing.code !== COMMISSION_EXPENSE_CODE ||
-        existing.parentId !== expenses.id ||
-        existing.financialStatement !== 'أرباح وخسائر')
-    ) {
-      const updated = await prisma.account.update({
-        where: { id: existing.id },
-        data: {
-          code: COMMISSION_EXPENSE_CODE,
-          nameAr: COMMISSION_EXPENSE_NAME,
-          nameEn: 'Office Commissions Expense',
-          parentId: expenses.id,
-          accountLevel: 'فرعي',
-          financialStatement: 'أرباح وخسائر',
-        },
-      })
-      return updated.id
-    }
-    return existing.id
-  }
-
   const row = await prisma.account.create({
     data: {
       code: COMMISSION_EXPENSE_CODE,
@@ -128,8 +135,9 @@ export async function postBookingCharge(input: {
   passengerName: string
   seatNumber: number
 }) {
-  const revenueId = await getTicketRevenueAccountId()
-  if (!revenueId || input.amount <= 0) return
+  /** مدين: حساب الوكيل · دائن: وسيط إيراد التذاكر */
+  const revenueTransitId = await ensureTicketRevenueTransitAccount()
+  if (!revenueTransitId || input.amount <= 0) return
 
   const ref = bookingRefId(input.bookingId)
   const exists = await prisma.journalLine.findFirst({
@@ -155,7 +163,7 @@ export async function postBookingCharge(input: {
         referenceId: ref,
         referenceType: 'booking',
         journalDate,
-        accountId: revenueId,
+        accountId: revenueTransitId,
         debit: 0,
         credit: input.amount,
         notes,

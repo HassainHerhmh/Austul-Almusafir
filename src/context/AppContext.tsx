@@ -75,6 +75,7 @@ interface AppContextValue {
     phone: string
     passportNumber: string
     boardingDestinationId: string
+    arrivalDestinationId: string
     seatNumber: number
     paymentMethod: PaymentMethod
     notes?: string
@@ -581,6 +582,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         phone: input.phone,
         passportNumber: input.passportNumber,
         boardingDestinationId: input.boardingDestinationId,
+        arrivalDestinationId: input.arrivalDestinationId,
         seatNumber: input.seatNumber,
         paymentMethod: input.paymentMethod,
         notes: input.notes,

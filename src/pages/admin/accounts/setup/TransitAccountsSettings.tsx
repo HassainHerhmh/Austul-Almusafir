@@ -11,6 +11,7 @@ type Account = {
 const TransitAccountsSettings = () => {
   const [accounts, setAccounts] = useState<Account[]>([])
   const [officeCommissions, setOfficeCommissions] = useState<number | ''>('')
+  const [ticketRevenue, setTicketRevenue] = useState<number | ''>('')
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
 
@@ -38,15 +39,17 @@ const TransitAccountsSettings = () => {
 
       try {
         const res = await serverApi.settings.transitAccounts.get()
-        const id = res.data?.office_commissions_account
-        setOfficeCommissions(id || '')
+        setOfficeCommissions(res.data?.office_commissions_account || '')
+        setTicketRevenue(res.data?.ticket_revenue_account || '')
       } catch {
         try {
           const res = await api.get('/settings/transit-accounts')
           const d = res.data?.data || {}
           setOfficeCommissions(d.office_commissions_account || '')
+          setTicketRevenue(d.ticket_revenue_account || '')
         } catch {
           setOfficeCommissions('')
+          setTicketRevenue('')
         }
       }
     })()
@@ -57,6 +60,7 @@ const TransitAccountsSettings = () => {
     setMessage(null)
     const payload = {
       office_commissions_account: officeCommissions === '' ? null : Number(officeCommissions),
+      ticket_revenue_account: ticketRevenue === '' ? null : Number(ticketRevenue),
     }
     try {
       await serverApi.settings.transitAccounts.save(payload)
@@ -65,7 +69,7 @@ const TransitAccountsSettings = () => {
       } catch {
         /* وحدة المحاسبة المحلية اختيارية */
       }
-      setMessage('تم حفظ حساب وسيط عمولات المكاتب')
+      setMessage('تم حفظ الحسابات الوسيطة')
     } catch {
       try {
         await api.post('/settings/transit-accounts', payload)
@@ -82,23 +86,42 @@ const TransitAccountsSettings = () => {
     <div className="space-y-6" dir="rtl">
       <h2 className="text-lg font-bold acc-link">الحسابات الوسيطة (Transit)</h2>
 
-      <div className="acc-card border rounded-xl p-4 space-y-2 shadow-sm" style={{ maxWidth: 480 }}>
-        <div className="text-sm font-semibold text-gray-700">حساب عمولات المكاتب (مصروف)</div>
-        <select
-          className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
-          value={officeCommissions}
-          onChange={(e) =>
-            setOfficeCommissions(e.target.value ? Number(e.target.value) : '')
-          }
-        >
-          <option value="">اختر حساب</option>
-          {accounts.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.code ? `${a.code} — ` : ''}
-              {a.name_ar}
-            </option>
-          ))}
-        </select>
+      <div className="acc-card border rounded-xl p-4 space-y-4 shadow-sm" style={{ maxWidth: 480 }}>
+        <div className="space-y-2">
+          <div className="text-sm font-semibold text-gray-700">حساب وسيط إيراد التذاكر</div>
+          <select
+            className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+            value={ticketRevenue}
+            onChange={(e) => setTicketRevenue(e.target.value ? Number(e.target.value) : '')}
+          >
+            <option value="">اختر حساب</option>
+            {accounts.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.code ? `${a.code} — ` : ''}
+                {a.name_ar}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="space-y-2">
+          <div className="text-sm font-semibold text-gray-700">حساب عمولات المكاتب (مصروف)</div>
+          <select
+            className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+            value={officeCommissions}
+            onChange={(e) =>
+              setOfficeCommissions(e.target.value ? Number(e.target.value) : '')
+            }
+          >
+            <option value="">اختر حساب</option>
+            {accounts.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.code ? `${a.code} — ` : ''}
+                {a.name_ar}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div className="flex items-center gap-3 justify-end">

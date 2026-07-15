@@ -47,6 +47,7 @@ function asBooking(b: any): Booking {
     passengerName: b.passengerName,
     passportNumber: b.passportNumber ?? '',
     boardingDestinationId: b.boardingDestinationId ?? '',
+    arrivalDestinationId: b.arrivalDestinationId ?? '',
     seatNumber: b.seatNumber,
     price: b.price,
     paymentMethod: b.paymentMethod,
@@ -202,20 +203,42 @@ export const serverApi = {
   },
 
   accounts: {
+    list: () => apiRequest<{ list: any[] }>('/api/accounts'),
     sub: () => apiRequest<{ list: any[] }>('/api/accounts/sub'),
+    create: (data: unknown) =>
+      apiRequest<{ account: any }>('/api/accounts', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    update: (id: number, data: unknown) =>
+      apiRequest<{ account: any }>(`/api/accounts/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
   },
 
   settings: {
     transitAccounts: {
       get: () =>
-        apiRequest<{ data: { office_commissions_account: number | null } }>(
-          '/api/settings/transit-accounts',
-        ),
-      save: (data: { office_commissions_account: number | null }) =>
-        apiRequest<{ data: { office_commissions_account: number | null } }>(
-          '/api/settings/transit-accounts',
-          { method: 'POST', body: JSON.stringify(data) },
-        ),
+        apiRequest<{
+          data: {
+            office_commissions_account: number | null
+            ticket_revenue_account: number | null
+          }
+        }>('/api/settings/transit-accounts'),
+      save: (data: {
+        office_commissions_account?: number | null
+        ticket_revenue_account?: number | null
+      }) =>
+        apiRequest<{
+          data: {
+            office_commissions_account: number | null
+            ticket_revenue_account: number | null
+          }
+        }>('/api/settings/transit-accounts', {
+          method: 'POST',
+          body: JSON.stringify(data),
+        }),
     },
     pricing: {
       get: () =>

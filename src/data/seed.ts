@@ -54,6 +54,7 @@ export function loadState(): AppState {
           passportNumber: b.passportNumber ?? '',
           notes: b.notes ?? '',
           boardingDestinationId: b.boardingDestinationId ?? '',
+          arrivalDestinationId: b.arrivalDestinationId ?? '',
         })),
         drivers: (parsed.drivers ?? []).map((d) => ({
           ...d,

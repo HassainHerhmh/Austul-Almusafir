@@ -35,6 +35,7 @@ export function OfficeBookingsPage() {
   const [phone, setPhone] = useState('')
   const [passportNumber, setPassportNumber] = useState('')
   const [boardingDestinationId, setBoardingDestinationId] = useState('')
+  const [arrivalDestinationId, setArrivalDestinationId] = useState('')
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
   const [notes, setNotes] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -46,7 +47,7 @@ export function OfficeBookingsPage() {
     [state.trips, tripId],
   )
 
-  const boardingStops = useMemo(() => {
+  const routeStops = useMemo(() => {
     if (!selectedTrip?.stops?.length) return []
     const seen = new Set<string>()
     return selectedTrip.stops.filter((s) => {
@@ -55,6 +56,18 @@ export function OfficeBookingsPage() {
       return true
     })
   }, [selectedTrip])
+
+  const boardingStops = useMemo(() => {
+    if (routeStops.length < 2) return routeStops
+    return routeStops.slice(0, -1)
+  }, [routeStops])
+
+  const arrivalStops = useMemo(() => {
+    if (!routeStops.length || !boardingDestinationId) return []
+    const idx = routeStops.findIndex((s) => s.destinationId === boardingDestinationId)
+    if (idx < 0) return routeStops.slice(1)
+    return routeStops.slice(idx + 1)
+  }, [routeStops, boardingDestinationId])
 
   useEffect(() => {
     if (!boardingStops.length) {
@@ -65,6 +78,16 @@ export function OfficeBookingsPage() {
       setBoardingDestinationId(boardingStops[0].destinationId)
     }
   }, [boardingStops, boardingDestinationId])
+
+  useEffect(() => {
+    if (!arrivalStops.length) {
+      setArrivalDestinationId('')
+      return
+    }
+    if (!arrivalStops.some((s) => s.destinationId === arrivalDestinationId)) {
+      setArrivalDestinationId(arrivalStops[arrivalStops.length - 1].destinationId)
+    }
+  }, [arrivalStops, arrivalDestinationId])
 
   const seats = tripId ? getTripSeats(tripId) : null
 
@@ -83,7 +106,11 @@ export function OfficeBookingsPage() {
       return
     }
     if (!boardingDestinationId) {
-      setError('اختر منطقة الصعود')
+      setError('اختر منطقة الانطلاق')
+      return
+    }
+    if (!arrivalDestinationId) {
+      setError('اختر منطقة الوصول')
       return
     }
     const result = await createBooking({
@@ -93,6 +120,7 @@ export function OfficeBookingsPage() {
       phone,
       passportNumber,
       boardingDestinationId,
+      arrivalDestinationId,
       seatNumber: seat,
       paymentMethod,
       notes,
@@ -182,7 +210,7 @@ export function OfficeBookingsPage() {
                 />
               </div>
               <div className="field">
-                <label>منطقة الصعود</label>
+                <label>منطقة الانطلاق</label>
                 <select
                   required
                   value={boardingDestinationId}
@@ -191,6 +219,22 @@ export function OfficeBookingsPage() {
                 >
                   {!boardingStops.length && <option value="">اختر رحلة أولاً</option>}
                   {boardingStops.map((s) => (
+                    <option key={s.destinationId} value={s.destinationId}>
+                      {getDestination(s.destinationId)?.name ?? s.destinationId}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="field">
+                <label>منطقة الوصول</label>
+                <select
+                  required
+                  value={arrivalDestinationId}
+                  onChange={(e) => setArrivalDestinationId(e.target.value)}
+                  disabled={!arrivalStops.length}
+                >
+                  {!arrivalStops.length && <option value="">اختر الانطلاق أولاً</option>}
+                  {arrivalStops.map((s) => (
                     <option key={s.destinationId} value={s.destinationId}>
                       {getDestination(s.destinationId)?.name ?? s.destinationId}
                     </option>
@@ -232,7 +276,7 @@ export function OfficeBookingsPage() {
               <button
                 type="submit"
                 className="btn btn-primary"
-                disabled={!seat || !boardingDestinationId}
+                disabled={!seat || !boardingDestinationId || !arrivalDestinationId}
               >
                 تأكيد الحجز {seat ? `(مقعد ${seat})` : ''}
               </button>
@@ -251,7 +295,8 @@ export function OfficeBookingsPage() {
               <tr>
                 <th>الراكب</th>
                 <th>رقم الجواز</th>
-                <th>منطقة الصعود</th>
+                <th>منطقة الانطلاق</th>
+                <th>منطقة الوصول</th>
                 <th>الرحلة</th>
                 <th>المقعد</th>
                 <th>الدفع</th>
@@ -269,6 +314,7 @@ export function OfficeBookingsPage() {
                     <td>{b.passengerName}</td>
                     <td>{b.passportNumber || '—'}</td>
                     <td>{getDestination(b.boardingDestinationId)?.name || '—'}</td>
+                    <td>{getDestination(b.arrivalDestinationId)?.name || '—'}</td>
                     <td>{trip ? getTripLabel(trip) : '—'}</td>
                     <td>{b.seatNumber}</td>
                     <td>{PAYMENT_LABELS[b.paymentMethod]}</td>

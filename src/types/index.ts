@@ -108,8 +108,10 @@ export interface Booking {
   customerId: string
   passengerName: string
   passportNumber: string
-  /** محطة/مدينة الصعود من مسار الرحلة */
+  /** محطة/مدينة الانطلاق من مسار الرحلة */
   boardingDestinationId: string
+  /** محطة/مدينة الوصول من مسار الرحلة */
+  arrivalDestinationId: string
   seatNumber: number
   price: number
   paymentMethod: PaymentMethod

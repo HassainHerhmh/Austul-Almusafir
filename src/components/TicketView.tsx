@@ -15,6 +15,7 @@ export function TicketView({ booking, trip, onClose }: Props) {
   const office = getOffice(booking.officeId)
   const ends = tripEndpoints(trip)
   const boardingName = getDestination(booking.boardingDestinationId)?.name
+  const arrivalName = getDestination(booking.arrivalDestinationId)?.name
 
   return (
     <div>
@@ -40,8 +41,12 @@ export function TicketView({ booking, trip, onClose }: Props) {
             <strong>{booking.passportNumber || '—'}</strong>
           </div>
           <div>
-            <span>منطقة الصعود</span>
+            <span>منطقة الانطلاق</span>
             <strong>{boardingName || '—'}</strong>
+          </div>
+          <div>
+            <span>منطقة الوصول</span>
+            <strong>{arrivalName || '—'}</strong>
           </div>
           <div>
             <span>المكتب</span>

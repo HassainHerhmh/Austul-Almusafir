@@ -25,6 +25,14 @@ const chart: Array<{
   { code: '11101', nameAr: 'الصندوق الرئيسي', parentCode: '111', level: 'فرعي', statement: 'الميزانية العمومية' },
   { code: '113', nameAr: 'الذمم المدينة', parentCode: '11', level: 'رئيسي', statement: 'الميزانية العمومية' },
   { code: '1131', nameAr: 'ذمم مكاتب السفريات', parentCode: '113', level: 'رئيسي', statement: 'الميزانية العمومية' },
+  {
+    code: '1132',
+    nameAr: 'وسيط إيراد التذاكر',
+    nameEn: 'Ticket Revenue Transit',
+    parentCode: '113',
+    level: 'فرعي',
+    statement: 'الميزانية العمومية',
+  },
   { code: '2', nameAr: 'الخصوم', nameEn: 'Liabilities', level: 'رئيسي', statement: 'الميزانية العمومية' },
   { code: '4', nameAr: 'الإيرادات', nameEn: 'Revenue', level: 'رئيسي', statement: 'أرباح وخسائر' },
   { code: '41', nameAr: 'إيرادات التذاكر', parentCode: '4', level: 'فرعي', statement: 'أرباح وخسائر' },
@@ -76,11 +84,14 @@ async function main() {
     console.log('تم إنشاء دليل الحسابات الأساسي')
   } else {
     // انقل/أنشئ عمولات المكاتب تحت المصروفات (أرباح وخسائر) وليس الميزانية
+    // لا تلمس 1132 إلا إن كان ما زال باسم العمولات (ترقية قديمة)
     const expenses = await prisma.account.findFirst({ where: { code: '5' } })
     const byName = await prisma.account.findFirst({ where: { nameAr: 'عمولات المكاتب' } })
-    const byOldCode = await prisma.account.findFirst({ where: { code: '1132' } })
     const byNewCode = await prisma.account.findFirst({ where: { code: '53' } })
-    const target = byNewCode || byName || byOldCode
+    const old1132AsCommission = await prisma.account.findFirst({
+      where: { code: '1132', nameAr: 'عمولات المكاتب' },
+    })
+    const target = byNewCode || byName || old1132AsCommission
 
     if (target && expenses) {
       await prisma.account.update({
@@ -107,6 +118,26 @@ async function main() {
         },
       })
       console.log('تم إضافة مصروف عمولات المكاتب (53)')
+    }
+
+    // حساب وسيط إيراد التذاكر (1132)
+    const receivables = await prisma.account.findFirst({ where: { code: '113' } })
+    const ticketTransitByCode = await prisma.account.findFirst({ where: { code: '1132' } })
+    const ticketTransitByName = await prisma.account.findFirst({
+      where: { nameAr: 'وسيط إيراد التذاكر' },
+    })
+    if (!ticketTransitByCode && !ticketTransitByName && receivables) {
+      await prisma.account.create({
+        data: {
+          code: '1132',
+          nameAr: 'وسيط إيراد التذاكر',
+          nameEn: 'Ticket Revenue Transit',
+          parentId: receivables.id,
+          accountLevel: 'فرعي',
+          financialStatement: 'الميزانية العمومية',
+        },
+      })
+      console.log('تم إضافة وسيط إيراد التذاكر (1132)')
     }
   }
 

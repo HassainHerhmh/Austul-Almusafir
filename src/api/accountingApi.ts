@@ -191,6 +191,7 @@ type JournalLine = {
 
 type TransitSettings = {
   office_commissions_account: number | null
+  ticket_revenue_account: number | null
 }
 
 type Store = {
@@ -336,6 +337,11 @@ function buildSeed(): Store {
       account_group_id: 1, account_level: 'رئيسي', financial_statement: 'الميزانية العمومية',
       created_at: now(), branch_name: BRANCH, group_name: 'الأصول', parent_name: 'الذمم المدينة',
     },
+    {
+      id: 31, code: '1132', name_ar: 'وسيط إيراد التذاكر', name_en: 'Ticket Revenue Transit', parent_id: 9,
+      account_group_id: 1, account_level: 'فرعي', financial_statement: 'الميزانية العمومية',
+      created_at: now(), branch_name: BRANCH, group_name: 'الأصول', parent_name: 'الذمم المدينة',
+    },
   ]
 
   const currencies: Currency[] = [
@@ -428,6 +434,7 @@ function buildSeed(): Store {
     journalEntries,
     transitAccounts: {
       office_commissions_account: null,
+      ticket_revenue_account: null,
     },
     nextIds: {
       accounts: maxId(accounts) + 1,
@@ -462,13 +469,42 @@ function loadStore(): Store {
             typeof t.office_commissions_account === 'number'
               ? t.office_commissions_account
               : null,
+          ticket_revenue_account:
+            typeof t.ticket_revenue_account === 'number' ? t.ticket_revenue_account : null,
         }
 
         // تأكد ظهور عمولات المكاتب تحت المصروفات في الواجهة
+        // لا تلمس 1132 إن كان وسيط إيراد التذاكر
         const expenses = parsed.accounts.find((a) => a.code === '5')
         let commission = parsed.accounts.find(
-          (a) => a.code === '53' || a.name_ar === 'عمولات المكاتب' || a.code === '1132',
+          (a) =>
+            a.code === '53' ||
+            a.name_ar === 'عمولات المكاتب' ||
+            (a.code === '1132' && a.name_ar === 'عمولات المكاتب'),
         )
+
+        // وسيط إيراد التذاكر إن لم يوجد
+        const receivables = parsed.accounts.find((a) => a.code === '113')
+        const ticketTransit = parsed.accounts.find(
+          (a) => a.code === '1132' || a.name_ar === 'وسيط إيراد التذاكر',
+        )
+        if (!ticketTransit && receivables) {
+          const id = Math.max(0, ...parsed.accounts.map((a) => a.id)) + 1
+          parsed.accounts.push({
+            id,
+            code: '1132',
+            name_ar: 'وسيط إيراد التذاكر',
+            name_en: 'Ticket Revenue Transit',
+            parent_id: receivables.id,
+            account_group_id: 1,
+            account_level: 'فرعي',
+            financial_statement: 'الميزانية العمومية',
+            created_at: now(),
+            branch_name: BRANCH,
+            group_name: 'الأصول',
+            parent_name: receivables.name_ar,
+          })
+        }
         if (commission && expenses) {
           commission = {
             ...commission,
@@ -636,7 +672,22 @@ function handleGet(url: string, config?: { params?: Record<string, any> }): any 
     return ok({ accounts: (accounts.length ? accounts : fallback).map(enrichAccount) })
   }
   if (path === '/accounts/sub-for-ceiling') {
-    const list = store.accounts.filter((a) => a.account_level === 'فرعي').map(enrichAccount)
+    const parentIds = new Set(
+      store.accounts.map((a) => a.parent_id).filter((id): id is number => id != null),
+    )
+    const list = store.accounts
+      .filter(
+        (a) =>
+          a.account_level === 'فرعي' ||
+          (a.parent_id != null && !parentIds.has(a.id)),
+      )
+      .map((a) => {
+        if (a.account_level !== 'فرعي' && a.parent_id != null && !parentIds.has(a.id)) {
+          a.account_level = 'فرعي'
+        }
+        return enrichAccount(a)
+      })
+    persist()
     return ok({ list, accounts: list })
   }
 
@@ -771,7 +822,11 @@ function handleGet(url: string, config?: { params?: Record<string, any> }): any 
   if (path === '/currency-exchange/form-data') {
     return ok({
       currencies: store.currencies,
-      accounts: store.accounts.filter((a) => a.account_level === 'فرعي'),
+      accounts: store.accounts.filter(
+        (a) =>
+          a.account_level === 'فرعي' ||
+          (a.parent_id != null && !store.accounts.some((x) => x.parent_id === a.id)),
+      ),
       cashBoxes: store.cashBoxes,
       type: params.type || '',
     })
@@ -1256,7 +1311,14 @@ function handlePost(url: string, body: any = {}): any {
 
   if (path === '/settings/transit-accounts') {
     store.transitAccounts = {
-      office_commissions_account: body.office_commissions_account ?? null,
+      office_commissions_account:
+        body.office_commissions_account !== undefined
+          ? body.office_commissions_account
+          : store.transitAccounts.office_commissions_account,
+      ticket_revenue_account:
+        body.ticket_revenue_account !== undefined
+          ? body.ticket_revenue_account
+          : store.transitAccounts.ticket_revenue_account,
     }
     persist()
     return ok({ data: store.transitAccounts })

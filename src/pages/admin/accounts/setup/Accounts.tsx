@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import api from '../../../../api/accountingApi';
+import { serverApi } from '../../../../api/serverApi';
 import { DEFAULT_BRANCH_NAME } from "../constants";
 
 type AccountLevel = "رئيسي" | "فرعي";
@@ -56,6 +57,20 @@ const getRootFinancialStatement = (name: string) => {
 
   return "الميزانية العمومية";
 };
+
+function buildTree(list: Account[]): Account[] {
+  const map = new Map<number, Account>();
+  list.forEach((a) => map.set(a.id, { ...a, children: [] }));
+  const roots: Account[] = [];
+  map.forEach((node) => {
+    if (node.parent_id != null && map.has(node.parent_id)) {
+      map.get(node.parent_id)!.children!.push(node);
+    } else {
+      roots.push(node);
+    }
+  });
+  return roots;
+}
 
 const FloatingInput = ({
   label,
@@ -174,9 +189,27 @@ const Accounts = () => {
   }>(INITIAL_FORM);
 
   const loadAccounts = async () => {
-    const data = await api.accounts.getAccounts();
-    setAccounts(data.tree);
-    setAccountsList(data.list);
+    try {
+      const res = await serverApi.accounts.list();
+      const list = (res.list ?? []).map((a: any) => ({
+        id: a.id,
+        code: a.code,
+        name_ar: a.name_ar,
+        name_en: a.name_en ?? null,
+        parent_id: a.parent_id ?? null,
+        parent_name: a.parent_name ?? null,
+        account_level: (a.account_level as AccountLevel) || "رئيسي",
+        financial_statement: a.financial_statement ?? undefined,
+        created_at: a.created_at,
+        branch_name: DEFAULT_BRANCH_NAME,
+      }));
+      setAccountsList(list);
+      setAccounts(buildTree(list));
+    } catch {
+      const data = await api.accounts.getAccounts();
+      setAccounts(data.tree);
+      setAccountsList(data.list);
+    }
   };
 
   const loadAccountGroups = async () => {
@@ -211,15 +244,18 @@ const Accounts = () => {
     const selectedParent = accountsList.find((account) => String(account.id) === form.parent);
 
     setForm((prev) => {
-      const nextFinancial = selectedParent?.financial_statement || getRootFinancialStatement(prev.name_ar);
+      const nextFinancial =
+        selectedParent?.financial_statement || getRootFinancialStatement(prev.name_ar);
+      const nextLevel: AccountLevel = form.parent ? "فرعي" : prev.level;
 
-      if (prev.financial === nextFinancial) {
+      if (prev.financial === nextFinancial && prev.level === nextLevel) {
         return prev;
       }
 
       return {
         ...prev,
         financial: nextFinancial,
+        level: nextLevel,
       };
     });
   }, [form.parent, form.name_ar, accountsList]);
@@ -248,14 +284,20 @@ const Accounts = () => {
       return;
     }
 
-    await api.accounts.updateAccount(selectedAccountId, {
+    const payload = {
       name_ar: form.name_ar,
-      name_en: form.name_en,
+      name_en: form.name_en || null,
       parent_id: form.parent ? Number(form.parent) : null,
       account_group_id: form.group ? Number(form.group) : null,
-      account_level: form.level,
+      account_level: form.parent ? ("فرعي" as const) : form.level,
       financial_statement: form.financial || null,
-    });
+    };
+
+    try {
+      await serverApi.accounts.update(selectedAccountId, payload);
+    } catch {
+      await api.accounts.updateAccount(selectedAccountId, payload);
+    }
 
     await loadAccounts();
   };
@@ -271,14 +313,20 @@ const Accounts = () => {
       return;
     }
 
-    await api.accounts.createAccount({
+    const payload = {
       name_ar: form.name_ar,
-      name_en: form.name_en,
+      name_en: form.name_en || null,
       parent_id: form.parent ? Number(form.parent) : null,
       account_group_id: form.group ? Number(form.group) : null,
-      account_level: form.level,
+      account_level: form.parent ? ("فرعي" as const) : form.level,
       financial_statement: form.financial || null,
-    });
+    };
+
+    try {
+      await serverApi.accounts.create(payload);
+    } catch {
+      await api.accounts.createAccount(payload);
+    }
 
     await loadAccounts();
     resetForm();
@@ -301,7 +349,7 @@ const Accounts = () => {
             <FloatingSelect
               label="حساب الأب"
               value={form.parent}
-              onChange={(v) => setForm({ ...form, parent: v })}
+              onChange={(v) => setForm({ ...form, parent: v, level: v ? "فرعي" : form.level })}
               options={mainAccountsOptions}
             />
 
@@ -341,6 +389,7 @@ const Accounts = () => {
                 { value: "رئيسي", label: "رئيسي" },
                 { value: "فرعي", label: "فرعي" },
               ]}
+              disabled={Boolean(form.parent)}
             />
 
             <FloatingSelect
@@ -369,7 +418,7 @@ const Accounts = () => {
 
           <div className="flex justify-end gap-3 pt-4">
             <button
-              onClick={handleUpdate}
+              onClick={() => void handleUpdate()}
               className="acc-btn acc-btn-primary rounded-lg px-5 py-2"
             >
               تحديث
@@ -381,7 +430,7 @@ const Accounts = () => {
               مسح الحقول
             </button>
             <button
-              onClick={handleAdd}
+              onClick={() => void handleAdd()}
               className="acc-btn acc-btn-secondary rounded-lg px-5 py-2"
             >
               إضافة

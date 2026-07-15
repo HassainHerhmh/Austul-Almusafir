@@ -161,6 +161,10 @@ export const serverApi = {
       }),
     cancel: (id: string) =>
       apiRequest<{ trip: Trip }>(`/api/trips/${id}/cancel`, { method: 'POST' }),
+    close: (id: string) =>
+      apiRequest<{ trip: Trip }>(`/api/trips/${id}/close`, { method: 'POST' }),
+    reopen: (id: string) =>
+      apiRequest<{ trip: Trip }>(`/api/trips/${id}/reopen`, { method: 'POST' }),
   },
 
   bookings: {

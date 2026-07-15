@@ -101,7 +101,7 @@ tripsRouter.post(
         date: z.string().min(1),
         departureTime: z.string().min(1),
         price: z.number().min(0),
-        status: z.enum(['scheduled', 'departed', 'cancelled', 'completed']).optional(),
+        status: z.enum(['scheduled', 'departed', 'cancelled', 'completed', 'closed']).optional(),
         stops: z.array(stopSchema).min(2),
       })
       .safeParse(req.body)
@@ -154,7 +154,7 @@ tripsRouter.put(
         date: z.string().min(1).optional(),
         departureTime: z.string().min(1).optional(),
         price: z.number().min(0).optional(),
-        status: z.enum(['scheduled', 'departed', 'cancelled', 'completed']).optional(),
+        status: z.enum(['scheduled', 'departed', 'cancelled', 'completed', 'closed']).optional(),
         stops: z.array(stopSchema).min(2).optional(),
       })
       .safeParse(req.body)
@@ -196,6 +196,42 @@ tripsRouter.post(
     const trip = await prisma.trip.update({
       where: { id: paramId(req) },
       data: { status: 'cancelled' },
+      include: { stops: true },
+    })
+    return ok(res, { trip: mapTrip(trip) })
+  }),
+)
+
+tripsRouter.post(
+  '/:id/close',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const existing = await prisma.trip.findUnique({ where: { id: paramId(req) } })
+    if (!existing) return fail(res, 'الرحلة غير موجودة', 404)
+    if (existing.status !== 'scheduled') {
+      return fail(res, 'يمكن إقفال الرحلات المجدولة فقط')
+    }
+    const trip = await prisma.trip.update({
+      where: { id: paramId(req) },
+      data: { status: 'closed' },
+      include: { stops: true },
+    })
+    return ok(res, { trip: mapTrip(trip) })
+  }),
+)
+
+tripsRouter.post(
+  '/:id/reopen',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const existing = await prisma.trip.findUnique({ where: { id: paramId(req) } })
+    if (!existing) return fail(res, 'الرحلة غير موجودة', 404)
+    if (existing.status !== 'closed' && existing.status !== 'departed') {
+      return fail(res, 'يمكن إعادة فتح الرحلات المقفلة فقط')
+    }
+    const trip = await prisma.trip.update({
+      where: { id: paramId(req) },
+      data: { status: 'scheduled' },
       include: { stops: true },
     })
     return ok(res, { trip: mapTrip(trip) })

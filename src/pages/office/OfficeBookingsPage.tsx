@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { SeatMap } from '../../components/SeatMap'
 import { TicketView } from '../../components/TicketView'
-import { PAYMENT_LABELS, formatMoney, todayStr } from '../../components/utils'
+import { PAYMENT_LABELS, formatMoney } from '../../components/utils'
 import { useApp } from '../../context/AppContext'
 import type { Booking, PaymentMethod } from '../../types'
 
@@ -20,14 +20,13 @@ export function OfficeBookingsPage() {
   } = useApp()
   const [params] = useSearchParams()
   const officeId = currentOffice!.id
-  const today = todayStr()
 
   const trips = useMemo(
     () =>
       state.trips
-        .filter((t) => t.status === 'scheduled' && t.date >= today)
-        .sort((a, b) => a.date.localeCompare(b.date) || a.departureTime.localeCompare(b.departureTime)),
-    [state.trips, today],
+        .filter((t) => t.status === 'scheduled')
+        .sort((a, b) => b.date.localeCompare(a.date) || b.departureTime.localeCompare(a.departureTime)),
+    [state.trips],
   )
 
   const [tripId, setTripId] = useState(params.get('trip') ?? trips[0]?.id ?? '')

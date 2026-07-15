@@ -63,6 +63,8 @@ interface AppContextValue {
   upsertDestination: (dest: Omit<Destination, 'id'> & { id?: string }) => Promise<void>
   upsertTrip: (trip: Omit<Trip, 'id'> & { id?: string }) => Promise<void>
   cancelTrip: (id: string) => Promise<void>
+  closeTrip: (id: string) => Promise<void>
+  reopenTrip: (id: string) => Promise<void>
   upsertCustomer: (customer: Omit<Customer, 'id'> & { id?: string }) => Promise<Customer>
   createBooking: (input: {
     tripId: string
@@ -474,6 +476,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setState((s) => ({ ...s, trips: upsertById(s.trips, res.trip) }))
   }
 
+  const closeTrip = async (id: string) => {
+    const res = await serverApi.trips.close(id)
+    setState((s) => ({ ...s, trips: upsertById(s.trips, res.trip) }))
+  }
+
+  const reopenTrip = async (id: string) => {
+    const res = await serverApi.trips.reopen(id)
+    setState((s) => ({ ...s, trips: upsertById(s.trips, res.trip) }))
+  }
+
   const upsertCustomer: AppContextValue['upsertCustomer'] = async (customer) => {
     if (customer.id) {
       return state.customers.find((c) => c.id === customer.id) ?? { ...customer, id: customer.id }
@@ -562,6 +574,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     upsertDestination,
     upsertTrip,
     cancelTrip,
+    closeTrip,
+    reopenTrip,
     upsertCustomer,
     createBooking,
     updateBooking,

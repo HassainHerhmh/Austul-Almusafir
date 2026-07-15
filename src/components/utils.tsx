@@ -28,8 +28,23 @@ export function formatMoney(n: number) {
   return `${n.toLocaleString('ar-YE')} ر.ي`
 }
 
+/** تاريخ محلي YYYY-MM-DD (يتجنب فرق توقيت UTC) */
 export function todayStr() {
-  return new Date().toISOString().slice(0, 10)
+  const d = new Date()
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+/** تاريخ قبل N أيام (محلي) */
+export function daysAgoStr(days: number) {
+  const d = new Date()
+  d.setDate(d.getDate() - days)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
 }
 
 export const ROLE_LABELS: Record<Role, string> = {

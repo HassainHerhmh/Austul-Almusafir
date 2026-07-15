@@ -1,6 +1,15 @@
 import { Link } from 'react-router-dom'
 import { formatMoney, todayStr } from '../../components/utils'
 import { useApp } from '../../context/AppContext'
+import type { TripStatus } from '../../types'
+
+function statusBadge(s: TripStatus) {
+  if (s === 'scheduled') return <span className="badge badge-ok">مفتوحة</span>
+  if (s === 'closed') return <span className="badge badge-warn">مقفلة</span>
+  if (s === 'cancelled') return <span className="badge badge-danger">ملغاة</span>
+  if (s === 'departed') return <span className="badge badge-info">انطلقت</span>
+  return <span className="badge badge-warn">مكتملة</span>
+}
 
 export function OfficeHome() {
   const {
@@ -25,9 +34,9 @@ export function OfficeHome() {
     vouchers.filter((v) => v.type === 'receipt').reduce((s, v) => s + v.amount, 0) -
     vouchers.filter((v) => v.type === 'payment').reduce((s, v) => s + v.amount, 0)
 
-  const upcoming = state.trips
-    .filter((t) => t.status === 'scheduled' && t.date >= today)
-    .sort((a, b) => a.date.localeCompare(b.date) || a.departureTime.localeCompare(b.departureTime))
+  const trips = [...state.trips].sort(
+    (a, b) => b.date.localeCompare(a.date) || b.departureTime.localeCompare(a.departureTime),
+  )
 
   return (
     <div>
@@ -69,23 +78,29 @@ export function OfficeHome() {
 
       <div className="panel">
         <div className="panel-head">
-          <h2>الرحلات المتاحة (مقاعد مركزية مشتركة)</h2>
+          <h2>جميع الرحلات (مقاعد مركزية مشتركة)</h2>
         </div>
         <div className="trip-card-list">
-          {upcoming.map((trip) => {
+          {trips.map((trip) => {
             const seats = getTripSeats(trip.id)
             const isToday = trip.date === today
+            const canBook = trip.status === 'scheduled' && seats.remaining > 0
             return (
               <div key={trip.id} className="trip-row">
                 <div>
                   <h3>
                     {getTripLabel(trip)}{' '}
-                    {isToday && <span className="badge badge-amber badge-warn">اليوم</span>}
+                    {isToday && <span className="badge badge-amber badge-warn">اليوم</span>}{' '}
+                    {statusBadge(trip.status)}
                   </h3>
                   <div className="trip-meta">
                     <span>{trip.date}</span>
                     <span>{trip.departureTime}</span>
-                    <span>{formatMoney(trip.price)}</span>
+                    <span>
+                      {trip.pricingMode === 'boarding'
+                        ? 'حسب الصعود'
+                        : formatMoney(trip.price)}
+                    </span>
                     <span>
                       {trip.stops.map((s) => s.point).filter(Boolean).join(' ← ')}
                     </span>
@@ -96,7 +111,7 @@ export function OfficeHome() {
                   <div style={{ fontSize: '0.8rem', color: 'var(--muted)', marginTop: 4 }}>
                     محجوز {seats.booked} من {seats.total}
                   </div>
-                  {can('book') && seats.remaining > 0 && (
+                  {can('book') && canBook && (
                     <Link
                       to={`/office/bookings?trip=${trip.id}`}
                       className="btn btn-primary btn-sm"
@@ -109,7 +124,7 @@ export function OfficeHome() {
               </div>
             )
           })}
-          {upcoming.length === 0 && <div className="empty">لا توجد رحلات قادمة</div>}
+          {trips.length === 0 && <div className="empty">لا توجد رحلات</div>}
         </div>
       </div>
 
@@ -128,22 +143,20 @@ export function OfficeHome() {
               </tr>
             </thead>
             <tbody>
-              {[...myBookings]
-                .reverse()
-                .slice(0, 6)
-                .map((b) => {
-                  const trip = state.trips.find((t) => t.id === b.tripId)
-                  return (
-                    <tr key={b.id}>
-                      <td>{b.passengerName}</td>
-                      <td>{trip ? getTripLabel(trip) : '—'}</td>
-                      <td>{b.seatNumber}</td>
-                      <td>{formatMoney(b.price)}</td>
-                    </tr>
-                  )
-                })}
+              {myBookings.slice(0, 8).map((b) => {
+                const trip = state.trips.find((t) => t.id === b.tripId)
+                return (
+                  <tr key={b.id}>
+                    <td>{b.passengerName}</td>
+                    <td>{trip ? getTripLabel(trip) : '—'}</td>
+                    <td>{b.seatNumber}</td>
+                    <td>{formatMoney(b.price)}</td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
+          {myBookings.length === 0 && <div className="empty">لا حجوزات بعد</div>}
         </div>
       </div>
     </div>

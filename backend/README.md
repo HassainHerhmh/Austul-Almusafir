@@ -61,28 +61,15 @@ Authorization: Bearer <token>
 
 عند تأكيد الحجز يُرحَّل القيد آلياً: مدين ذمم المكتب / دائن إيرادات التذاكر.
 
-## الإنتاج (PostgreSQL)
+## الإنتاج (Railway + MySQL)
 
-في `.env`:
+Railway يوفّر عادةً `MYSQL_URL`. إمّا:
+1. أضف متغيرًا: `DATABASE_URL` = نفس قيمة `MYSQL_URL`  
+2. أو لا تفعل شيئاً — السكربت يقرأ `MYSQL_URL` تلقائياً
 
-```env
-DATABASE_URL="postgresql://USER:PASS@HOST:5432/austul"
-JWT_SECRET="قيمة-طويلة-عشوائية"
-PORT=4000
-CORS_ORIGIN="https://your-frontend.com"
+تأكد أيضاً من:
+```
+JWT_SECRET=قيمة-طويلة-عشوائية
 ```
 
-وفي `prisma/schema.prisma` غيّر:
-
-```prisma
-provider = "postgresql"
-```
-
-ثم:
-
-```bash
-npx prisma db push
-npm run db:seed
-npm run build
-npm start
-```
+ثم Redeploy.

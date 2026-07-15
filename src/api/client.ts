@@ -44,7 +44,8 @@ export async function apiRequest<T extends Record<string, unknown>>(
   }
 
   if (!res.ok || !data.success) {
-    const msg = 'message' in data && data.message ? data.message : 'حدث خطأ'
+    const fail = data as ApiFail
+    const msg = typeof fail.message === 'string' && fail.message ? fail.message : 'حدث خطأ'
     if (res.status === 401) setToken(null)
     throw new ApiError(msg, res.status)
   }

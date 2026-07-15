@@ -397,6 +397,8 @@ accountsRouter.get(
     for (const leaf of leafRows) {
       const period = periodById.get(leaf.id) ?? { debit: 0, credit: 0 }
       const balance = closingById.get(leaf.id) ?? 0
+      // لا نعرض الحسابات ذات الرصيد صفر
+      if (balance === 0) continue
       totalDebit += period.debit
       totalCredit += period.credit
       totalBalance += balance

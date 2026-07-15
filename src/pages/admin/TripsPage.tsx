@@ -67,10 +67,6 @@ export function TripsPage() {
         alert(`اختر الوجهة للمحطة ${i + 1}`)
         return
       }
-      if (!stop.point.trim()) {
-        alert(`أدخل نقطة الوقوف للمحطة ${i + 1}`)
-        return
-      }
     }
     for (let i = 1; i < form.stops.length; i++) {
       if (form.stops[i].destinationId === form.stops[i - 1].destinationId) {
@@ -316,7 +312,6 @@ export function TripsPage() {
                           <div className="field">
                             <label>نقطة الوقوف</label>
                             <input
-                              required
                               value={stop.point}
                               onChange={(e) => updateStop(index, { point: e.target.value })}
                               placeholder="مثل: موقف عدن"

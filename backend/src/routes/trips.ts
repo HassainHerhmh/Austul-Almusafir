@@ -84,7 +84,7 @@ tripsRouter.get(
 
 const stopSchema = z.object({
   destinationId: z.string().min(1),
-  point: z.string().min(1),
+  point: z.string().optional().default(''),
 })
 
 tripsRouter.post(
@@ -126,7 +126,7 @@ tripsRouter.post(
         stops: {
           create: body.data.stops.map((s, i) => ({
             destinationId: s.destinationId,
-            point: s.point,
+            point: s.point ?? '',
             sortOrder: i,
           })),
         },
@@ -167,7 +167,7 @@ tripsRouter.put(
         data: stops.map((s, i) => ({
           tripId: paramId(req)!,
           destinationId: s.destinationId,
-          point: s.point,
+          point: s.point ?? '',
           sortOrder: i,
         })),
       })

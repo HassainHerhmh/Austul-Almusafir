@@ -65,7 +65,7 @@ bookingsRouter.post(
       where: { id: body.data.tripId },
       include: { bus: true, stops: { orderBy: { sortOrder: 'asc' } } },
     })
-    if (!trip || trip.status !== 'scheduled') return fail(res, 'الرحلة غير متاحة للحجز')
+    if (!trip || trip.status !== 'open') return fail(res, 'الرحلة غير متاحة للحجز')
     if (body.data.seatNumber < 1 || body.data.seatNumber > trip.bus.seats) {
       return fail(res, 'رقم المقعد غير صالح')
     }

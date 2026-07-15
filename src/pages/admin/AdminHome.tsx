@@ -4,7 +4,7 @@ import { formatMoney, todayStr } from '../../components/utils'
 export function AdminHome() {
   const { state, getTripLabel, getTripSeats, getOffice } = useApp()
   const today = todayStr()
-  const todayTrips = state.trips.filter((t) => t.date === today && t.status === 'scheduled')
+  const todayTrips = state.trips.filter((t) => t.date === today && t.status === 'open')
   const confirmed = state.bookings.filter((b) => b.status === 'confirmed')
   const sales = confirmed.reduce((s, b) => s + b.price, 0)
   const activeOffices = state.offices.filter((o) => o.status === 'active').length

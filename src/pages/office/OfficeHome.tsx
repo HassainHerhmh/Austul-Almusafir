@@ -4,7 +4,8 @@ import { useApp } from '../../context/AppContext'
 import type { TripStatus } from '../../types'
 
 function statusBadge(s: TripStatus) {
-  if (s === 'scheduled') return <span className="badge badge-ok">مفتوحة</span>
+  if (s === 'scheduled') return <span className="badge badge-info">مجدولة</span>
+  if (s === 'open') return <span className="badge badge-ok">مفتوحة</span>
   if (s === 'closed') return <span className="badge badge-warn">مقفلة</span>
   if (s === 'cancelled') return <span className="badge badge-danger">ملغاة</span>
   if (s === 'departed') return <span className="badge badge-info">انطلقت</span>
@@ -34,9 +35,11 @@ export function OfficeHome() {
     vouchers.filter((v) => v.type === 'receipt').reduce((s, v) => s + v.amount, 0) -
     vouchers.filter((v) => v.type === 'payment').reduce((s, v) => s + v.amount, 0)
 
-  const trips = [...state.trips].sort(
-    (a, b) => b.date.localeCompare(a.date) || b.departureTime.localeCompare(a.departureTime),
-  )
+  const trips = [...state.trips]
+    .filter((t) => t.status !== 'scheduled')
+    .sort(
+      (a, b) => b.date.localeCompare(a.date) || b.departureTime.localeCompare(a.departureTime),
+    )
 
   return (
     <div>
@@ -84,7 +87,7 @@ export function OfficeHome() {
           {trips.map((trip) => {
             const seats = getTripSeats(trip.id)
             const isToday = trip.date === today
-            const canBook = trip.status === 'scheduled' && seats.remaining > 0
+            const canBook = trip.status === 'open' && seats.remaining > 0
             return (
               <div key={trip.id} className="trip-row">
                 <div>

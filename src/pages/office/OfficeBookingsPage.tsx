@@ -24,7 +24,7 @@ export function OfficeBookingsPage() {
   const trips = useMemo(
     () =>
       state.trips
-        .filter((t) => t.status === 'scheduled')
+        .filter((t) => t.status === 'open')
         .sort((a, b) => b.date.localeCompare(a.date) || b.departureTime.localeCompare(a.departureTime)),
     [state.trips],
   )

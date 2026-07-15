@@ -63,6 +63,7 @@ interface AppContextValue {
   upsertDestination: (dest: Omit<Destination, 'id'> & { id?: string }) => Promise<void>
   upsertTrip: (trip: Omit<Trip, 'id'> & { id?: string }) => Promise<void>
   cancelTrip: (id: string) => Promise<void>
+  openTrip: (id: string) => Promise<void>
   closeTrip: (id: string) => Promise<void>
   reopenTrip: (id: string) => Promise<void>
   upsertCustomer: (customer: Omit<Customer, 'id'> & { id?: string }) => Promise<Customer>
@@ -476,6 +477,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setState((s) => ({ ...s, trips: upsertById(s.trips, res.trip) }))
   }
 
+  const openTrip = async (id: string) => {
+    const res = await serverApi.trips.open(id)
+    setState((s) => ({ ...s, trips: upsertById(s.trips, res.trip) }))
+  }
+
   const closeTrip = async (id: string) => {
     const res = await serverApi.trips.close(id)
     setState((s) => ({ ...s, trips: upsertById(s.trips, res.trip) }))
@@ -574,6 +580,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     upsertDestination,
     upsertTrip,
     cancelTrip,
+    openTrip,
     closeTrip,
     reopenTrip,
     upsertCustomer,

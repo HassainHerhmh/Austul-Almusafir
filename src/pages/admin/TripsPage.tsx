@@ -31,7 +31,7 @@ const emptyForm = (): TripForm => ({
 })
 
 export function TripsPage() {
-  const { state, upsertTrip, cancelTrip, closeTrip, reopenTrip, getTripLabel, getTripSeats, getBus, getDriver } =
+  const { state, upsertTrip, cancelTrip, openTrip, closeTrip, reopenTrip, getTripLabel, getTripSeats, getBus, getDriver } =
     useApp()
   const [form, setForm] = useState<TripForm>(emptyForm)
   const [editId, setEditId] = useState<string | null>(null)
@@ -119,7 +119,8 @@ export function TripsPage() {
   }
 
   const statusBadge = (s: TripStatus) => {
-    if (s === 'scheduled') return <span className="badge badge-ok">مفتوحة</span>
+    if (s === 'scheduled') return <span className="badge badge-info">مجدولة</span>
+    if (s === 'open') return <span className="badge badge-ok">مفتوحة</span>
     if (s === 'closed') return <span className="badge badge-warn">مقفلة</span>
     if (s === 'cancelled') return <span className="badge badge-danger">ملغاة</span>
     if (s === 'departed') return <span className="badge badge-info">انطلقت</span>
@@ -236,6 +237,28 @@ export function TripsPage() {
                             تعديل
                           </button>
                           {t.status === 'scheduled' && (
+                            <>
+                              <button
+                                type="button"
+                                className="btn btn-primary btn-sm"
+                                onClick={() => {
+                                  if (confirm('فتح الرحلة للحجز عند الوكلاء؟')) void openTrip(t.id)
+                                }}
+                              >
+                                فتح
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn-danger btn-sm"
+                                onClick={() => {
+                                  if (confirm('إلغاء الرحلة؟')) void cancelTrip(t.id)
+                                }}
+                              >
+                                إلغاء
+                              </button>
+                            </>
+                          )}
+                          {t.status === 'open' && (
                             <>
                               <button
                                 type="button"
@@ -475,7 +498,8 @@ export function TripsPage() {
                         setForm({ ...form, status: e.target.value as TripStatus })
                       }
                     >
-                      <option value="scheduled">مفتوحة</option>
+                      <option value="scheduled">مجدولة</option>
+                      <option value="open">مفتوحة</option>
                       <option value="closed">مقفلة</option>
                       <option value="departed">انطلقت</option>
                       <option value="completed">مكتملة</option>

@@ -56,7 +56,7 @@ export function OfficesPage() {
       subAccounts.filter(
         (a) =>
           (a.code.startsWith('1131') && a.code.length > 4) ||
-          (a.name_ar.includes('مكتب') && a.code !== '1132' && !a.name_ar.includes('عمولات')),
+          (a.name_ar.includes('مكتب') && a.code !== '53' && !a.name_ar.includes('عمولات')),
       ),
     [subAccounts],
   )
@@ -271,7 +271,7 @@ export function OfficesPage() {
                     }
                   />
                   <p className="field-hint">
-                    تُحسب من سعر التذكرة وتُقيَّد من حساب وسيط عمولات المكاتب إلى حساب المكتب
+                    تُحسب من سعر التذكرة وتُقيَّد من مصروف عمولات المكاتب إلى حساب المكتب
                   </p>
                 </div>
               </div>

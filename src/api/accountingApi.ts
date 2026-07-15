@@ -322,6 +322,11 @@ function buildSeed(): Store {
       created_at: now(), branch_name: BRANCH, group_name: 'المصروفات', parent_name: 'المصروفات',
     },
     {
+      id: 21, code: '53', name_ar: 'عمولات المكاتب', name_en: 'Office Commissions', parent_id: 17,
+      account_group_id: 5, account_level: 'فرعي', financial_statement: 'أرباح وخسائر',
+      created_at: now(), branch_name: BRANCH, group_name: 'المصروفات', parent_name: 'المصروفات',
+    },
+    {
       id: 20, code: '11303', name_ar: 'حساب مصارفة العملة', name_en: 'FX Account', parent_id: 9,
       account_group_id: 1, account_level: 'فرعي', financial_statement: 'الميزانية العمومية',
       created_at: now(), branch_name: BRANCH, group_name: 'الأصول', parent_name: 'الذمم المدينة',
@@ -458,6 +463,45 @@ function loadStore(): Store {
               ? t.office_commissions_account
               : null,
         }
+
+        // تأكد ظهور عمولات المكاتب تحت المصروفات في الواجهة
+        const expenses = parsed.accounts.find((a) => a.code === '5')
+        let commission = parsed.accounts.find(
+          (a) => a.code === '53' || a.name_ar === 'عمولات المكاتب' || a.code === '1132',
+        )
+        if (commission && expenses) {
+          commission = {
+            ...commission,
+            code: '53',
+            name_ar: 'عمولات المكاتب',
+            name_en: 'Office Commissions',
+            parent_id: expenses.id,
+            account_level: 'فرعي',
+            financial_statement: 'أرباح وخسائر',
+            group_name: 'المصروفات',
+            parent_name: 'المصروفات',
+            account_group_id: 5,
+          }
+          parsed.accounts = parsed.accounts.map((a) => (a.id === commission!.id ? commission! : a))
+        } else if (!commission && expenses) {
+          const id = Math.max(0, ...parsed.accounts.map((a) => a.id)) + 1
+          parsed.accounts.push({
+            id,
+            code: '53',
+            name_ar: 'عمولات المكاتب',
+            name_en: 'Office Commissions',
+            parent_id: expenses.id,
+            account_group_id: 5,
+            account_level: 'فرعي',
+            financial_statement: 'أرباح وخسائر',
+            created_at: now(),
+            branch_name: BRANCH,
+            group_name: 'المصروفات',
+            parent_name: 'المصروفات',
+          })
+        }
+
+        saveStore(parsed)
         return parsed
       }
     }

@@ -82,11 +82,12 @@ const TransitAccountsSettings = () => {
     <div className="space-y-6" dir="rtl">
       <h2 className="text-lg font-bold acc-link">الحسابات الوسيطة (Transit)</h2>
       <p style={{ color: 'var(--muted)', fontSize: '0.9rem', margin: 0 }}>
-        يُستخدم قيد عمولة كل حجز: من هذا الحساب إلى الحساب المحاسبي للمكتب.
+        يُستخدم قيد عمولة كل حجز: من <strong>مصروف عمولات المكاتب</strong> إلى الحساب المحاسبي للمكتب
+        (يظهر ضمن الإيرادات والمصروفات).
       </p>
 
       <div className="acc-card border rounded-xl p-4 space-y-2 shadow-sm" style={{ maxWidth: 480 }}>
-        <div className="text-sm font-semibold text-gray-700">حساب وسيط عمولات المكاتب</div>
+        <div className="text-sm font-semibold text-gray-700">حساب عمولات المكاتب (مصروف)</div>
         <select
           className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
           value={officeCommissions}

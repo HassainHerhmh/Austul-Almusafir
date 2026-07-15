@@ -22,8 +22,8 @@ function bookingRefId(bookingId: string): number {
 }
 
 const TICKET_REVENUE_CODE = '41'
-const COMMISSION_TRANSIT_CODE = '1132'
-const COMMISSION_TRANSIT_NAME = 'عمولات المكاتب'
+const COMMISSION_EXPENSE_CODE = '53'
+const COMMISSION_EXPENSE_NAME = 'عمولات المكاتب'
 
 async function getTicketRevenueAccountId() {
   const acc =
@@ -32,7 +32,7 @@ async function getTicketRevenueAccountId() {
   return acc?.id ?? null
 }
 
-/** حساب وسيط عمولات المكاتب — من الإعدادات أو إنشاء 1132 تلقائياً */
+/** مصروف عمولات المكاتب — تحت المصروفات (أرباح وخسائر) */
 export async function ensureCommissionsTransitAccount() {
   const setting = await prisma.appSetting.findUnique({ where: { key: 'transit_accounts' } })
   const configuredId = (setting?.value as { office_commissions_account?: number | null } | null)
@@ -43,19 +43,43 @@ export async function ensureCommissionsTransitAccount() {
   }
 
   const existing =
-    (await prisma.account.findFirst({ where: { code: COMMISSION_TRANSIT_CODE } })) ||
-    (await prisma.account.findFirst({ where: { nameAr: COMMISSION_TRANSIT_NAME } }))
-  if (existing) return existing.id
+    (await prisma.account.findFirst({ where: { code: COMMISSION_EXPENSE_CODE } })) ||
+    (await prisma.account.findFirst({ where: { nameAr: COMMISSION_EXPENSE_NAME } })) ||
+    (await prisma.account.findFirst({ where: { code: '1132' } }))
 
-  const receivables = await prisma.account.findFirst({ where: { code: '113' } })
+  const expenses = await prisma.account.findFirst({ where: { code: '5' } })
+
+  if (existing) {
+    if (
+      expenses &&
+      (existing.code !== COMMISSION_EXPENSE_CODE ||
+        existing.parentId !== expenses.id ||
+        existing.financialStatement !== 'أرباح وخسائر')
+    ) {
+      const updated = await prisma.account.update({
+        where: { id: existing.id },
+        data: {
+          code: COMMISSION_EXPENSE_CODE,
+          nameAr: COMMISSION_EXPENSE_NAME,
+          nameEn: 'Office Commissions Expense',
+          parentId: expenses.id,
+          accountLevel: 'فرعي',
+          financialStatement: 'أرباح وخسائر',
+        },
+      })
+      return updated.id
+    }
+    return existing.id
+  }
+
   const row = await prisma.account.create({
     data: {
-      code: COMMISSION_TRANSIT_CODE,
-      nameAr: COMMISSION_TRANSIT_NAME,
-      nameEn: 'Office Commissions Transit',
-      parentId: receivables?.id ?? null,
+      code: COMMISSION_EXPENSE_CODE,
+      nameAr: COMMISSION_EXPENSE_NAME,
+      nameEn: 'Office Commissions Expense',
+      parentId: expenses?.id ?? null,
       accountLevel: 'فرعي',
-      financialStatement: 'الميزانية العمومية',
+      financialStatement: 'أرباح وخسائر',
     },
   })
   return row.id
@@ -141,8 +165,8 @@ export async function postBookingCharge(input: {
 }
 
 /**
- * قيد العمولة: من حـ/ عمولات المكاتب (مدين) إلى حـ/ ذمة المكتب (دائن)
- * فيخفّض ما على المكتب بمقدار عمولته من سعر التذكرة.
+ * قيد العمولة: من حـ/ مصروف عمولات المكاتب (مدين) إلى حـ/ ذمة المكتب (دائن)
+ * فيظهر في أرباح وخسائر ويخفّض ما على المكتب بمقدار عمولته.
  */
 export async function postBookingCommission(input: {
   bookingId: string

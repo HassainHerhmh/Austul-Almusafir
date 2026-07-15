@@ -324,14 +324,26 @@ accountsRouter.get(
 
     const all = await prisma.account.findMany({ orderBy: { code: 'asc' } })
     const childrenOf = (id: number) => all.filter((a) => a.parentId === id)
+    const hasChildren = (id: number) => all.some((a) => a.parentId === id)
 
-    const subtreeIds = (rootId: number): number[] => {
-      const ids = [rootId]
+    /** كل الحسابات تحت الأب بأي عمق (بدون الأب نفسه) */
+    const collectDescendants = (rootId: number): typeof all => {
+      const out: typeof all = []
       for (const child of childrenOf(rootId)) {
-        ids.push(...subtreeIds(child.id))
+        out.push(child)
+        out.push(...collectDescendants(child.id))
       }
-      return ids
+      return out
     }
+
+    /**
+     * صفوف الجدول = الحسابات الفرعية (أو الأوراق) تحت الشجرة.
+     * لا نعرض حسابات رئيسي وسيطة مثل «الأصول المتداولة» — فقط الفروع النهائية المرتبطة بالأب.
+     */
+    const descendants = collectDescendants(parentId)
+    const leafRows = descendants.filter(
+      (a) => a.accountLevel === 'فرعي' || !hasChildren(a.id),
+    )
 
     const datePeriod =
       from && to
@@ -348,45 +360,53 @@ accountsRouter.get(
         ? { journalDate: { lte: from } }
         : {}
 
-    const direct = childrenOf(parentId)
+    const leafIds = leafRows.map((a) => a.id)
+    const [periodGroups, closingGroups] = leafIds.length
+      ? await Promise.all([
+          prisma.journalLine.groupBy({
+            by: ['accountId'],
+            where: { accountId: { in: leafIds }, ...datePeriod },
+            _sum: { debit: true, credit: true },
+          }),
+          prisma.journalLine.groupBy({
+            by: ['accountId'],
+            where: { accountId: { in: leafIds }, ...dateClosing },
+            _sum: { debit: true, credit: true },
+          }),
+        ])
+      : [[], []]
+
+    const periodById = new Map(
+      periodGroups.map((g) => [
+        g.accountId,
+        { debit: g._sum.debit ?? 0, credit: g._sum.credit ?? 0 },
+      ]),
+    )
+    const closingById = new Map(
+      closingGroups.map((g) => [
+        g.accountId,
+        (g._sum.debit ?? 0) - (g._sum.credit ?? 0),
+      ]),
+    )
+
     const rows = []
     let totalDebit = 0
     let totalCredit = 0
     let totalBalance = 0
 
-    for (const child of direct) {
-      const ids = subtreeIds(child.id)
-      const [period, closing] = await Promise.all([
-        prisma.journalLine.groupBy({
-          by: ['accountId'],
-          where: { accountId: { in: ids }, ...datePeriod },
-          _sum: { debit: true, credit: true },
-        }),
-        prisma.journalLine.groupBy({
-          by: ['accountId'],
-          where: { accountId: { in: ids }, ...dateClosing },
-          _sum: { debit: true, credit: true },
-        }),
-      ])
-
-      const debit = period.reduce((s, r) => s + (r._sum.debit ?? 0), 0)
-      const credit = period.reduce((s, r) => s + (r._sum.credit ?? 0), 0)
-      const balance = closing.reduce(
-        (s, r) => s + (r._sum.debit ?? 0) - (r._sum.credit ?? 0),
-        0,
-      )
-
-      totalDebit += debit
-      totalCredit += credit
+    for (const leaf of leafRows) {
+      const period = periodById.get(leaf.id) ?? { debit: 0, credit: 0 }
+      const balance = closingById.get(leaf.id) ?? 0
+      totalDebit += period.debit
+      totalCredit += period.credit
       totalBalance += balance
-
       rows.push({
-        id: child.id,
-        code: child.code,
-        name_ar: child.nameAr,
-        account_level: child.accountLevel,
-        debit,
-        credit,
+        id: leaf.id,
+        code: leaf.code,
+        name_ar: leaf.nameAr,
+        account_level: leaf.accountLevel,
+        debit: period.debit,
+        credit: period.credit,
         balance,
       })
     }

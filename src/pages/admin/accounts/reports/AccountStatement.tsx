@@ -491,7 +491,7 @@ const AccountStatement: React.FC = () => {
           </div>
         ) : (
           <div className="acc-filter-inner p-3 text-xs font-bold acc-muted">
-            الوضع التجميعي فقط — يعرض أبناء الحساب المختار مع مدين / دائن / رصيد كل ابن (يشمل فروعه).
+            الوضع التجميعي فقط — يعرض كل الحسابات الفرعية تحت الأب المختار (مثل صناديق وبنوك تحت الأصول)، وليس الحسابات الرئيسية الوسيطة.
           </div>
         )}
       </div>
@@ -501,7 +501,7 @@ const AccountStatement: React.FC = () => {
           <div className="acc-table-wrap page-break overflow-hidden">
             <div className="acc-currency-header p-3 px-6 flex justify-between items-center">
               <h3 className="acc-heading text-lg">
-                أبناء الحساب{parentLabel ? `: ${parentLabel}` : ""}
+                الحسابات الفرعية تحت{parentLabel ? `: ${parentLabel}` : " الحساب"}
               </h3>
               <span className="text-[10px] acc-badge-primary px-3 py-1 rounded-full font-bold uppercase tracking-widest">
                 Summary

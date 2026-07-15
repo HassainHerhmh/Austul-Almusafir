@@ -37,7 +37,11 @@ export interface User {
 export interface Destination {
   id: string
   name: string
+  /** سعر التذكرة عند التسعير حسب منطقة الصعود */
+  ticketPrice: number
 }
+
+export type PricingMode = 'trip' | 'boarding'
 
 export interface Bus {
   id: string
@@ -53,7 +57,9 @@ export interface Driver {
   id: string
   name: string
   phone: string
+  /** رقم الهوية */
   licenseNumber: string
+  nationality: string
   role: DriverRole
   active: boolean
 }

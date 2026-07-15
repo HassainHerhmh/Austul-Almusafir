@@ -84,6 +84,21 @@ bookingsRouter.post(
     })
     if (taken) return fail(res, 'هذا المقعد محجوز مسبقاً')
 
+    const pricingRow = await prisma.appSetting.findUnique({ where: { key: 'trip_pricing' } })
+    const pricingMode =
+      (pricingRow?.value as { mode?: string } | null)?.mode === 'boarding' ? 'boarding' : 'trip'
+
+    let ticketPrice = trip.price
+    if (pricingMode === 'boarding') {
+      const boarding = await prisma.destination.findUnique({
+        where: { id: body.data.boardingDestinationId },
+      })
+      ticketPrice = Number(boarding?.ticketPrice) || 0
+      if (ticketPrice <= 0) {
+        return fail(res, 'لم يُحدَّد سعر تذكرة لمنطقة الصعود — راجع إدارة الوجهات')
+      }
+    }
+
     let customer = await prisma.customer.findFirst({
       where: {
         officeId,
@@ -128,7 +143,7 @@ bookingsRouter.post(
         passportNumber: body.data.passportNumber,
         boardingDestinationId: body.data.boardingDestinationId,
         seatNumber: body.data.seatNumber,
-        price: trip.price,
+        price: ticketPrice,
         paymentMethod: body.data.paymentMethod,
         notes: body.data.notes?.trim() ?? '',
         status: 'confirmed',
@@ -140,7 +155,7 @@ bookingsRouter.post(
       data: {
         officeId,
         type: 'receipt',
-        amount: trip.price,
+        amount: ticketPrice,
         description: `حجز ${body.data.passengerName} — مقعد ${body.data.seatNumber}`,
         date: new Date().toISOString().slice(0, 10),
         relatedBookingId: booking.id,

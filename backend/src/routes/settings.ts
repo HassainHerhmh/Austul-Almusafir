@@ -69,3 +69,32 @@ settingsRouter.post(
     return ok(res, { data: result.value })
   }),
 )
+
+const PRICING_KEY = 'trip_pricing'
+export type PricingMode = 'trip' | 'boarding'
+
+settingsRouter.get(
+  '/pricing',
+  asyncHandler(async (_req, res) => {
+    const row = await prisma.appSetting.findUnique({ where: { key: PRICING_KEY } })
+    const mode =
+      (row?.value as { mode?: PricingMode } | null)?.mode === 'boarding' ? 'boarding' : 'trip'
+    return ok(res, { data: { mode } })
+  }),
+)
+
+settingsRouter.post(
+  '/pricing',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const body = z.object({ mode: z.enum(['trip', 'boarding']) }).safeParse(req.body)
+    if (!body.success) return fail(res, 'بيانات غير صالحة')
+    const value = { mode: body.data.mode }
+    await prisma.appSetting.upsert({
+      where: { key: PRICING_KEY },
+      create: { key: PRICING_KEY, value },
+      update: { value },
+    })
+    return ok(res, { data: value })
+  }),
+)

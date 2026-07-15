@@ -40,9 +40,11 @@ model User {
 }
 
 model Destination {
-  id        String     @id @default(cuid())
-  name      String
-  tripStops TripStop[]
+  id          String     @id @default(cuid())
+  name        String
+  /** سعر التذكرة لمنطقة الصعود/الوجهة عند التسعير حسب المنطقة */
+  ticketPrice Float      @default(0)
+  tripStops   TripStop[]
 }
 
 model Bus {
@@ -58,7 +60,9 @@ model Driver {
   id            String  @id @default(cuid())
   name          String
   phone         String
+  /** رقم الهوية (كان مسمى رخصة سابقاً في الواجهة) */
   licenseNumber String
+  nationality   String  @default("")
   role          String  @default("primary")
   active        Boolean @default(true)
   trips         Trip[]  @relation("TripDriver")

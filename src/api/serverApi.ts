@@ -57,6 +57,14 @@ function asBooking(b: any): Booking {
   }
 }
 
+function asDestination(d: any): Destination {
+  return {
+    id: d.id,
+    name: d.name,
+    ticketPrice: Number(d.ticketPrice) || 0,
+  }
+}
+
 export const serverApi = {
   login: (username: string, password: string) =>
     apiRequest<{ token: string; user: any }>('/api/auth/login', {
@@ -201,7 +209,16 @@ export const serverApi = {
           { method: 'POST', body: JSON.stringify(data) },
         ),
     },
+    pricing: {
+      get: () =>
+        apiRequest<{ data: { mode: 'trip' | 'boarding' } }>('/api/settings/pricing'),
+      save: (data: { mode: 'trip' | 'boarding' }) =>
+        apiRequest<{ data: { mode: 'trip' | 'boarding' } }>('/api/settings/pricing', {
+          method: 'POST',
+          body: JSON.stringify(data),
+        }),
+    },
   },
 }
 
-export { asOffice, asUser, asBooking }
+export { asOffice, asUser, asBooking, asDestination }

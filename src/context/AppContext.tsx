@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from 'react'
 import { ApiError, getToken, setToken } from '../api/client'
-import { asBooking, asOffice, asUser, serverApi } from '../api/serverApi'
+import { asBooking, asDestination, asOffice, asUser, serverApi } from '../api/serverApi'
 import {
   LEGACY_ACTION_TO_PAGE,
   normalizePermissions,
@@ -56,8 +56,8 @@ interface AppContextValue {
   upsertOffice: (office: Omit<Office, 'id' | 'createdAt'> & { id?: string }) => Promise<void>
   upsertUser: (user: Omit<User, 'id'> & { id?: string }) => Promise<void>
   deleteUser: (id: string) => Promise<void>
-  upsertBus: (bus: Omit<Bus, 'id'> & { id?: string }) => Promise<void>
-  upsertDriver: (driver: Omit<Driver, 'id'> & { id?: string }) => Promise<void>
+  upsertBus: (bus: Omit<Bus, 'id'> & { id?: string }) => Promise<Bus>
+  upsertDriver: (driver: Omit<Driver, 'id'> & { id?: string }) => Promise<Driver>
   upsertDestination: (dest: Omit<Destination, 'id'> & { id?: string }) => Promise<void>
   upsertTrip: (trip: Omit<Trip, 'id'> & { id?: string }) => Promise<void>
   cancelTrip: (id: string) => Promise<void>
@@ -261,9 +261,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       currentUserId: meUser.id,
       offices: officeList,
       users: userList,
-      destinations: destinations.list ?? [],
+      destinations: (destinations.list ?? []).map(asDestination),
       buses: buses.list ?? [],
-      drivers: drivers.list ?? [],
+      drivers: (drivers.list ?? []).map((d: any) => ({
+        ...d,
+        nationality: d.nationality ?? '',
+        licenseNumber: d.licenseNumber ?? '',
+      })),
       trips: trips.list ?? [],
       customers: customers.list ?? [],
       bookings: (bookings.list ?? []).map(asBooking),
@@ -411,6 +415,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       ? await serverApi.buses.update(bus.id, bus)
       : await serverApi.buses.create(bus)
     setState((s) => ({ ...s, buses: upsertById(s.buses, res.bus) }))
+    return res.bus
   }
 
   const upsertDriver: AppContextValue['upsertDriver'] = async (driver) => {
@@ -418,15 +423,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
       ? await serverApi.drivers.update(driver.id, driver)
       : await serverApi.drivers.create(driver)
     setState((s) => ({ ...s, drivers: upsertById(s.drivers, res.driver) }))
+    return res.driver
   }
 
   const upsertDestination: AppContextValue['upsertDestination'] = async (dest) => {
+    const payload = { name: dest.name, ticketPrice: dest.ticketPrice ?? 0 }
     const res = dest.id
-      ? await serverApi.destinations.update(dest.id, { name: dest.name })
-      : await serverApi.destinations.create({ name: dest.name })
+      ? await serverApi.destinations.update(dest.id, payload)
+      : await serverApi.destinations.create(payload)
     setState((s) => ({
       ...s,
-      destinations: upsertById(s.destinations, res.destination),
+      destinations: upsertById(s.destinations, asDestination(res.destination)),
     }))
   }
 

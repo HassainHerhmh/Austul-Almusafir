@@ -19,9 +19,19 @@ destinationsRouter.post(
   '/',
   requireAdmin,
   asyncHandler(async (req, res) => {
-    const body = z.object({ name: z.string().min(1) }).safeParse(req.body)
-    if (!body.success) return fail(res, 'الاسم مطلوب')
-    const destination = await prisma.destination.create({ data: { name: body.data.name } })
+    const body = z
+      .object({
+        name: z.string().min(1),
+        ticketPrice: z.number().min(0).optional(),
+      })
+      .safeParse(req.body)
+    if (!body.success) return fail(res, 'بيانات غير صالحة')
+    const destination = await prisma.destination.create({
+      data: {
+        name: body.data.name,
+        ticketPrice: body.data.ticketPrice ?? 0,
+      },
+    })
     return ok(res, { destination }, 201)
   }),
 )
@@ -30,11 +40,19 @@ destinationsRouter.put(
   '/:id',
   requireAdmin,
   asyncHandler(async (req, res) => {
-    const body = z.object({ name: z.string().min(1) }).safeParse(req.body)
-    if (!body.success) return fail(res, 'الاسم مطلوب')
+    const body = z
+      .object({
+        name: z.string().min(1),
+        ticketPrice: z.number().min(0).optional(),
+      })
+      .safeParse(req.body)
+    if (!body.success) return fail(res, 'بيانات غير صالحة')
     const destination = await prisma.destination.update({
       where: { id: paramId(req) },
-      data: { name: body.data.name },
+      data: {
+        name: body.data.name,
+        ...(body.data.ticketPrice !== undefined ? { ticketPrice: body.data.ticketPrice } : {}),
+      },
     })
     return ok(res, { destination })
   }),
@@ -123,6 +141,7 @@ driversRouter.post(
         name: z.string().min(1),
         phone: z.string().min(1),
         licenseNumber: z.string().min(1),
+        nationality: z.string().default(''),
         role: z.enum(['primary', 'assistant']).optional(),
         active: z.boolean().optional(),
       })
@@ -133,6 +152,7 @@ driversRouter.post(
         name: body.data.name,
         phone: body.data.phone,
         licenseNumber: body.data.licenseNumber,
+        nationality: body.data.nationality,
         role: body.data.role ?? 'primary',
         active: body.data.active ?? true,
       },
@@ -150,6 +170,7 @@ driversRouter.put(
         name: z.string().min(1).optional(),
         phone: z.string().min(1).optional(),
         licenseNumber: z.string().min(1).optional(),
+        nationality: z.string().optional(),
         role: z.enum(['primary', 'assistant']).optional(),
         active: z.boolean().optional(),
       })

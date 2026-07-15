@@ -45,6 +45,10 @@ export function loadState(): AppState {
           ...c,
           passportNumber: c.passportNumber ?? '',
         })),
+        destinations: (parsed.destinations ?? []).map((d) => ({
+          ...d,
+          ticketPrice: Number(d.ticketPrice) || 0,
+        })),
         bookings: (parsed.bookings ?? []).map((b) => ({
           ...b,
           passportNumber: b.passportNumber ?? '',

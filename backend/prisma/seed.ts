@@ -1,6 +1,13 @@
-import './loadEnv'
+import 'dotenv/config'
 import bcrypt from 'bcryptjs'
 import { PrismaClient } from '@prisma/client'
+
+// entrypoint يضبط DATABASE_URL؛ هذا احتياط إضافي داخل الحاوية
+if (!process.env.DATABASE_URL && process.env.MYSQL_PUBLIC_URL) {
+  process.env.DATABASE_URL = process.env.MYSQL_PUBLIC_URL
+} else if (!process.env.DATABASE_URL && process.env.MYSQL_URL) {
+  process.env.DATABASE_URL = process.env.MYSQL_URL
+}
 
 const prisma = new PrismaClient()
 

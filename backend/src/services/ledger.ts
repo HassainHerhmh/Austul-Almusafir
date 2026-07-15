@@ -303,6 +303,10 @@ function entryLabel(referenceType: string): string {
       return 'تسديد (أدمن)'
     case 'manual_journal':
       return 'سند قيد'
+    case 'receipt':
+      return 'سند قبض'
+    case 'payment':
+      return 'سند صرف'
     default:
       return referenceType
   }

@@ -180,6 +180,8 @@ model JournalLine {
   account       Account  @relation(fields: [accountId], references: [id])
   debit         Float    @default(0)
   credit        Float    @default(0)
+  currencyCode  String?
+  currencyName  String?
   notes         String?
   createdAt     DateTime @default(now())
 

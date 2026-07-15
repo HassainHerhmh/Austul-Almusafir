@@ -120,6 +120,10 @@ accountsRouter.get(
           return 'تسديد (أدمن)'
         case 'manual_journal':
           return 'سند قيد'
+        case 'receipt':
+          return 'سند قبض'
+        case 'payment':
+          return 'سند صرف'
         default:
           return t
       }
@@ -135,6 +139,8 @@ accountsRouter.get(
         account_name: l.account.nameAr,
         debit: l.debit,
         credit: l.credit,
+        currency_code: l.currencyCode,
+        currency_name: l.currencyName,
         notes: l.notes,
         reference_type: l.referenceType,
         reference_id: l.referenceId,
@@ -145,19 +151,22 @@ accountsRouter.get(
   }),
 )
 
+const journalEntryBody = z.object({
+  journal_date: z.string().min(1),
+  amount: z.number().positive(),
+  debit_account_id: z.number().int().positive(),
+  credit_account_id: z.number().int().positive(),
+  notes: z.string().optional(),
+  reference_type: z.enum(['manual_journal', 'receipt', 'payment']).optional(),
+  currency_code: z.string().nullable().optional(),
+  currency_name: z.string().nullable().optional(),
+})
+
 accountsRouter.post(
   '/journal-manual',
   requireAdmin,
   asyncHandler(async (req, res) => {
-    const body = z
-      .object({
-        journal_date: z.string().min(1),
-        amount: z.number().positive(),
-        debit_account_id: z.number().int().positive(),
-        credit_account_id: z.number().int().positive(),
-        notes: z.string().optional(),
-      })
-      .safeParse(req.body)
+    const body = journalEntryBody.safeParse(req.body)
     if (!body.success) return fail(res, 'بيانات القيد غير صالحة')
     if (body.data.debit_account_id === body.data.credit_account_id) {
       return fail(res, 'الحساب المدين والدائن يجب أن يختلفا')
@@ -169,32 +178,45 @@ accountsRouter.post(
     ])
     if (!debitAcc || !creditAcc) return fail(res, 'أحد الحسابات غير موجود', 404)
 
+    const referenceType = body.data.reference_type ?? 'manual_journal'
     const ref = Math.abs(Date.now() % 2_000_000_000) || 1
-    const notes = body.data.notes?.trim() || 'قيد يومي'
+    const notes =
+      body.data.notes?.trim() ||
+      (referenceType === 'receipt'
+        ? 'سند قبض'
+        : referenceType === 'payment'
+          ? 'سند صرف'
+          : 'سند قيد')
+    const currencyCode = body.data.currency_code?.trim() || null
+    const currencyName = body.data.currency_name?.trim() || null
     await prisma.journalLine.createMany({
       data: [
         {
           referenceId: ref,
-          referenceType: 'manual_journal',
+          referenceType,
           journalDate: body.data.journal_date,
           accountId: body.data.debit_account_id,
           debit: body.data.amount,
           credit: 0,
+          currencyCode,
+          currencyName,
           notes,
         },
         {
           referenceId: ref,
-          referenceType: 'manual_journal',
+          referenceType,
           journalDate: body.data.journal_date,
           accountId: body.data.credit_account_id,
           debit: 0,
           credit: body.data.amount,
+          currencyCode,
+          currencyName,
           notes,
         },
       ],
     })
 
-    return ok(res, { referenceId: ref }, 201)
+    return ok(res, { referenceId: ref, referenceType }, 201)
   }),
 )
 
@@ -205,22 +227,15 @@ accountsRouter.put(
     const ref = Number(paramId(req, 'ref'))
     if (!ref) return fail(res, 'مرجع غير صالح')
 
-    const body = z
-      .object({
-        journal_date: z.string().min(1),
-        amount: z.number().positive(),
-        debit_account_id: z.number().int().positive(),
-        credit_account_id: z.number().int().positive(),
-        notes: z.string().optional(),
-      })
-      .safeParse(req.body)
+    const body = journalEntryBody.safeParse(req.body)
     if (!body.success) return fail(res, 'بيانات القيد غير صالحة')
     if (body.data.debit_account_id === body.data.credit_account_id) {
       return fail(res, 'الحساب المدين والدائن يجب أن يختلفا')
     }
 
+    const referenceType = body.data.reference_type ?? 'manual_journal'
     const existing = await prisma.journalLine.count({
-      where: { referenceId: ref, referenceType: 'manual_journal' },
+      where: { referenceId: ref, referenceType },
     })
     if (!existing) return fail(res, 'القيد غير موجود', 404)
 
@@ -230,36 +245,48 @@ accountsRouter.put(
     ])
     if (!debitAcc || !creditAcc) return fail(res, 'أحد الحسابات غير موجود', 404)
 
-    const notes = body.data.notes?.trim() || 'قيد يومي'
+    const notes =
+      body.data.notes?.trim() ||
+      (referenceType === 'receipt'
+        ? 'سند قبض'
+        : referenceType === 'payment'
+          ? 'سند صرف'
+          : 'سند قيد')
+    const currencyCode = body.data.currency_code?.trim() || null
+    const currencyName = body.data.currency_name?.trim() || null
     await prisma.$transaction([
       prisma.journalLine.deleteMany({
-        where: { referenceId: ref, referenceType: 'manual_journal' },
+        where: { referenceId: ref, referenceType },
       }),
       prisma.journalLine.createMany({
         data: [
           {
             referenceId: ref,
-            referenceType: 'manual_journal',
+            referenceType,
             journalDate: body.data.journal_date,
             accountId: body.data.debit_account_id,
             debit: body.data.amount,
             credit: 0,
+            currencyCode,
+            currencyName,
             notes,
           },
           {
             referenceId: ref,
-            referenceType: 'manual_journal',
+            referenceType,
             journalDate: body.data.journal_date,
             accountId: body.data.credit_account_id,
             debit: 0,
             credit: body.data.amount,
+            currencyCode,
+            currencyName,
             notes,
           },
         ],
       }),
     ])
 
-    return ok(res, { referenceId: ref })
+    return ok(res, { referenceId: ref, referenceType })
   }),
 )
 
@@ -269,8 +296,13 @@ accountsRouter.delete(
   asyncHandler(async (req, res) => {
     const ref = Number(paramId(req, 'ref'))
     if (!ref) return fail(res, 'مرجع غير صالح')
+    const typeRaw = typeof req.query.type === 'string' ? req.query.type : 'manual_journal'
+    const referenceType =
+      typeRaw === 'receipt' || typeRaw === 'payment' || typeRaw === 'manual_journal'
+        ? typeRaw
+        : 'manual_journal'
     const result = await prisma.journalLine.deleteMany({
-      where: { referenceId: ref, referenceType: 'manual_journal' },
+      where: { referenceId: ref, referenceType },
     })
     if (!result.count) return fail(res, 'القيد غير موجود', 404)
     return ok(res, { deleted: result.count })

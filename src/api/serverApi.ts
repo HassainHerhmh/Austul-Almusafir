@@ -268,6 +268,8 @@ export const serverApi = {
           account_name: string
           debit: number
           credit: number
+          currency_code?: string | null
+          currency_name?: string | null
           notes: string | null
           reference_type: string
           reference_id: number
@@ -282,11 +284,17 @@ export const serverApi = {
       debit_account_id: number
       credit_account_id: number
       notes?: string
+      reference_type?: 'manual_journal' | 'receipt' | 'payment'
+      currency_code?: string | null
+      currency_name?: string | null
     }) =>
-      apiRequest<{ referenceId: number }>('/api/accounts/journal-manual', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      }),
+      apiRequest<{ referenceId: number; referenceType?: string }>(
+        '/api/accounts/journal-manual',
+        {
+          method: 'POST',
+          body: JSON.stringify(data),
+        },
+      ),
     updateManualJournal: (
       ref: number,
       data: {
@@ -295,16 +303,28 @@ export const serverApi = {
         debit_account_id: number
         credit_account_id: number
         notes?: string
+        reference_type?: 'manual_journal' | 'receipt' | 'payment'
+        currency_code?: string | null
+        currency_name?: string | null
       },
     ) =>
-      apiRequest<{ referenceId: number }>(`/api/accounts/journal-manual/${ref}`, {
-        method: 'PUT',
-        body: JSON.stringify(data),
-      }),
-    deleteManualJournal: (ref: number) =>
-      apiRequest<{ deleted: number }>(`/api/accounts/journal-manual/${ref}`, {
-        method: 'DELETE',
-      }),
+      apiRequest<{ referenceId: number; referenceType?: string }>(
+        `/api/accounts/journal-manual/${ref}`,
+        {
+          method: 'PUT',
+          body: JSON.stringify(data),
+        },
+      ),
+    deleteManualJournal: (
+      ref: number,
+      type: 'manual_journal' | 'receipt' | 'payment' = 'manual_journal',
+    ) =>
+      apiRequest<{ deleted: number }>(
+        `/api/accounts/journal-manual/${ref}?type=${encodeURIComponent(type)}`,
+        {
+          method: 'DELETE',
+        },
+      ),
   },
 
   settings: {

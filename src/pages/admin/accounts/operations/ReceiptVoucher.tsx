@@ -22,6 +22,7 @@ type Voucher = {
   amount: string;
   account: string;
   accountId?: number | null;
+  journalReferenceId?: number | null;
   analyticAccount?: string;
   costCenter?: string;
   notes?: string;
@@ -35,11 +36,13 @@ type Voucher = {
 type CashBox = {
   id: number;
   name_ar: string;
+  account_id?: number | null;
 };
 
 type Bank = {
   id: number;
   name_ar: string;
+  account_id?: number | null;
 };
 
 type Account = {
@@ -317,6 +320,7 @@ const loadVouchers = async () => {
           amount: String(v.amount),
           account: acc?.name_ar || v.account_name || "",
           accountId: v.account_id ?? null,
+          journalReferenceId: v.journal_reference_id ?? null,
           analyticAccount: v.analytic_account_id,
           costCenter: v.cost_center_id,
           notes: v.notes,
@@ -333,24 +337,62 @@ const loadVouchers = async () => {
   /* =========================
      Add Voucher (UI Only)
   ========================= */
+const resolveCashOrBankAccountId = (): number | null => {
+  if (form.receiptType === "cash") {
+    const box = cashBoxes.find((c) => c.id === Number(form.cashBox));
+    return box?.account_id ? Number(box.account_id) : null;
+  }
+  if (form.receiptType === "bank") {
+    const bank = bankAccounts.find((b) => b.id === Number(form.bankAccount));
+    return bank?.account_id ? Number(bank.account_id) : null;
+  }
+  return null;
+};
+
  const addVoucher = async () => {
   try {
     const payload = getValidatedPayload();
     if (!payload) return;
 
-    const res = await api.post("/receipt-vouchers", payload);
+    const cashAccountId = resolveCashOrBankAccountId();
+    if (!cashAccountId) {
+      alert(
+        "تعذر تحديد حساب الصندوق/البنك في الدليل — تأكد أن الصندوق مربوط بحساب فرعي من التهيئة",
+      );
+      return;
+    }
 
+    const res = await api.post("/receipt-vouchers", payload);
     if (!res.data.success) {
       alert("فشل حفظ السند");
       return;
     }
 
-    // 🔄 أعد التحميل من السيرفر
-    await loadVouchers();
+    const voucherId = res.data.voucher?.id as number | undefined;
+    try {
+      const posted = await serverApi.accounts.createManualJournal({
+        journal_date: payload.voucher_date,
+        amount: payload.amount,
+        debit_account_id: cashAccountId,
+        credit_account_id: payload.account_id,
+        notes: payload.notes || "سند قبض",
+        reference_type: "receipt",
+      });
+      if (voucherId && posted.referenceId) {
+        await api.put(`/receipt-vouchers/${voucherId}`, {
+          journal_reference_id: posted.referenceId,
+        });
+      }
+    } catch (err: any) {
+      alert(
+        err?.message ||
+          "تم حفظ السند محلياً لكن فشل ترحيله للكشف — راجع حساب الصندوق في الدليل",
+      );
+    }
 
+    await loadVouchers();
     setShowModal(false);
     setSelectedId(null);
-
     setForm({
       ...form,
       receiptType: "",
@@ -372,9 +414,6 @@ const loadVouchers = async () => {
 };
 
 
-  /* =========================
-     Delete
-  ========================= */
   const remove = async () => {
   if (!selectedId) {
     alert("حدد سند أولاً");
@@ -385,6 +424,18 @@ const loadVouchers = async () => {
   if (!confirmDelete) return;
 
   try {
+    const current = list.find((x) => x.id === selectedId);
+    if (current?.journalReferenceId) {
+      try {
+        await serverApi.accounts.deleteManualJournal(
+          current.journalReferenceId,
+          "receipt",
+        );
+      } catch {
+        /* قد يكون القيد محذوفاً مسبقاً */
+      }
+    }
+
     const res = await api.delete(`/receipt-vouchers/${selectedId}`);
 
     if (!res.data.success) {
@@ -392,9 +443,7 @@ const loadVouchers = async () => {
       return;
     }
 
-    // 🔄 إعادة تحميل البيانات من السيرفر
     await loadVouchers();
-
     setSelectedId(null);
   } catch (err: any) {
     console.error(err);
@@ -412,10 +461,37 @@ const loadVouchers = async () => {
     const payload = getValidatedPayload();
     if (!payload) return;
 
-    const res = await api.put(
-      `/receipt-vouchers/${selectedId}`,
-      payload
-    );
+    const cashAccountId = resolveCashOrBankAccountId();
+    if (!cashAccountId) {
+      alert(
+        "تعذر تحديد حساب الصندوق/البنك في الدليل — تأكد أن الصندوق مربوط بحساب فرعي من التهيئة",
+      );
+      return;
+    }
+
+    const current = list.find((x) => x.id === selectedId);
+    let journalRef = current?.journalReferenceId || null;
+
+    const journalPayload = {
+      journal_date: payload.voucher_date,
+      amount: payload.amount,
+      debit_account_id: cashAccountId,
+      credit_account_id: payload.account_id,
+      notes: payload.notes || "سند قبض",
+      reference_type: "receipt" as const,
+    };
+
+    if (journalRef) {
+      await serverApi.accounts.updateManualJournal(journalRef, journalPayload);
+    } else {
+      const posted = await serverApi.accounts.createManualJournal(journalPayload);
+      journalRef = posted.referenceId;
+    }
+
+    const res = await api.put(`/receipt-vouchers/${selectedId}`, {
+      ...payload,
+      journal_reference_id: journalRef,
+    });
 
     if (!res.data.success) {
       alert("❌ فشل تعديل السند");
@@ -423,12 +499,11 @@ const loadVouchers = async () => {
     }
 
     await loadVouchers();
-
     setShowModal(false);
     setSelectedId(null);
   } catch (err: any) {
     console.error(err);
-    alert(err.response?.data?.message || "❌ خطأ في تعديل سند القبض");
+    alert(err.response?.data?.message || err?.message || "❌ خطأ في تعديل سند القبض");
   }
 };
 

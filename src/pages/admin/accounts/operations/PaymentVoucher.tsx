@@ -21,6 +21,7 @@ type Voucher = {
   amount: string;
   account: string;
   accountId?: number | null;
+  journalReferenceId?: number | null;
   analyticAccount?: string;
   costCenter?: string;
   notes?: string;
@@ -33,11 +34,13 @@ type Voucher = {
 type CashBox = {
   id: number;
   name_ar: string;
+  account_id?: number | null;
 };
 
 type Bank = {
   id: number;
   name_ar: string;
+  account_id?: number | null;
 };
 
 type Account = {
@@ -147,6 +150,7 @@ const PaymentVoucher: React.FC = () => {
           amount: String(v.amount ?? ""),
           account: acc?.name_ar || v.account_name || "",
           accountId: v.account_id ?? null,
+          journalReferenceId: v.journal_reference_id ?? null,
           analyticAccount: v.analytic_account_id,
           costCenter: v.cost_center_id,
           notes: v.notes,
@@ -341,13 +345,55 @@ const PaymentVoucher: React.FC = () => {
     };
   };
 
+  const resolveCashOrBankAccountId = (): number | null => {
+    if (form.paymentType === "cash") {
+      const box = cashBoxes.find((c) => c.id === Number(form.cashBox));
+      return box?.account_id ? Number(box.account_id) : null;
+    }
+    if (form.paymentType === "bank") {
+      const bank = bankAccounts.find((b) => b.id === Number(form.bankAccount));
+      return bank?.account_id ? Number(bank.account_id) : null;
+    }
+    return null;
+  };
+
   const addVoucher = async () => {
     try {
       const payload = getValidatedPayload();
       if (!payload) return;
 
+      const cashAccountId = resolveCashOrBankAccountId();
+      if (!cashAccountId) {
+        alert(
+          "تعذر تحديد حساب الصندوق/البنك في الدليل — تأكد أنه مربوط بحساب فرعي من التهيئة",
+        );
+        return;
+      }
+
       const res = await api.post("/payment-vouchers", payload);
       if (!res.data.success) return alert("فشل حفظ السند");
+
+      const voucherId = res.data.voucher?.id as number | undefined;
+      try {
+        const posted = await serverApi.accounts.createManualJournal({
+          journal_date: payload.voucher_date,
+          amount: payload.amount,
+          debit_account_id: payload.account_id,
+          credit_account_id: cashAccountId,
+          notes: payload.notes || "سند صرف",
+          reference_type: "payment",
+        });
+        if (voucherId && posted.referenceId) {
+          await api.put(`/payment-vouchers/${voucherId}`, {
+            journal_reference_id: posted.referenceId,
+          });
+        }
+      } catch (err: any) {
+        alert(
+          err?.message ||
+            "تم حفظ السند محلياً لكن فشل ترحيله للكشف — راجع حساب الصندوق في الدليل",
+        );
+      }
 
       await loadVouchers();
       setShowModal(false);
@@ -365,14 +411,43 @@ const PaymentVoucher: React.FC = () => {
       const payload = getValidatedPayload();
       if (!payload) return;
 
-      const res = await api.put(`/payment-vouchers/${selectedId}`, payload);
+      const cashAccountId = resolveCashOrBankAccountId();
+      if (!cashAccountId) {
+        alert(
+          "تعذر تحديد حساب الصندوق/البنك في الدليل — تأكد أنه مربوط بحساب فرعي من التهيئة",
+        );
+        return;
+      }
+
+      const current = list.find((x) => x.id === selectedId);
+      let journalRef = current?.journalReferenceId || null;
+      const journalPayload = {
+        journal_date: payload.voucher_date,
+        amount: payload.amount,
+        debit_account_id: payload.account_id,
+        credit_account_id: cashAccountId,
+        notes: payload.notes || "سند صرف",
+        reference_type: "payment" as const,
+      };
+
+      if (journalRef) {
+        await serverApi.accounts.updateManualJournal(journalRef, journalPayload);
+      } else {
+        const posted = await serverApi.accounts.createManualJournal(journalPayload);
+        journalRef = posted.referenceId;
+      }
+
+      const res = await api.put(`/payment-vouchers/${selectedId}`, {
+        ...payload,
+        journal_reference_id: journalRef,
+      });
       if (!res.data.success) return alert("فشل التعديل");
 
       await loadVouchers();
       setShowModal(false);
       setSelectedId(null);
     } catch (err: any) {
-      alert(err.response?.data?.message || "خطأ في التعديل");
+      alert(err.response?.data?.message || err?.message || "خطأ في التعديل");
     }
   };
 
@@ -381,6 +456,18 @@ const PaymentVoucher: React.FC = () => {
     if (!window.confirm("هل أنت متأكد من حذف السند؟")) return;
 
     try {
+      const current = list.find((x) => x.id === selectedId);
+      if (current?.journalReferenceId) {
+        try {
+          await serverApi.accounts.deleteManualJournal(
+            current.journalReferenceId,
+            "payment",
+          );
+        } catch {
+          /* ignore */
+        }
+      }
+
       const res = await api.delete(`/payment-vouchers/${selectedId}`);
       if (!res.data.success) return alert("فشل حذف السند");
 

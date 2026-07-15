@@ -146,6 +146,7 @@ type ReceiptVoucher = {
   user_name: string
   branch_name: string
   created_at: string
+  journal_reference_id?: number | null
 }
 
 type PaymentVoucher = {
@@ -174,6 +175,7 @@ type PaymentVoucher = {
   created_at: string
   cash_box_name?: string
   bank_name?: string
+  journal_reference_id?: number | null
 }
 
 type JournalLine = {
@@ -1156,6 +1158,7 @@ function handlePost(url: string, body: any = {}): any {
       user_name: USER,
       branch_name: BRANCH,
       created_at: now(),
+      journal_reference_id: body.journal_reference_id ?? null,
     }
     store.receiptVouchers.push(v)
     // journal side-effect
@@ -1216,6 +1219,7 @@ function handlePost(url: string, body: any = {}): any {
       created_at: now(),
       cash_box_name: cashBox?.name_ar,
       bank_name: bank?.name_ar,
+      journal_reference_id: body.journal_reference_id ?? null,
     }
     store.paymentVouchers.push(v)
     const cashOrBankAcc =
@@ -1563,6 +1567,10 @@ function handlePut(url: string, body: any = {}): any {
           : prev.journal_type_id,
       notes: body.notes !== undefined ? body.notes : prev.notes,
       handling: body.handling !== undefined ? body.handling : prev.handling,
+      journal_reference_id:
+        body.journal_reference_id !== undefined
+          ? body.journal_reference_id
+          : prev.journal_reference_id ?? null,
       id,
       voucher_date: body.voucher_date
         ? body.voucher_date.includes('T')
@@ -1620,6 +1628,10 @@ function handlePut(url: string, body: any = {}): any {
           : prev.journal_type_id,
       notes: body.notes !== undefined ? body.notes : prev.notes,
       handling: body.handling !== undefined ? body.handling : prev.handling,
+      journal_reference_id:
+        body.journal_reference_id !== undefined
+          ? body.journal_reference_id
+          : prev.journal_reference_id ?? null,
       id,
       voucher_date: body.voucher_date
         ? body.voucher_date.includes('T')

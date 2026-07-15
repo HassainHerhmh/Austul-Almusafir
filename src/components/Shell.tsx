@@ -1,21 +1,43 @@
+import { useEffect, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
+import {
+  Bus,
+  ChevronLeft,
+  ChevronRight,
+  FileBarChart2,
+  LayoutDashboard,
+  MapPin,
+  Route,
+  Settings,
+  ShieldCheck,
+  Ticket,
+  Users,
+  UserCircle2,
+  Building2,
+  Wallet,
+  ScrollText,
+  Calculator,
+  type LucideIcon,
+} from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { BrandMark } from './BrandMark'
 import { formatMoney } from './utils'
 import { TopHeader } from './TopHeader'
 
-const adminLinks = [
-  { to: '/admin', end: true, label: 'لوحة التحكم' },
-  { to: '/admin/offices', label: 'المكاتب' },
-  { to: '/admin/users', label: 'المستخدمون' },
-  { to: '/admin/buses', label: 'الباصات' },
-  { to: '/admin/drivers', label: 'السائقون' },
-  { to: '/admin/destinations', label: 'الوجهات' },
-  { to: '/admin/trips', label: 'الرحلات' },
-  { to: '/admin/bookings', label: 'الحجوزات' },
-  { to: '/admin/accounts', label: 'الحسابات' },
-  { to: '/admin/reports', label: 'التقارير' },
-  { to: '/admin/settings', label: 'الإعدادات' },
+const SIDEBAR_COLLAPSE_KEY = 'austul-sidebar-collapsed'
+
+const adminLinks: { to: string; end?: boolean; label: string; icon: LucideIcon }[] = [
+  { to: '/admin', end: true, label: 'لوحة التحكم', icon: LayoutDashboard },
+  { to: '/admin/offices', label: 'المكاتب', icon: Building2 },
+  { to: '/admin/users', label: 'المستخدمون', icon: Users },
+  { to: '/admin/buses', label: 'الباصات', icon: Bus },
+  { to: '/admin/drivers', label: 'السائقون', icon: UserCircle2 },
+  { to: '/admin/destinations', label: 'الوجهات', icon: MapPin },
+  { to: '/admin/trips', label: 'الرحلات', icon: Route },
+  { to: '/admin/bookings', label: 'الحجوزات', icon: Ticket },
+  { to: '/admin/accounts', label: 'الحسابات', icon: Calculator },
+  { to: '/admin/reports', label: 'التقارير', icon: FileBarChart2 },
+  { to: '/admin/settings', label: 'الإعدادات', icon: Settings },
 ]
 
 const officeLinks: {
@@ -23,19 +45,41 @@ const officeLinks: {
   end?: boolean
   label: string
   pageId?: string
+  icon: LucideIcon
 }[] = [
-  { to: '/office', end: true, label: 'لوحة المكتب', pageId: 'dashboard' },
-  { to: '/office/staff', label: 'الموظفون', pageId: 'staff' },
-  { to: '/office/permissions', label: 'صلاحية المستخدمين', pageId: 'user-permissions' },
-  { to: '/office/bookings', label: 'الحجوزات', pageId: 'bookings' },
-  { to: '/office/customers', label: 'العملاء', pageId: 'customers' },
-  { to: '/office/accounting', label: 'المحاسبة', pageId: 'accounting' },
-  { to: '/office/statement', label: 'كشف الحساب', pageId: 'statement' },
-  { to: '/office/reports', label: 'التقارير', pageId: 'reports' },
+  { to: '/office', end: true, label: 'لوحة المكتب', pageId: 'dashboard', icon: LayoutDashboard },
+  { to: '/office/staff', label: 'الموظفون', pageId: 'staff', icon: Users },
+  {
+    to: '/office/permissions',
+    label: 'صلاحية المستخدمين',
+    pageId: 'user-permissions',
+    icon: ShieldCheck,
+  },
+  { to: '/office/bookings', label: 'الحجوزات', pageId: 'bookings', icon: Ticket },
+  { to: '/office/customers', label: 'العملاء', pageId: 'customers', icon: UserCircle2 },
+  { to: '/office/accounting', label: 'المحاسبة', pageId: 'accounting', icon: Wallet },
+  { to: '/office/statement', label: 'كشف الحساب', pageId: 'statement', icon: ScrollText },
+  { to: '/office/reports', label: 'التقارير', pageId: 'reports', icon: FileBarChart2 },
 ]
 
 export function Shell() {
   const { currentUser, currentOffice, isAdmin, getOfficeAgencyBalance, state, canPage } = useApp()
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem(SIDEBAR_COLLAPSE_KEY) === '1'
+    } catch {
+      return false
+    }
+  })
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(SIDEBAR_COLLAPSE_KEY, collapsed ? '1' : '0')
+    } catch {
+      /* ignore */
+    }
+  }, [collapsed])
+
   const links = isAdmin
     ? adminLinks
     : officeLinks.filter((link) => !link.pageId || canPage(link.pageId, 'view'))
@@ -45,15 +89,33 @@ export function Shell() {
   void state.bookings
 
   return (
-    <div className="app-shell">
-      <aside className="sidebar">
+    <div className={`app-shell${collapsed ? ' sidebar-collapsed' : ''}`}>
+      <aside className="sidebar" aria-label="القائمة الجانبية">
+        <button
+          type="button"
+          className="sidebar-toggle"
+          onClick={() => setCollapsed((v) => !v)}
+          title={collapsed ? 'توسيع القائمة' : 'طيّ القائمة'}
+          aria-label={collapsed ? 'توسيع القائمة' : 'طيّ القائمة'}
+          aria-expanded={!collapsed}
+        >
+          {collapsed ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
+        </button>
+
         <div className="brand">
           <BrandMark
-            sub={isAdmin ? 'لوحة مدير النظام' : currentOffice?.name ?? 'مكتب السفريات'}
+            sub={
+              collapsed
+                ? undefined
+                : isAdmin
+                  ? 'لوحة مدير النظام'
+                  : currentOffice?.name ?? 'مكتب السفريات'
+            }
+            collapsed={collapsed}
           />
         </div>
 
-        {!isAdmin && currentOffice && (
+        {!isAdmin && currentOffice && !collapsed && (
           <div className="sidebar-agency-balance">
             <div className="agency-balance-label">الرصيد عليكم لدى الوكالة</div>
             <div className="agency-balance-value">{formatMoney(agencyBalance)}</div>
@@ -61,23 +123,36 @@ export function Shell() {
         )}
 
         <nav className="nav-list">
-          {links.map((link) => (
-            <NavLink
-              key={link.to}
-              to={link.to}
-              end={link.end}
-              className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
-            >
-              {link.label}
-            </NavLink>
-          ))}
+          {links.map((link) => {
+            const Icon = link.icon
+            return (
+              <NavLink
+                key={link.to}
+                to={link.to}
+                end={link.end}
+                title={link.label}
+                className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
+              >
+                <Icon className="nav-link-icon" size={20} strokeWidth={1.9} aria-hidden />
+                <span className="nav-link-label">{link.label}</span>
+              </NavLink>
+            )
+          })}
         </nav>
 
         <div className="sidebar-footer">
-          <div className="user-chip">
-            {currentUser?.name}
-            <br />
-            <span style={{ opacity: 0.7, fontSize: '0.78rem' }}>{currentUser?.username}</span>
+          <div className="user-chip" title={currentUser?.name || ''}>
+            {collapsed ? (
+              <span className="user-chip-initial" aria-hidden>
+                {(currentUser?.name || currentUser?.username || '?').slice(0, 1)}
+              </span>
+            ) : (
+              <>
+                {currentUser?.name}
+                <br />
+                <span style={{ opacity: 0.7, fontSize: '0.78rem' }}>{currentUser?.username}</span>
+              </>
+            )}
           </div>
         </div>
       </aside>

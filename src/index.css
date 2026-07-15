@@ -27,6 +27,7 @@
   --font: 'Cairo', sans-serif;
   --display: 'Amiri', 'Cairo', serif;
   --sidebar: 260px;
+  --sidebar-collapsed: 84px;
   --header-bg: rgba(255, 255, 255, 0.72);
   --header-border: rgba(12, 26, 36, 0.1);
   --panel-bg: rgba(255, 255, 255, 0.95);
@@ -148,6 +149,11 @@ h3 {
   display: grid;
   grid-template-columns: var(--sidebar) 1fr;
   min-height: 100vh;
+  transition: grid-template-columns 0.22s ease;
+}
+
+.app-shell.sidebar-collapsed {
+  grid-template-columns: var(--sidebar-collapsed) 1fr;
 }
 
 .main-column {
@@ -399,6 +405,67 @@ h3 {
   top: 0;
   height: 100vh;
   overflow-y: auto;
+  overflow-x: visible;
+  transition: padding 0.22s ease;
+}
+
+.sidebar-toggle {
+  position: absolute;
+  top: 1.15rem;
+  inset-inline-start: -0.05rem;
+  z-index: 5;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid var(--sidebar-line);
+  background: var(--elevated);
+  color: var(--ink);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.16);
+  transition: background 0.2s, transform 0.2s;
+}
+
+.sidebar-toggle:hover {
+  transform: scale(1.06);
+  background: var(--amber);
+  color: #fff;
+  border-color: transparent;
+}
+
+.app-shell.sidebar-collapsed .sidebar {
+  padding: 1.25rem 0.55rem 1.5rem;
+  align-items: center;
+}
+
+.app-shell.sidebar-collapsed .brand {
+  padding: 0.35rem 0 0.75rem;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.app-shell.sidebar-collapsed .brand-mark-collapsed {
+  justify-content: center;
+}
+
+.app-shell.sidebar-collapsed .nav-link {
+  justify-content: center;
+  padding: 0.75rem 0.55rem;
+}
+
+.app-shell.sidebar-collapsed .nav-link-label,
+.app-shell.sidebar-collapsed .brand-name,
+.app-shell.sidebar-collapsed .brand-sub,
+.app-shell.sidebar-collapsed .sidebar-agency-balance {
+  display: none;
+}
+
+.app-shell.sidebar-collapsed .sidebar-footer {
+  width: 100%;
+  align-items: center;
+  padding-inline: 0;
 }
 
 .brand {
@@ -456,6 +523,7 @@ h3 {
   flex-direction: column;
   gap: 0.25rem;
   flex: 1;
+  width: 100%;
 }
 
 .nav-link {
@@ -466,6 +534,18 @@ h3 {
   border-radius: 10px;
   color: var(--sidebar-muted);
   transition: background 0.2s, color 0.2s, transform 0.2s;
+}
+
+.nav-link-icon {
+  flex-shrink: 0;
+  opacity: 0.92;
+}
+
+.nav-link-label {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .nav-link:hover {
@@ -490,6 +570,17 @@ h3 {
 .user-chip {
   font-size: 0.85rem;
   opacity: 0.85;
+}
+
+.user-chip-initial {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  background: rgba(196, 122, 44, 0.28);
+  color: var(--on-accent);
+  font-weight: 700;
 }
 
 .main {
@@ -1332,7 +1423,8 @@ table.data tr:hover td {
 }
 
 @media (max-width: 900px) {
-  .app-shell {
+  .app-shell,
+  .app-shell.sidebar-collapsed {
     grid-template-columns: 1fr;
   }
 
@@ -1340,6 +1432,11 @@ table.data tr:hover td {
     position: relative;
     height: auto;
     border-radius: 0 0 16px 16px;
+    overflow: visible;
+  }
+
+  .app-shell.sidebar-collapsed .sidebar {
+    padding: 1rem 0.75rem 1.25rem;
   }
 
   .login-page {

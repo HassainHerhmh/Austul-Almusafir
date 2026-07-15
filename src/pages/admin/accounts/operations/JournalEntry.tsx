@@ -22,6 +22,8 @@ type Row = {
   journal_date: string
   amount: number
   currency_name: string
+  currency_code?: string
+  currency_id?: string
   from_account: string
   to_account: string
   debit_account_id: number
@@ -64,6 +66,30 @@ const JournalEntry: React.FC = () => {
     void fetchCurrencies()
     void loadRows()
   }, [])
+
+  useEffect(() => {
+    if (currencies.length && rows.length) {
+      setRows((prev) =>
+        prev.map((r) => {
+          if (r.currency_id) return r
+          const matched = currencies.find(
+            (c) =>
+              (r.currency_code && c.code === r.currency_code) ||
+              (r.currency_name &&
+                r.currency_name !== '—' &&
+                c.name_ar === r.currency_name),
+          )
+          if (!matched) return r
+          return {
+            ...r,
+            currency_id: String(matched.id),
+            currency_name: r.currency_name || matched.name_ar,
+            currency_code: r.currency_code || matched.code,
+          }
+        }),
+      )
+    }
+  }, [currencies])
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -134,13 +160,24 @@ const JournalEntry: React.FC = () => {
         const debit = pair.find((x) => x.debit > 0)
         const credit = pair.find((x) => x.credit > 0)
         if (!debit && !credit) return
+        const currencyName =
+          debit?.currency_name || credit?.currency_name || ''
+        const currencyCode =
+          debit?.currency_code || credit?.currency_code || ''
+        const matchedCurrency = currencies.find(
+          (c) =>
+            (currencyCode && c.code === currencyCode) ||
+            (currencyName && c.name_ar === currencyName),
+        )
         mapped.push({
           id: debit?.id || credit!.id,
           reference_id: ref,
           reference_type: 'manual_journal',
           journal_date: (debit || credit)!.journal_date,
           amount: debit?.debit || credit?.credit || 0,
-          currency_name: '—',
+          currency_name: currencyName || matchedCurrency?.name_ar || '—',
+          currency_code: currencyCode || matchedCurrency?.code || '',
+          currency_id: matchedCurrency ? String(matchedCurrency.id) : '',
           from_account: debit
             ? `${debit.account_code} — ${debit.account_name}`
             : '—',
@@ -199,6 +236,15 @@ const JournalEntry: React.FC = () => {
     setEditRef(target.reference_id)
     setDate(target.journal_date.slice(0, 10))
     setAmount(String(target.amount))
+    setCurrencyId(
+      target.currency_id ||
+        currencies.find(
+          (c) =>
+            c.code === target.currency_code ||
+            c.name_ar === target.currency_name,
+        )?.id.toString() ||
+        (currencies[0] ? String(currencies[0].id) : ''),
+    )
     setFromAccount(String(target.debit_account_id || ''))
     setFromAccountName(debitAcc?.name_ar || target.from_account)
     setToAccount(String(target.credit_account_id || ''))
@@ -239,12 +285,15 @@ const JournalEntry: React.FC = () => {
       return
     }
 
+    const selectedCurrency = currencies.find((c) => String(c.id) === currencyId)
     const payload = {
       journal_date: date,
       amount: Number(amount),
       debit_account_id: Number(fromAccount),
       credit_account_id: Number(toAccount),
-      notes: notes || 'قيد يومي',
+      notes: notes || 'سند قيد',
+      currency_code: selectedCurrency?.code || null,
+      currency_name: selectedCurrency?.name_ar || null,
     }
 
     setBusy(true)
@@ -404,6 +453,7 @@ const JournalEntry: React.FC = () => {
               <th>رقم السند</th>
               <th>التاريخ</th>
               <th>المبلغ</th>
+              <th>العملة</th>
               <th>من حساب</th>
               <th>إلى حساب</th>
               <th>ملاحظات</th>
@@ -425,6 +475,13 @@ const JournalEntry: React.FC = () => {
                   <td>{r.reference_id}</td>
                   <td>{r.journal_date}</td>
                   <td>{r.amount.toLocaleString('ar-YE')}</td>
+                  <td>
+                    {r.currency_name && r.currency_name !== '—'
+                      ? r.currency_code
+                        ? `${r.currency_name} (${r.currency_code})`
+                        : r.currency_name
+                      : '—'}
+                  </td>
                   <td>{r.from_account}</td>
                   <td>{r.to_account}</td>
                   <td>{r.notes}</td>
@@ -434,7 +491,7 @@ const JournalEntry: React.FC = () => {
               ))
             ) : (
               <tr>
-                <td colSpan={8} className="acc-muted py-6">
+                <td colSpan={9} className="acc-muted py-6">
                   لا توجد بيانات
                 </td>
               </tr>
@@ -470,7 +527,7 @@ const JournalEntry: React.FC = () => {
                   value={currencyId}
                   onChange={(e) => setCurrencyId(e.target.value)}
                 >
-                  <option value="">— اختياري —</option>
+                  <option value="">— اختر العملة —</option>
                   {currencies.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name_ar} ({c.code})

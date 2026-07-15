@@ -1,7 +1,7 @@
 const TOKEN_KEY = 'austul-auth-token'
 
 export const API_BASE = (
-  import.meta.env.VITE_API_URL || 'https://austul-almusafir-production.up.railway.app'
+  import.meta.env.VITE_API_URL || 'https://ostool-almosafer.com'
 ).replace(/\/$/, '')
 
 export function getToken() {

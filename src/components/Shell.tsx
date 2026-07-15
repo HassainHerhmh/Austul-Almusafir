@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
+import { BrandMark } from './BrandMark'
 import { formatMoney } from './utils'
 import { TopHeader } from './TopHeader'
 
@@ -14,6 +15,7 @@ const adminLinks = [
   { to: '/admin/bookings', label: 'الحجوزات' },
   { to: '/admin/accounts', label: 'الحسابات' },
   { to: '/admin/reports', label: 'التقارير' },
+  { to: '/admin/settings', label: 'الإعدادات' },
 ]
 
 const officeLinks = [
@@ -37,15 +39,9 @@ export function Shell() {
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">
-          <div className="brand-mark">
-            <div className="brand-icon">🚌</div>
-            <div>
-              <div className="brand-name">أسطول المسافر</div>
-              <div className="brand-sub">
-                {isAdmin ? 'لوحة مدير النظام' : currentOffice?.name ?? 'مكتب السفريات'}
-              </div>
-            </div>
-          </div>
+          <BrandMark
+            sub={isAdmin ? 'لوحة مدير النظام' : currentOffice?.name ?? 'مكتب السفريات'}
+          />
         </div>
 
         {!isAdmin && currentOffice && (

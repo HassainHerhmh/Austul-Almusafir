@@ -38,79 +38,84 @@ import { OfficeCustomersPage } from './pages/office/OfficeCustomersPage'
 import { OfficeHome } from './pages/office/OfficeHome'
 import { OfficeReportsPage } from './pages/office/OfficeReportsPage'
 import { OfficeStaffPage } from './pages/office/OfficeStaffPage'
+import { SettingsPage } from './pages/admin/SettingsPage'
+import { BrandProvider } from './context/BrandContext'
 
 export default function App() {
   return (
-    <AppProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
+    <BrandProvider>
+      <AppProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
 
-          <Route
-            path="/admin"
-            element={
-              <RequireAuth roles={['admin']}>
-                <Shell />
-              </RequireAuth>
-            }
-          >
-            <Route index element={<AdminHome />} />
-            <Route path="offices" element={<OfficesPage />} />
-            <Route path="users" element={<UsersPage />} />
-            <Route path="buses" element={<BusesPage />} />
-            <Route path="drivers" element={<DriversPage />} />
-            <Route path="destinations" element={<DestinationsPage />} />
-            <Route path="trips" element={<TripsPage />} />
-            <Route path="bookings" element={<AdminBookingsPage />} />
+            <Route
+              path="/admin"
+              element={
+                <RequireAuth roles={['admin']}>
+                  <Shell />
+                </RequireAuth>
+              }
+            >
+              <Route index element={<AdminHome />} />
+              <Route path="offices" element={<OfficesPage />} />
+              <Route path="users" element={<UsersPage />} />
+              <Route path="buses" element={<BusesPage />} />
+              <Route path="drivers" element={<DriversPage />} />
+              <Route path="destinations" element={<DestinationsPage />} />
+              <Route path="trips" element={<TripsPage />} />
+              <Route path="bookings" element={<AdminBookingsPage />} />
 
-            <Route path="accounts" element={<Accounting />}>
-              <Route index element={<Navigate to="setup/accounts" replace />} />
-              <Route path="setup/accounts" element={<AccountsSetup />} />
-              <Route path="setup/currencies" element={<Currencies />} />
-              <Route path="setup/account-groups" element={<AccountGroups />} />
-              <Route path="setup/account-ceiling" element={<AccountCeiling />} />
-              <Route path="setup/banks" element={<Banks />} />
-              <Route path="setup/bank-groups" element={<BankGroups />} />
-              <Route path="setup/cash-boxes" element={<CashBoxes />} />
-              <Route path="setup/cash-box-groups" element={<CashBoxGroups />} />
-              <Route path="setup/receipt-types" element={<ReceiptTypes />} />
-              <Route path="setup/payment-types" element={<PaymentTypes />} />
-              <Route path="setup/journal-types" element={<JournalTypes />} />
-              <Route path="setup/transit-accounts" element={<TransitAccountsSettings />} />
-              <Route path="operations" element={<Operations />}>
-                <Route index element={<Navigate to="receipt-voucher" replace />} />
-                <Route path="receipt-voucher" element={<ReceiptVoucher />} />
-                <Route path="payment-voucher" element={<PaymentVoucher />} />
-                <Route path="journal-entry" element={<JournalEntry />} />
-                <Route path="currency-exchange" element={<CurrencyExchange />} />
+              <Route path="accounts" element={<Accounting />}>
+                <Route index element={<Navigate to="setup/accounts" replace />} />
+                <Route path="setup/accounts" element={<AccountsSetup />} />
+                <Route path="setup/currencies" element={<Currencies />} />
+                <Route path="setup/account-groups" element={<AccountGroups />} />
+                <Route path="setup/account-ceiling" element={<AccountCeiling />} />
+                <Route path="setup/banks" element={<Banks />} />
+                <Route path="setup/bank-groups" element={<BankGroups />} />
+                <Route path="setup/cash-boxes" element={<CashBoxes />} />
+                <Route path="setup/cash-box-groups" element={<CashBoxGroups />} />
+                <Route path="setup/receipt-types" element={<ReceiptTypes />} />
+                <Route path="setup/payment-types" element={<PaymentTypes />} />
+                <Route path="setup/journal-types" element={<JournalTypes />} />
+                <Route path="setup/transit-accounts" element={<TransitAccountsSettings />} />
+                <Route path="operations" element={<Operations />}>
+                  <Route index element={<Navigate to="receipt-voucher" replace />} />
+                  <Route path="receipt-voucher" element={<ReceiptVoucher />} />
+                  <Route path="payment-voucher" element={<PaymentVoucher />} />
+                  <Route path="journal-entry" element={<JournalEntry />} />
+                  <Route path="currency-exchange" element={<CurrencyExchange />} />
+                </Route>
+                <Route path="reports" element={<AccountReports />}>
+                  <Route path="account-statement" element={<AccountStatement />} />
+                </Route>
               </Route>
-              <Route path="reports" element={<AccountReports />}>
-                <Route path="account-statement" element={<AccountStatement />} />
-              </Route>
+
+              <Route path="reports" element={<AdminReportsPage />} />
+              <Route path="settings" element={<SettingsPage />} />
             </Route>
 
-            <Route path="reports" element={<AdminReportsPage />} />
-          </Route>
+            <Route
+              path="/office"
+              element={
+                <RequireAuth roles={['office_manager', 'booking_clerk', 'accountant']}>
+                  <Shell />
+                </RequireAuth>
+              }
+            >
+              <Route index element={<OfficeHome />} />
+              <Route path="bookings" element={<OfficeBookingsPage />} />
+              <Route path="customers" element={<OfficeCustomersPage />} />
+              <Route path="accounting" element={<OfficeAccountingPage />} />
+              <Route path="reports" element={<OfficeReportsPage />} />
+              <Route path="staff" element={<OfficeStaffPage />} />
+            </Route>
 
-          <Route
-            path="/office"
-            element={
-              <RequireAuth roles={['office_manager', 'booking_clerk', 'accountant']}>
-                <Shell />
-              </RequireAuth>
-            }
-          >
-            <Route index element={<OfficeHome />} />
-            <Route path="bookings" element={<OfficeBookingsPage />} />
-            <Route path="customers" element={<OfficeCustomersPage />} />
-            <Route path="accounting" element={<OfficeAccountingPage />} />
-            <Route path="reports" element={<OfficeReportsPage />} />
-            <Route path="staff" element={<OfficeStaffPage />} />
-          </Route>
-
-          <Route path="*" element={<Navigate to="/login" replace />} />
-        </Routes>
-      </BrowserRouter>
-    </AppProvider>
+            <Route path="*" element={<Navigate to="/login" replace />} />
+          </Routes>
+        </BrowserRouter>
+      </AppProvider>
+    </BrandProvider>
   )
 }

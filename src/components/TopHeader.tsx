@@ -1,7 +1,8 @@
+import { Bell, Moon, Sun } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { formatMoney } from './utils'
 import { useApp } from '../context/AppContext'
+import { formatMoney } from './utils'
 
 const THEME_KEY = 'austul-theme'
 const SEEN_KEY = 'austul-notifs-seen'
@@ -115,9 +116,13 @@ export function TopHeader() {
             onClick={openPanel}
           >
             <span className="header-icon" aria-hidden>
-              🔔
+              <Bell strokeWidth={1.75} />
             </span>
-            {unreadCount > 0 && <span className="notif-badge">{unreadCount}</span>}
+            {unreadCount > 0 && (
+              <span className="notif-badge">
+                {unreadCount > 9 ? '+9' : `+${unreadCount}`}
+              </span>
+            )}
           </button>
 
           {openNotifs && (
@@ -170,7 +175,7 @@ export function TopHeader() {
           onClick={toggleTheme}
         >
           <span className="header-icon" aria-hidden>
-            {theme === 'dark' ? '☀️' : '🌙'}
+            {theme === 'dark' ? <Sun strokeWidth={1.75} /> : <Moon strokeWidth={1.75} />}
           </span>
         </button>
 

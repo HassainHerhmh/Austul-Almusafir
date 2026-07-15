@@ -1,6 +1,8 @@
+import { Moon, Sun } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
+import { useBrand } from '../context/BrandContext'
 
 function toggleDocumentTheme() {
   const current = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light'
@@ -12,6 +14,7 @@ function toggleDocumentTheme() {
 
 export function LoginPage() {
   const { login, currentUser, isAdmin, loading } = useApp()
+  const { name, logoUrl } = useBrand()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -57,13 +60,16 @@ export function LoginPage() {
         onClick={() => setTheme(toggleDocumentTheme())}
       >
         <span className="header-icon" aria-hidden>
-          {theme === 'dark' ? '☀️' : '🌙'}
+          {theme === 'dark' ? <Sun strokeWidth={1.75} /> : <Moon strokeWidth={1.75} />}
         </span>
       </button>
 
       <section className="login-visual">
         <div className="login-brand">
-          <h1>أسطول المسافر</h1>
+          <div className={`brand-icon login-brand-icon${logoUrl ? ' has-logo' : ''}`}>
+            {logoUrl ? <img src={logoUrl} alt="" /> : <span aria-hidden>🚌</span>}
+          </div>
+          <h1>{name}</h1>
           <p>منصة واحدة لإدارة مكاتب السفريات والرحلات والمقاعد — بشكل مركزي وفوري.</p>
         </div>
       </section>

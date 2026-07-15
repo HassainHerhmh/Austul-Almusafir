@@ -1,5 +1,6 @@
 import type { Booking, Trip } from '../types'
 import { useApp } from '../context/AppContext'
+import { useBrand } from '../context/BrandContext'
 import { tripEndpoints, tripRoutePoints } from '../utils/trip'
 
 type Props = {
@@ -10,13 +11,14 @@ type Props = {
 
 export function TicketView({ booking, trip, onClose }: Props) {
   const { getTripLabel, getOffice } = useApp()
+  const { name } = useBrand()
   const office = getOffice(booking.officeId)
   const ends = tripEndpoints(trip)
 
   return (
     <div>
       <div className="ticket" id="printable-ticket">
-        <div className="ticket-brand">أسطول المسافر</div>
+        <div className="ticket-brand">{name}</div>
         <div style={{ fontSize: '0.85rem', color: 'var(--muted)' }}>تذكرة سفر</div>
         <div className="ticket-qr" title="QR Code" aria-hidden />
         <div className="ticket-grid">

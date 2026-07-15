@@ -269,8 +269,16 @@ h3 {
 }
 
 .header-icon {
-  font-size: 1.1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   line-height: 1;
+  color: var(--ink);
+}
+
+.header-icon svg {
+  width: 22px;
+  height: 22px;
 }
 
 .notif-wrap {
@@ -279,19 +287,20 @@ h3 {
 
 .notif-badge {
   position: absolute;
-  top: 4px;
-  left: 4px;
+  top: 2px;
+  left: 2px;
   min-width: 18px;
   height: 18px;
   padding: 0 4px;
   border-radius: 999px;
-  background: var(--danger);
-  color: var(--on-accent);
-  font-size: 0.68rem;
+  background: #e53935;
+  color: #fff;
+  font-size: 0.62rem;
   font-weight: 800;
   display: grid;
   place-items: center;
   line-height: 1;
+  border: 1.5px solid var(--elevated);
 }
 
 .notif-panel {
@@ -412,6 +421,22 @@ h3 {
   place-items: center;
   font-size: 1.35rem;
   box-shadow: 0 8px 20px rgba(196, 122, 44, 0.35);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.brand-icon.has-logo {
+  background: var(--elevated);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+  border: 1px solid var(--line);
+  padding: 0;
+}
+
+.brand-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .brand-name {
@@ -754,6 +779,14 @@ table.data tr:hover td {
   animation: rise 0.7s ease both;
 }
 
+.login-brand-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 18px;
+  font-size: 2rem;
+  margin-bottom: 1rem;
+}
+
 .login-brand h1 {
   font-family: var(--display);
   font-size: clamp(2.4rem, 5vw, 3.6rem);
@@ -765,6 +798,40 @@ table.data tr:hover td {
   font-size: 1.1rem;
   opacity: 0.88;
   line-height: 1.7;
+}
+
+.field-hint {
+  margin-top: 0.35rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.success-msg {
+  color: var(--sea);
+  font-weight: 600;
+  margin: 0;
+}
+
+.settings-preview {
+  padding: 1rem;
+  border: 1px dashed var(--line);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--elevated) 70%, transparent);
+}
+
+.settings-preview-label {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-bottom: 0.75rem;
+}
+
+.settings-preview-brand {
+  pointer-events: none;
+}
+
+.settings-panel .actions {
+  margin-top: 0.25rem;
 }
 
 .login-panel {

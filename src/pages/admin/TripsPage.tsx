@@ -128,7 +128,7 @@ export function TripsPage() {
       <header className="page-header">
         <div>
           <h1>إدارة الرحلات</h1>
-          <p>خط سير متسلسل: عدن ← عتق ← شرورة ← مكة</p>
+          <p>إضافة وتعديل الرحلات ومحطات السير</p>
         </div>
         <button
           type="button"

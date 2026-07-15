@@ -1,8 +1,9 @@
 # أسطول المسافر
 
-## الباك اند (الأساسي)
+## الباك اند (Railway)
 
-الـ API الحقيقي موجود في مجلد **`backend/`** (Node.js + Express + Prisma).
+مجلد **`backend/`** — Node.js API على:
+`https://ostool-almosafer.com`
 
 ```bash
 cd backend
@@ -13,8 +14,22 @@ npm run dev
 
 التفاصيل: [backend/README.md](backend/README.md)
 
-المستودع: https://github.com/HassainHerhmh/Austul-Almusafir
+## الواجهة (Vercel)
 
-## الواجهة (تطوير محلي)
+جذر المشروع = React/Vite. اربطه بنفس GitHub:
 
-مجلد الجذر يحتوي واجهة React/Vite اختيارية للتجربة المحلية — ليست بديلاً عن السيرفر.
+1. [vercel.com](https://vercel.com) → Add New Project → اختر `HassainHerhmh/Austul-Almusafir`
+2. Framework Preset: **Vite** — Root Directory اتركه فارغ (الجذر)
+3. Environment Variables:
+   - Name: `VITE_API_URL`
+   - Value: `https://ostool-almosafer.com`
+4. Deploy
+
+محلياً:
+
+```bash
+npm install
+npm run dev
+```
+
+حساب المدير: `admin` / `admin123`

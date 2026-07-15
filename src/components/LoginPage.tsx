@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
-import { API_BASE } from '../api/client'
 import { useApp } from '../context/AppContext'
 
 function toggleDocumentTheme() {
@@ -72,7 +71,7 @@ export function LoginPage() {
       <section className="login-panel">
         <div className="login-card">
           <h2>تسجيل الدخول</h2>
-          <p>متصل بالسيرفر: {API_BASE.replace(/^https?:\/\//, '')}</p>
+          <p>ادخل بحساب المدير أو حساب المكتب</p>
 
           <form onSubmit={(e) => void submit(e)}>
             <div className="form-grid" style={{ gridTemplateColumns: '1fr' }}>

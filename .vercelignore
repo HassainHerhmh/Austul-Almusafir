@@ -1,0 +1,6 @@
+backend
+Card platform
+Dockerfile
+railway.json
+*.md
+!README.md

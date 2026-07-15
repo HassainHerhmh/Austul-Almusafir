@@ -74,8 +74,10 @@ export interface Trip {
   id: string
   busId: string
   driverId: string
-  /** السائق المعاون (اختياري) */
-  assistantDriverId: string | null
+  /** اسم السائق المعاون (إدخال مباشر) */
+  assistantName: string
+  /** جوال السائق المعاون */
+  assistantPhone: string
   date: string
   departureTime: string
   price: number

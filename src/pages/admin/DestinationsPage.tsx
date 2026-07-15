@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { formatMoney } from '../../components/utils'
 import { useApp } from '../../context/AppContext'
 
 export function DestinationsPage() {
@@ -7,6 +6,8 @@ export function DestinationsPage() {
   const [name, setName] = useState('')
   const [ticketPrice, setTicketPrice] = useState('')
   const [editId, setEditId] = useState<string | null>(null)
+  const [priceDrafts, setPriceDrafts] = useState<Record<string, string>>({})
+  const [savingId, setSavingId] = useState<string | null>(null)
 
   const resetForm = () => {
     setName('')
@@ -26,12 +27,40 @@ export function DestinationsPage() {
     resetForm()
   }
 
+  const priceValue = (id: string, current: number) =>
+    priceDrafts[id] !== undefined ? priceDrafts[id] : current > 0 ? String(current) : ''
+
+  const savePrice = async (id: string, destName: string, current: number) => {
+    const raw = priceDrafts[id]
+    if (raw === undefined) return
+    const price = Math.max(0, Number(raw) || 0)
+    if (price === current) {
+      setPriceDrafts((d) => {
+        const next = { ...d }
+        delete next[id]
+        return next
+      })
+      return
+    }
+    setSavingId(id)
+    try {
+      await upsertDestination({ id, name: destName, ticketPrice: price })
+      setPriceDrafts((d) => {
+        const next = { ...d }
+        delete next[id]
+        return next
+      })
+    } finally {
+      setSavingId(null)
+    }
+  }
+
   return (
     <div>
       <header className="page-header">
         <div>
           <h1>إدارة الوجهات</h1>
-          <p>حدّد سعر التذكرة لكل منطقة — يُستخدم عند اختيار تسعير «حسب منطقة الصعود»</p>
+          <p>حدّد سعر التذكرة لكل منطقة مباشرة من الجدول — يُستخدم عند تسعير «حسب منطقة الصعود»</p>
         </div>
       </header>
 
@@ -72,7 +101,7 @@ export function DestinationsPage() {
             <thead>
               <tr>
                 <th>الوجهة</th>
-                <th>سعر التذكرة</th>
+                <th style={{ width: 160 }}>سعر التذكرة</th>
                 <th></th>
               </tr>
             </thead>
@@ -80,7 +109,36 @@ export function DestinationsPage() {
               {state.destinations.map((d) => (
                 <tr key={d.id}>
                   <td>{d.name}</td>
-                  <td>{d.ticketPrice > 0 ? formatMoney(d.ticketPrice) : '—'}</td>
+                  <td>
+                    <input
+                      type="number"
+                      min={0}
+                      step={1}
+                      disabled={savingId === d.id}
+                      value={priceValue(d.id, d.ticketPrice)}
+                      placeholder="0"
+                      aria-label={`سعر تذكرة ${d.name}`}
+                      onChange={(e) =>
+                        setPriceDrafts((prev) => ({ ...prev, [d.id]: e.target.value }))
+                      }
+                      onBlur={() => void savePrice(d.id, d.name, d.ticketPrice)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          ;(e.target as HTMLInputElement).blur()
+                        }
+                      }}
+                      style={{
+                        width: '100%',
+                        maxWidth: 140,
+                        background: '#fff',
+                        border: '1px solid #d1d5db',
+                        borderRadius: 6,
+                        padding: '0.4rem 0.55rem',
+                        fontSize: '0.95rem',
+                      }}
+                    />
+                  </td>
                   <td>
                     <button
                       type="button"

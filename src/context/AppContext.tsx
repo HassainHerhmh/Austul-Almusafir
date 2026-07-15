@@ -29,6 +29,7 @@ import type {
   User,
   Voucher,
 } from '../types'
+import { normalizeTrip } from '../utils/trip'
 
 interface AppContextValue {
   state: AppState
@@ -268,7 +269,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         nationality: d.nationality ?? '',
         licenseNumber: d.licenseNumber ?? '',
       })),
-      trips: trips.list ?? [],
+      trips: (trips.list ?? []).map((t) =>
+        normalizeTrip(t as Parameters<typeof normalizeTrip>[0]),
+      ),
       customers: customers.list ?? [],
       bookings: (bookings.list ?? []).map(asBooking),
       vouchers: vouchers.list ?? [],
@@ -441,7 +444,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const payload = {
       busId: trip.busId,
       driverId: trip.driverId,
-      assistantDriverId: trip.assistantDriverId,
+      assistantName: trip.assistantName ?? '',
+      assistantPhone: trip.assistantPhone ?? '',
       date: trip.date,
       departureTime: trip.departureTime,
       price: trip.price,

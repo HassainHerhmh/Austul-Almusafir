@@ -11,7 +11,8 @@ function mapTrip(t: {
   id: string
   busId: string
   driverId: string
-  assistantDriverId: string | null
+  assistantName: string
+  assistantPhone: string
   date: string
   departureTime: string
   price: number
@@ -22,7 +23,8 @@ function mapTrip(t: {
     id: t.id,
     busId: t.busId,
     driverId: t.driverId,
-    assistantDriverId: t.assistantDriverId,
+    assistantName: t.assistantName ?? '',
+    assistantPhone: t.assistantPhone ?? '',
     date: t.date,
     departureTime: t.departureTime,
     price: t.price,
@@ -91,7 +93,8 @@ tripsRouter.post(
       .object({
         busId: z.string(),
         driverId: z.string(),
-        assistantDriverId: z.string().nullable().optional(),
+        assistantName: z.string().optional(),
+        assistantPhone: z.string().optional(),
         date: z.string().min(1),
         departureTime: z.string().min(1),
         price: z.number().positive(),
@@ -105,7 +108,8 @@ tripsRouter.post(
       data: {
         busId: body.data.busId,
         driverId: body.data.driverId,
-        assistantDriverId: body.data.assistantDriverId ?? null,
+        assistantName: body.data.assistantName?.trim() ?? '',
+        assistantPhone: body.data.assistantPhone?.trim() ?? '',
         date: body.data.date,
         departureTime: body.data.departureTime,
         price: body.data.price,
@@ -135,7 +139,8 @@ tripsRouter.put(
       .object({
         busId: z.string().optional(),
         driverId: z.string().optional(),
-        assistantDriverId: z.string().nullable().optional(),
+        assistantName: z.string().optional(),
+        assistantPhone: z.string().optional(),
         date: z.string().min(1).optional(),
         departureTime: z.string().min(1).optional(),
         price: z.number().positive().optional(),
@@ -145,7 +150,7 @@ tripsRouter.put(
       .safeParse(req.body)
     if (!body.success) return fail(res, 'بيانات غير صالحة')
 
-    const { stops, ...rest } = body.data
+    const { stops, assistantName, assistantPhone, ...rest } = body.data
     if (stops) {
       await prisma.tripStop.deleteMany({ where: { tripId: paramId(req) } })
       await prisma.tripStop.createMany({
@@ -160,7 +165,11 @@ tripsRouter.put(
 
     const trip = await prisma.trip.update({
       where: { id: paramId(req) },
-      data: rest,
+      data: {
+        ...rest,
+        ...(assistantName !== undefined ? { assistantName: assistantName.trim() } : {}),
+        ...(assistantPhone !== undefined ? { assistantPhone: assistantPhone.trim() } : {}),
+      },
       include: { stops: true },
     })
     return ok(res, { trip: mapTrip(trip) })
@@ -179,4 +188,3 @@ tripsRouter.post(
     return ok(res, { trip: mapTrip(trip) })
   }),
 )
-

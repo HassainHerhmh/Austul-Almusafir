@@ -66,7 +66,6 @@ model Driver {
   role          String  @default("primary")
   active        Boolean @default(true)
   trips         Trip[]  @relation("TripDriver")
-  assistTrips   Trip[]  @relation("TripAssistant")
 }
 
 model Trip {
@@ -75,8 +74,10 @@ model Trip {
   bus                Bus        @relation(fields: [busId], references: [id])
   driverId           String
   driver             Driver     @relation("TripDriver", fields: [driverId], references: [id])
-  assistantDriverId  String?
-  assistantDriver    Driver?    @relation("TripAssistant", fields: [assistantDriverId], references: [id])
+  /** اسم السائق المعاون (إدخال مباشر، اختياري) */
+  assistantName      String     @default("")
+  /** جوال السائق المعاون (إدخال مباشر، اختياري) */
+  assistantPhone     String     @default("")
   date               String
   departureTime      String
   price              Float

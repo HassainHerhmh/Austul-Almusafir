@@ -7,7 +7,8 @@ import { emptyStop, tripRoutePoints } from '../../utils/trip'
 type TripForm = {
   busId: string
   driverId: string
-  assistantDriverId: string
+  assistantName: string
+  assistantPhone: string
   date: string
   departureTime: string
   price: number
@@ -18,7 +19,8 @@ type TripForm = {
 const emptyForm = (): TripForm => ({
   busId: '',
   driverId: '',
-  assistantDriverId: '',
+  assistantName: '',
+  assistantPhone: '',
   date: todayStr(),
   departureTime: '08:00',
   price: 10000,
@@ -74,8 +76,8 @@ export function TripsPage() {
         return
       }
     }
-    if (form.assistantDriverId && form.assistantDriverId === form.driverId) {
-      alert('السائق الرسمي والمعاون يجب أن يكونا مختلفين')
+    if (form.assistantPhone.trim() && !form.assistantName.trim()) {
+      alert('أدخل اسم السائق المعاون مع رقم الجوال')
       return
     }
     upsertTrip(
@@ -83,11 +85,13 @@ export function TripsPage() {
         ? {
             ...form,
             id: editId,
-            assistantDriverId: form.assistantDriverId || null,
+            assistantName: form.assistantName.trim(),
+            assistantPhone: form.assistantPhone.trim(),
           }
         : {
             ...form,
-            assistantDriverId: form.assistantDriverId || null,
+            assistantName: form.assistantName.trim(),
+            assistantPhone: form.assistantPhone.trim(),
           },
     )
     setOpen(false)
@@ -100,7 +104,8 @@ export function TripsPage() {
     setForm({
       busId: t.busId,
       driverId: t.driverId,
-      assistantDriverId: t.assistantDriverId ?? '',
+      assistantName: t.assistantName ?? '',
+      assistantPhone: t.assistantPhone ?? '',
       date: t.date,
       departureTime: t.departureTime,
       price: t.price,
@@ -139,8 +144,6 @@ export function TripsPage() {
               ...emptyForm(),
               busId: state.buses[0]?.id ?? '',
               driverId: state.drivers.find((d) => d.role === 'primary')?.id ?? state.drivers[0]?.id ?? '',
-              assistantDriverId:
-                state.drivers.find((d) => d.role === 'assistant')?.id ?? '',
               stops: [
                 emptyStop(state.destinations.find((d) => d.name === 'عدن')?.id ?? state.destinations[0]?.id ?? ''),
                 emptyStop(state.destinations.find((d) => d.name === 'عتق')?.id ?? state.destinations[1]?.id ?? ''),
@@ -196,8 +199,8 @@ export function TripsPage() {
                       <td>{getBus(t.busId)?.plateNumber}</td>
                       <td>{getDriver(t.driverId)?.name ?? '—'}</td>
                       <td>
-                        {t.assistantDriverId
-                          ? (getDriver(t.assistantDriverId)?.name ?? '—')
+                        {t.assistantName
+                          ? `${t.assistantName}${t.assistantPhone ? ` — ${t.assistantPhone}` : ''}`
                           : '—'}
                       </td>
                       <td>{formatMoney(t.price)}</td>
@@ -372,20 +375,21 @@ export function TripsPage() {
                   </select>
                 </div>
                 <div className="field">
-                  <label>السائق المعاون</label>
-                  <select
-                    value={form.assistantDriverId}
-                    onChange={(e) => setForm({ ...form, assistantDriverId: e.target.value })}
-                  >
-                    <option value="">بدون معاون</option>
-                    {state.drivers
-                      .filter((d) => d.role === 'assistant' && d.active)
-                      .map((d) => (
-                        <option key={d.id} value={d.id}>
-                          {d.name}
-                        </option>
-                      ))}
-                  </select>
+                  <label>اسم السائق المعاون</label>
+                  <input
+                    value={form.assistantName}
+                    onChange={(e) => setForm({ ...form, assistantName: e.target.value })}
+                    placeholder="اختياري"
+                  />
+                </div>
+                <div className="field">
+                  <label>جوال المعاون</label>
+                  <input
+                    value={form.assistantPhone}
+                    onChange={(e) => setForm({ ...form, assistantPhone: e.target.value })}
+                    placeholder="رقم الجوال"
+                    inputMode="tel"
+                  />
                 </div>
                 <div className="field">
                   <label>السعر</label>

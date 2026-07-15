@@ -46,6 +46,7 @@ officesRouter.post(
         status: z.enum(['active', 'suspended']).optional(),
         subscription: z.enum(['active', 'expired', 'trial']).optional(),
         ledgerAccountId: z.number().nullable().optional(),
+        commissionPercent: z.number().min(0).max(100).optional(),
       })
       .safeParse(req.body)
     if (!body.success) return fail(res, 'بيانات غير صالحة')
@@ -63,6 +64,7 @@ officesRouter.post(
         status: body.data.status ?? 'active',
         subscription: body.data.subscription ?? 'trial',
         ledgerAccountId,
+        commissionPercent: body.data.commissionPercent ?? 0,
       },
     })
     return ok(res, { office }, 201)
@@ -84,6 +86,7 @@ officesRouter.put(
         status: z.enum(['active', 'suspended']).optional(),
         subscription: z.enum(['active', 'expired', 'trial']).optional(),
         ledgerAccountId: z.number().nullable().optional(),
+        commissionPercent: z.number().min(0).max(100).optional(),
       })
       .safeParse(req.body)
     if (!body.success) return fail(res, 'بيانات غير صالحة')

@@ -20,6 +20,7 @@ function asOffice(o: any): Office {
     status: o.status,
     subscription: o.subscription,
     ledgerAccountId: o.ledgerAccountId ?? null,
+    commissionPercent: Number(o.commissionPercent) || 0,
     createdAt: String(o.createdAt).slice(0, 10),
   }
 }

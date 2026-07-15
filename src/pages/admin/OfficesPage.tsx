@@ -16,6 +16,7 @@ const empty: Omit<Office, 'id' | 'createdAt'> = {
   status: 'active',
   subscription: 'trial',
   ledgerAccountId: null,
+  commissionPercent: 0,
 }
 
 export function OfficesPage() {
@@ -49,6 +50,17 @@ export function OfficesPage() {
     return map
   }, [subAccounts])
 
+  /** حسابات ذمم المكاتب (فرعية تحت 1131) مع إبقاء باقي الفرعي في الأسفل */
+  const officeAccounts = useMemo(
+    () =>
+      subAccounts.filter(
+        (a) =>
+          (a.code.startsWith('1131') && a.code.length > 4) ||
+          (a.name_ar.includes('مكتب') && a.code !== '1132' && !a.name_ar.includes('عمولات')),
+      ),
+    [subAccounts],
+  )
+
   const save = async (e: React.FormEvent) => {
     e.preventDefault()
     await upsertOffice(editId ? { ...form, id: editId } : form)
@@ -68,6 +80,7 @@ export function OfficesPage() {
         status: office.status,
         subscription: office.subscription,
         ledgerAccountId: office.ledgerAccountId,
+        commissionPercent: office.commissionPercent ?? 0,
       })
     } else {
       setEditId(null)
@@ -82,17 +95,33 @@ export function OfficesPage() {
     return a ? `${a.code} — ${a.name_ar}` : `#${id}`
   }
 
+  const accountOptions =
+    officeAccounts.length > 0
+      ? [
+          ...officeAccounts,
+          ...subAccounts.filter((a) => !officeAccounts.some((o) => o.id === a.id)),
+        ]
+      : subAccounts
+
   return (
     <div>
       <header className="page-header">
         <div>
           <h1>إدارة المكاتب</h1>
-          <p>إضافة وتعديل وإيقاف المكاتب داخل المنصة</p>
+          <p>إضافة وتعديل المكاتب والحساب المحاسبي ونسبة العمولة لكل مكتب</p>
         </div>
         <button type="button" className="btn btn-amber" onClick={() => void openModal()}>
           إضافة مكتب
         </button>
       </header>
+
+      <div className="panel" style={{ marginBottom: '1rem' }}>
+        <p style={{ margin: 0, color: 'var(--muted)', fontSize: '0.92rem', lineHeight: 1.7 }}>
+          عند كل حجز يُقيَّد سعر التذكرة على ذمة المكتب، ثم تُقيَّد عمولته:{' '}
+          <strong>من حساب وسيط عمولات المكاتب (1132)</strong> إلى{' '}
+          <strong>الحساب المحاسبي للمكتب</strong> بنسبة العمولة المحددة.
+        </p>
+      </div>
 
       <div className="panel">
         <div className="table-wrap">
@@ -105,6 +134,7 @@ export function OfficesPage() {
                 <th>الحالة</th>
                 <th>الاشتراك</th>
                 <th>حساب محاسبي</th>
+                <th>العمولة %</th>
                 <th></th>
               </tr>
             </thead>
@@ -129,6 +159,7 @@ export function OfficesPage() {
                     </span>
                   </td>
                   <td>{accountLabel(o.ledgerAccountId)}</td>
+                  <td>{Number(o.commissionPercent || 0)}%</td>
                   <td>
                     <div className="actions">
                       <button
@@ -213,7 +244,7 @@ export function OfficesPage() {
                   </select>
                 </div>
                 <div className="field">
-                  <label>الحساب المحاسبي</label>
+                  <label>الحساب المحاسبي للمكتب</label>
                   <select
                     value={form.ledgerAccountId ?? ''}
                     onChange={(e) =>
@@ -223,13 +254,33 @@ export function OfficesPage() {
                       })
                     }
                   >
-                    <option value="">— اختر حسابًا فرعيًا —</option>
-                    {subAccounts.map((a) => (
+                    <option value="">— يُنشأ تلقائياً تحت ذمم المكاتب —</option>
+                    {accountOptions.map((a) => (
                       <option key={a.id} value={a.id}>
                         {a.code} — {a.name_ar}
                       </option>
                     ))}
                   </select>
+                </div>
+                <div className="field">
+                  <label>نسبة العمولة %</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={0.01}
+                    required
+                    value={form.commissionPercent}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        commissionPercent: Math.min(100, Math.max(0, Number(e.target.value) || 0)),
+                      })
+                    }
+                  />
+                  <p className="field-hint">
+                    تُحسب من سعر التذكرة وتُقيَّد من حساب وسيط عمولات المكاتب إلى حساب المكتب
+                  </p>
                 </div>
               </div>
               <div className="actions" style={{ marginTop: '1rem' }}>

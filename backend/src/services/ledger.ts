@@ -22,12 +22,35 @@ function bookingRefId(bookingId: string): number {
 }
 
 const TICKET_REVENUE_CODE = '41'
+const COMMISSION_TRANSIT_CODE = '1132'
+const COMMISSION_TRANSIT_NAME = 'عمولات المكاتب'
 
 async function getTicketRevenueAccountId() {
   const acc =
     (await prisma.account.findFirst({ where: { code: TICKET_REVENUE_CODE } })) ||
     (await prisma.account.findFirst({ where: { nameAr: 'إيرادات التذاكر' } }))
   return acc?.id ?? null
+}
+
+/** حساب وسيط عمولات المكاتب — من هذا الحساب إلى ذمة المكتب عند كل حجز */
+export async function ensureCommissionsTransitAccount() {
+  const existing =
+    (await prisma.account.findFirst({ where: { code: COMMISSION_TRANSIT_CODE } })) ||
+    (await prisma.account.findFirst({ where: { nameAr: COMMISSION_TRANSIT_NAME } }))
+  if (existing) return existing.id
+
+  const receivables = await prisma.account.findFirst({ where: { code: '113' } })
+  const row = await prisma.account.create({
+    data: {
+      code: COMMISSION_TRANSIT_CODE,
+      nameAr: COMMISSION_TRANSIT_NAME,
+      nameEn: 'Office Commissions Transit',
+      parentId: receivables?.id ?? null,
+      accountLevel: 'فرعي',
+      financialStatement: 'الميزانية العمومية',
+    },
+  })
+  return row.id
 }
 
 export async function ensureOfficeLedgerAccount(officeName: string) {
@@ -109,9 +132,64 @@ export async function postBookingCharge(input: {
   })
 }
 
+/**
+ * قيد العمولة: من حـ/ عمولات المكاتب (مدين) إلى حـ/ ذمة المكتب (دائن)
+ * فيخفّض ما على المكتب بمقدار عمولته من سعر التذكرة.
+ */
+export async function postBookingCommission(input: {
+  bookingId: string
+  ledgerAccountId: number
+  commissionPercent: number
+  ticketPrice: number
+  passengerName: string
+  seatNumber: number
+}) {
+  const percent = Number(input.commissionPercent) || 0
+  if (percent <= 0 || input.ticketPrice <= 0) return
+
+  const amount = Math.round(((input.ticketPrice * percent) / 100) * 100) / 100
+  if (amount <= 0) return
+
+  const transitId = await ensureCommissionsTransitAccount()
+  const ref = bookingRefId(input.bookingId)
+  const exists = await prisma.journalLine.findFirst({
+    where: { referenceType: 'booking_commission', referenceId: ref },
+  })
+  if (exists) return
+
+  const journalDate = new Date().toISOString().slice(0, 10)
+  const notes = `عمولة ${percent}% — حجز ${input.passengerName} — مقعد ${input.seatNumber}`
+
+  await prisma.journalLine.createMany({
+    data: [
+      {
+        referenceId: ref,
+        referenceType: 'booking_commission',
+        journalDate,
+        accountId: transitId,
+        debit: amount,
+        credit: 0,
+        notes,
+      },
+      {
+        referenceId: ref,
+        referenceType: 'booking_commission',
+        journalDate,
+        accountId: input.ledgerAccountId,
+        debit: 0,
+        credit: amount,
+        notes,
+      },
+    ],
+  })
+}
+
 export async function reverseBookingCharge(bookingId: string) {
   const ref = bookingRefId(bookingId)
   await prisma.journalLine.deleteMany({
-    where: { referenceType: 'booking', referenceId: ref },
+    where: {
+      referenceId: ref,
+      referenceType: { in: ['booking', 'booking_commission'] },
+    },
   })
 }

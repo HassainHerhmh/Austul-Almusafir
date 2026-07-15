@@ -18,6 +18,8 @@ export interface Office {
   createdAt: string
   /** حساب ذمم المكتب في النظام المحاسبي */
   ledgerAccountId: number | null
+  /** نسبة عمولة المكتب من سعر التذكرة */
+  commissionPercent: number
 }
 
 export interface User {

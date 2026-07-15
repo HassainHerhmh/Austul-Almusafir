@@ -39,6 +39,7 @@ export function loadState(): AppState {
         offices: (parsed.offices ?? []).map((o) => ({
           ...o,
           ledgerAccountId: o.ledgerAccountId ?? null,
+          commissionPercent: Number(o.commissionPercent) || 0,
         })),
         customers: (parsed.customers ?? []).map((c) => ({
           ...c,
@@ -48,6 +49,7 @@ export function loadState(): AppState {
           ...b,
           passportNumber: b.passportNumber ?? '',
           notes: b.notes ?? '',
+          boardingDestinationId: b.boardingDestinationId ?? '',
         })),
         drivers: (parsed.drivers ?? []).map((d) => ({
           ...d,

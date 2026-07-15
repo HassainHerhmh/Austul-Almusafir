@@ -5,6 +5,7 @@ import { authRequired, requireRoles } from '../middleware/auth'
 import {
   ensureOfficeLedgerAccount,
   postBookingCharge,
+  postBookingCommission,
   reverseBookingCharge,
 } from '../services/ledger'
 import { asyncHandler, fail, ok, paramId } from '../utils/http'
@@ -159,6 +160,14 @@ bookingsRouter.post(
         bookingId: booking.id,
         ledgerAccountId: office.ledgerAccountId,
         amount: booking.price,
+        passengerName: booking.passengerName,
+        seatNumber: booking.seatNumber,
+      })
+      await postBookingCommission({
+        bookingId: booking.id,
+        ledgerAccountId: office.ledgerAccountId,
+        commissionPercent: office.commissionPercent,
+        ticketPrice: booking.price,
         passengerName: booking.passengerName,
         seatNumber: booking.seatNumber,
       })

@@ -25,6 +25,7 @@ const chart: Array<{
   { code: '11101', nameAr: 'الصندوق الرئيسي', parentCode: '111', level: 'فرعي', statement: 'الميزانية العمومية' },
   { code: '113', nameAr: 'الذمم المدينة', parentCode: '11', level: 'رئيسي', statement: 'الميزانية العمومية' },
   { code: '1131', nameAr: 'ذمم مكاتب السفريات', parentCode: '113', level: 'رئيسي', statement: 'الميزانية العمومية' },
+  { code: '1132', nameAr: 'عمولات المكاتب', parentCode: '113', level: 'فرعي', statement: 'الميزانية العمومية' },
   { code: '2', nameAr: 'الخصوم', nameEn: 'Liabilities', level: 'رئيسي', statement: 'الميزانية العمومية' },
   { code: '4', nameAr: 'الإيرادات', nameEn: 'Revenue', level: 'رئيسي', statement: 'أرباح وخسائر' },
   { code: '41', nameAr: 'إيرادات التذاكر', parentCode: '4', level: 'فرعي', statement: 'أرباح وخسائر' },
@@ -66,6 +67,25 @@ async function main() {
       idByCode.set(row.code, created.id)
     }
     console.log('تم إنشاء دليل الحسابات الأساسي')
+  } else {
+    // قاعدة قديمة: أضف حساب وسيط عمولات المكاتب إن لم يوجد
+    const hasCommission =
+      (await prisma.account.findFirst({ where: { code: '1132' } })) ||
+      (await prisma.account.findFirst({ where: { nameAr: 'عمولات المكاتب' } }))
+    if (!hasCommission) {
+      const receivables = await prisma.account.findFirst({ where: { code: '113' } })
+      await prisma.account.create({
+        data: {
+          code: '1132',
+          nameAr: 'عمولات المكاتب',
+          nameEn: 'Office Commissions Transit',
+          parentId: receivables?.id ?? null,
+          accountLevel: 'فرعي',
+          financialStatement: 'الميزانية العمومية',
+        },
+      })
+      console.log('تم إضافة حساب وسيط عمولات المكاتب (1132)')
+    }
   }
 
   console.log('Seed مكتمل')

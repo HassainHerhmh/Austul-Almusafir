@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import api from '../../../../api/accountingApi';
+import { serverApi } from '../../../../api/serverApi';
 import * as XLSX from 'xlsx';
 import { Search, FileSpreadsheet, Printer } from "lucide-react";
 
@@ -73,10 +74,22 @@ const AccountStatement: React.FC = () => {
 
   const loadLookups = async () => {
     try {
-      const [a, c] = await Promise.all([api.get("/accounts"), api.get("/currencies")]);
-      const list = a.data?.list || [];
+      const [accountsRes, c] = await Promise.all([
+        serverApi.accounts.list().catch(() => null),
+        api.get("/currencies"),
+      ]);
+      const list =
+        accountsRes?.list?.length
+          ? accountsRes.list
+          : (await api.get("/accounts")).data?.list || [];
       setMainAccounts(list.filter((x: Account) => x.account_level === "رئيسي"));
-      setSubAccounts(list.filter((x: Account) => x.account_level === "فرعي"));
+      setSubAccounts(
+        list.filter(
+          (x: Account) =>
+            x.account_level === "فرعي" ||
+            (x.parent_id != null && !list.some((p: Account) => p.parent_id === x.id)),
+        ),
+      );
       setCurrencies(c.data?.currencies || c.data?.list || []);
     } catch (e) { console.error(e); }
   };
@@ -88,11 +101,40 @@ const AccountStatement: React.FC = () => {
         from_date: `${date.split('-')[0]}-${date.split('-')[1]}-01`,
         to_date: `${date.split('-')[0]}-${date.split('-')[1]}-${new Date(Number(date.split('-')[0]), Number(date.split('-')[1]), 0).getDate()}`,
       },
-      from_start: { from_date: null, to_date: date },
+      from_start: { from_date: null as string | null, to_date: date },
       range: { from_date: fromDate, to_date: toDate },
     }[periodType];
 
     try {
+      if (accountMode === "single" && accountId) {
+        const res = await serverApi.accounts.journalLines({
+          from: from_date,
+          to: to_date,
+          accountId: Number(accountId),
+        });
+        const sorted = [...(res.list || [])].sort(
+          (a, b) =>
+            a.journal_date.localeCompare(b.journal_date) || a.id - b.id,
+        );
+        let balance = 0;
+        const list: Row[] = sorted.map((l) => {
+          balance += l.debit - l.credit;
+          return {
+            id: l.id,
+            journal_date: l.journal_date,
+            account_name: `${l.account_code} — ${l.account_name}`,
+            debit: l.debit,
+            credit: l.credit,
+            notes: l.notes || '',
+            balance,
+            reference_type: l.reference_type,
+            reference_id: l.reference_id,
+          };
+        });
+        setRows(list);
+        return;
+      }
+
       const res = await (api as any).reports.accountStatement({
         currency_id: currencyId ? Number(currencyId) : null,
         from_date, to_date, report_mode: reportMode, summary_type: summaryType, detailed_type: detailedType,

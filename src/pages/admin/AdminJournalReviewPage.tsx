@@ -5,15 +5,19 @@ import { useApp } from '../../context/AppContext'
 
 type PeriodType = 'day' | 'month' | 'range' | 'until'
 
-type StatementRow = {
+type JournalRow = {
   id: number
   journal_date: string
+  account_id: number
+  account_code: string
+  account_name: string
   debit: number
   credit: number
-  balance: number
   notes: string | null
   reference_type: string
+  reference_id: number
   entry_label: string
+  created_at: string
 }
 
 function monthBounds(isoDate: string) {
@@ -37,38 +41,39 @@ function resolvePeriod(
   return { from, to }
 }
 
-export function OfficeStatementPage() {
-  const { currentOffice, can, getOfficeAgencyBalance } = useApp()
-  const officeId = currentOffice!.id
+export function AdminJournalReviewPage() {
+  const { state } = useApp()
   const today = todayStr()
 
   const [period, setPeriod] = useState<PeriodType>('day')
   const [day, setDay] = useState(today)
   const [fromDate, setFromDate] = useState(today)
   const [toDate, setToDate] = useState(today)
-  const [rows, setRows] = useState<StatementRow[]>([])
-  const [closing, setClosing] = useState(0)
+  const [officeId, setOfficeId] = useState('')
+  const [rows, setRows] = useState<JournalRow[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loaded, setLoaded] = useState(false)
 
-  const agencyBalance = getOfficeAgencyBalance(officeId)
+  const officeLedgerId = useMemo(() => {
+    if (!officeId) return null
+    const office = state.offices.find((o) => o.id === officeId)
+    return office?.ledgerAccountId ?? null
+  }, [officeId, state.offices])
 
   const totals = useMemo(() => {
-    const debit = rows.filter((r) => r.reference_type !== 'opening').reduce((s, r) => s + r.debit, 0)
-    const credit = rows
-      .filter((r) => r.reference_type !== 'opening')
-      .reduce((s, r) => s + r.credit, 0)
-    return { debit, credit }
+    const debit = rows.reduce((s, r) => s + r.debit, 0)
+    const credit = rows.reduce((s, r) => s + r.credit, 0)
+    return { debit, credit, count: rows.length }
   }, [rows])
 
-  if (!can('view_accounts')) {
-    return (
-      <div className="panel">
-        <div className="empty">ليس لديك صلاحية عرض الحسابات</div>
-      </div>
-    )
-  }
+  const byType = useMemo(() => {
+    const map = new Map<string, number>()
+    rows.forEach((r) => {
+      map.set(r.entry_label, (map.get(r.entry_label) || 0) + 1)
+    })
+    return [...map.entries()]
+  }, [rows])
 
   const run = async (e?: React.FormEvent) => {
     e?.preventDefault()
@@ -81,20 +86,24 @@ export function OfficeStatementPage() {
       setError('تاريخ البداية يجب أن يسبق تاريخ النهاية')
       return
     }
+    if (officeId && !officeLedgerId) {
+      setError('هذا المكتب ليس له حساب محاسبي مربوط')
+      return
+    }
 
     setBusy(true)
     setError(null)
     try {
-      const res = await serverApi.offices.statement(officeId, {
+      const res = await serverApi.accounts.journalLines({
         from: range.from,
         to: range.to,
+        accountId: officeLedgerId,
       })
       setRows(res.list ?? [])
-      setClosing(res.closingBalance ?? 0)
       setLoaded(true)
     } catch (err) {
       setRows([])
-      setError(err instanceof Error ? err.message : 'فشل جلب كشف الحساب')
+      setError(err instanceof Error ? err.message : 'فشل جلب القيود')
     } finally {
       setBusy(false)
     }
@@ -104,22 +113,24 @@ export function OfficeStatementPage() {
     <div>
       <header className="page-header">
         <div>
-          <h1>كشف الحساب</h1>
-        </div>
-        <div className="actions">
-          <span className="badge badge-info">الرصيد الحالي: {formatMoney(agencyBalance)}</span>
+          <h1>مراجعة القيود</h1>
         </div>
       </header>
+
+      <div className="panel" style={{ marginBottom: '1rem' }}>
+        <p style={{ margin: 0, color: 'var(--muted)', lineHeight: 1.6 }}>
+          هذه الصفحة تعرض القيود الفعلية من قاعدة البيانات (نفس مصدر كشف حساب الوكيل). كشف
+          الحساب داخل وحدة الحسابات كان يجلب حسابات محلية قديمة — لذلك قد تظهر حسابات غير موجودة
+          في التهيئة.
+        </p>
+      </div>
 
       <div className="panel">
         <form onSubmit={(e) => void run(e)}>
           <div className="form-grid">
             <div className="field">
               <label>الفترة</label>
-              <select
-                value={period}
-                onChange={(e) => setPeriod(e.target.value as PeriodType)}
-              >
+              <select value={period} onChange={(e) => setPeriod(e.target.value as PeriodType)}>
                 <option value="day">خلال يوم</option>
                 <option value="month">خلال شهر</option>
                 <option value="range">فترة (من — إلى)</option>
@@ -166,6 +177,19 @@ export function OfficeStatementPage() {
                 </div>
               </>
             )}
+
+            <div className="field">
+              <label>المكتب (اختياري)</label>
+              <select value={officeId} onChange={(e) => setOfficeId(e.target.value)}>
+                <option value="">كل القيود</option>
+                {state.offices.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.name}
+                    {o.ledgerAccountId ? '' : ' — بلا حساب'}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {error && (
@@ -176,7 +200,7 @@ export function OfficeStatementPage() {
 
           <div className="actions" style={{ marginTop: '1rem' }}>
             <button type="submit" className="btn btn-primary" disabled={busy}>
-              {busy ? 'جاري العرض…' : 'عرض الكشف'}
+              {busy ? 'جاري العرض…' : 'عرض القيود'}
             </button>
           </div>
         </form>
@@ -185,6 +209,10 @@ export function OfficeStatementPage() {
       {loaded && (
         <>
           <div className="stats">
+            <div className="stat">
+              <div className="stat-label">عدد الأسطر</div>
+              <div className="stat-value">{totals.count}</div>
+            </div>
             <div className="stat">
               <div className="stat-label">إجمالي المدين</div>
               <div className="stat-value" style={{ fontSize: '1.1rem' }}>
@@ -197,17 +225,21 @@ export function OfficeStatementPage() {
                 {formatMoney(totals.credit)}
               </div>
             </div>
-            <div className="stat">
-              <div className="stat-label">الرصيد في نهاية الفترة</div>
-              <div className="stat-value" style={{ fontSize: '1.1rem' }}>
-                {formatMoney(closing)}
-              </div>
-            </div>
           </div>
+
+          {byType.length > 0 && (
+            <div className="actions" style={{ marginBottom: '0.75rem', flexWrap: 'wrap' }}>
+              {byType.map(([label, n]) => (
+                <span key={label} className="badge badge-info">
+                  {label}: {n}
+                </span>
+              ))}
+            </div>
+          )}
 
           <div className="panel">
             <div className="panel-head">
-              <h2>حركات القيود — {currentOffice?.name}</h2>
+              <h2>قيود اليومية من قاعدة البيانات</h2>
             </div>
             <div className="table-wrap">
               <table className="data">
@@ -215,22 +247,24 @@ export function OfficeStatementPage() {
                   <tr>
                     <th>التاريخ</th>
                     <th>النوع</th>
+                    <th>الحساب</th>
                     <th>البيان</th>
                     <th>مدين</th>
                     <th>دائن</th>
-                    <th>الرصيد</th>
+                    <th>مرجع</th>
+                    <th>وقت التسجيل</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rows.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="empty">
-                        لا توجد قيود في هذه الفترة
+                      <td colSpan={8} className="empty">
+                        لا توجد قيود في هذه الفترة — إن ظهرت عند الوكيل فتحقق من المكتب والفترة
                       </td>
                     </tr>
                   ) : (
                     rows.map((r) => (
-                      <tr key={`${r.reference_type}-${r.id}`}>
+                      <tr key={r.id}>
                         <td>{r.journal_date}</td>
                         <td>
                           <span
@@ -239,18 +273,22 @@ export function OfficeStatementPage() {
                                 ? 'badge-info'
                                 : r.reference_type === 'booking_commission'
                                   ? 'badge-warn'
-                                  : r.reference_type === 'opening'
-                                    ? 'badge-ok'
-                                    : 'badge-ok'
+                                  : 'badge-ok'
                             }`}
                           >
                             {r.entry_label}
                           </span>
                         </td>
+                        <td>
+                          {r.account_code} — {r.account_name}
+                        </td>
                         <td>{r.notes || '—'}</td>
                         <td>{r.debit ? formatMoney(r.debit) : '—'}</td>
                         <td>{r.credit ? formatMoney(r.credit) : '—'}</td>
-                        <td>{formatMoney(r.balance)}</td>
+                        <td>
+                          {r.reference_type}/{r.reference_id}
+                        </td>
+                        <td>{r.created_at.slice(0, 19).replace('T', ' ')}</td>
                       </tr>
                     ))
                   )}

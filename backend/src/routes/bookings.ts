@@ -225,8 +225,10 @@ bookingsRouter.patch(
     const body = z
       .object({
         passengerName: z.string().min(1).optional(),
-        ticketNumber: z.string().min(1).optional(),
+        ticketNumber: z.string().optional(),
         passportNumber: z.string().optional(),
+        boardingDestinationId: z.string().min(1).optional(),
+        arrivalDestinationId: z.string().min(1).optional(),
         seatNumber: z.number().int().positive().optional(),
         status: z.enum(['confirmed', 'cancelled', 'refunded']).optional(),
         paymentMethod: z.enum(['cash', 'transfer', 'credit']).optional(),
@@ -247,9 +249,36 @@ bookingsRouter.patch(
       if (taken) return fail(res, 'المقعد الجديد محجوز')
     }
 
+    const nextBoard = body.data.boardingDestinationId ?? booking.boardingDestinationId
+    const nextArrive = body.data.arrivalDestinationId ?? booking.arrivalDestinationId
+    if (
+      body.data.boardingDestinationId !== undefined ||
+      body.data.arrivalDestinationId !== undefined
+    ) {
+      const trip = await prisma.trip.findUnique({
+        where: { id: booking.tripId },
+        include: { stops: { orderBy: { sortOrder: 'asc' } } },
+      })
+      const routeIds = trip?.stops.map((s) => s.destinationId) ?? []
+      if (!routeIds.includes(nextBoard)) {
+        return fail(res, 'منطقة الانطلاق ليست من مدن مسار الرحلة')
+      }
+      if (!routeIds.includes(nextArrive)) {
+        return fail(res, 'منطقة الوصول ليست من مدن مسار الرحلة')
+      }
+      if (routeIds.indexOf(nextArrive) <= routeIds.indexOf(nextBoard)) {
+        return fail(res, 'منطقة الوصول يجب أن تكون بعد منطقة الانطلاق على المسار')
+      }
+    }
+
+    const data: Record<string, unknown> = { ...body.data }
+    if (body.data.ticketNumber !== undefined) {
+      data.ticketNumber = body.data.ticketNumber.trim()
+    }
+
     const updated = await prisma.booking.update({
       where: { id: booking.id },
-      data: body.data,
+      data,
     })
 
     if (body.data.status === 'cancelled' && booking.status === 'confirmed') {

@@ -246,6 +246,36 @@ export const serverApi = {
         method: 'PUT',
         body: JSON.stringify(data),
       }),
+    journalLines: (params?: {
+      from?: string | null
+      to?: string | null
+      accountId?: number | null
+      types?: string | null
+    }) => {
+      const q = new URLSearchParams()
+      if (params?.from) q.set('from', params.from)
+      if (params?.to) q.set('to', params.to)
+      if (params?.accountId) q.set('accountId', String(params.accountId))
+      if (params?.types) q.set('types', params.types)
+      const qs = q.toString()
+      return apiRequest<{
+        count: number
+        list: Array<{
+          id: number
+          journal_date: string
+          account_id: number
+          account_code: string
+          account_name: string
+          debit: number
+          credit: number
+          notes: string | null
+          reference_type: string
+          reference_id: number
+          entry_label: string
+          created_at: string
+        }>
+      }>(`/api/accounts/journal-lines${qs ? `?${qs}` : ''}`)
+    },
   },
 
   settings: {

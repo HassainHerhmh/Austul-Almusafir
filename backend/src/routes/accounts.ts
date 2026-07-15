@@ -89,6 +89,72 @@ accountsRouter.get(
 )
 
 accountsRouter.get(
+  '/journal-lines',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const from = typeof req.query.from === 'string' && req.query.from ? req.query.from : null
+    const to = typeof req.query.to === 'string' && req.query.to ? req.query.to : null
+    const accountIdRaw = typeof req.query.accountId === 'string' ? Number(req.query.accountId) : NaN
+    const accountId = Number.isFinite(accountIdRaw) && accountIdRaw > 0 ? accountIdRaw : null
+    const typesRaw = typeof req.query.types === 'string' ? req.query.types : ''
+    const types = typesRaw
+      ? typesRaw.split(',').map((t) => t.trim()).filter(Boolean)
+      : null
+
+    const dateWhere =
+      from && to
+        ? { journalDate: { gte: from, lte: to } }
+        : to
+          ? { journalDate: { lte: to } }
+          : from
+            ? { journalDate: { gte: from } }
+            : {}
+
+    const lines = await prisma.journalLine.findMany({
+      where: {
+        ...dateWhere,
+        ...(accountId ? { accountId } : {}),
+        ...(types?.length ? { referenceType: { in: types } } : {}),
+      },
+      include: { account: true },
+      orderBy: [{ journalDate: 'desc' }, { id: 'desc' }],
+      take: 1000,
+    })
+
+    const label = (t: string) => {
+      switch (t) {
+        case 'booking':
+          return 'تذكرة'
+        case 'booking_commission':
+          return 'عمولة'
+        case 'admin_settlement':
+          return 'تسديد (أدمن)'
+        default:
+          return t
+      }
+    }
+
+    return ok(res, {
+      count: lines.length,
+      list: lines.map((l) => ({
+        id: l.id,
+        journal_date: l.journalDate,
+        account_id: l.accountId,
+        account_code: l.account.code,
+        account_name: l.account.nameAr,
+        debit: l.debit,
+        credit: l.credit,
+        notes: l.notes,
+        reference_type: l.referenceType,
+        reference_id: l.referenceId,
+        entry_label: label(l.referenceType),
+        created_at: l.createdAt.toISOString(),
+      })),
+    })
+  }),
+)
+
+accountsRouter.get(
   '/:id/balance',
   asyncHandler(async (req, res) => {
     const id = Number(paramId(req))

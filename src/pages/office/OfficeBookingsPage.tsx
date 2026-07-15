@@ -42,6 +42,18 @@ export function OfficeBookingsPage() {
   const [error, setError] = useState<string | null>(null)
   const [ticketBooking, setTicketBooking] = useState<Booking | null>(null)
   const [changeSeatId, setChangeSeatId] = useState<string | null>(null)
+  const [editBooking, setEditBooking] = useState<Booking | null>(null)
+  const [editForm, setEditForm] = useState({
+    passengerName: '',
+    ticketNumber: '',
+    passportNumber: '',
+    boardingDestinationId: '',
+    arrivalDestinationId: '',
+    paymentMethod: 'cash' as PaymentMethod,
+    notes: '',
+  })
+  const [editError, setEditError] = useState<string | null>(null)
+  const [editBusy, setEditBusy] = useState(false)
 
   const selectedTrip = useMemo(
     () => state.trips.find((t) => t.id === tripId) ?? null,
@@ -146,6 +158,76 @@ export function OfficeBookingsPage() {
     const err = await updateBooking(bookingId, { seatNumber: newSeat })
     if (err) alert(err)
     else setChangeSeatId(null)
+  }
+
+  const openEdit = (b: Booking) => {
+    setEditBooking(b)
+    setEditForm({
+      passengerName: b.passengerName,
+      ticketNumber: b.ticketNumber || '',
+      passportNumber: b.passportNumber || '',
+      boardingDestinationId: b.boardingDestinationId || '',
+      arrivalDestinationId: b.arrivalDestinationId || '',
+      paymentMethod: b.paymentMethod,
+      notes: b.notes || '',
+    })
+    setEditError(null)
+  }
+
+  const editTrip = editBooking
+    ? state.trips.find((t) => t.id === editBooking.tripId) ?? null
+    : null
+
+  const editRouteStops = useMemo(() => {
+    if (!editTrip?.stops?.length) return []
+    const seen = new Set<string>()
+    return editTrip.stops.filter((s) => {
+      if (!s.destinationId || seen.has(s.destinationId)) return false
+      seen.add(s.destinationId)
+      return true
+    })
+  }, [editTrip])
+
+  const editBoardingStops =
+    editRouteStops.length < 2 ? editRouteStops : editRouteStops.slice(0, -1)
+
+  const editArrivalStops = useMemo(() => {
+    if (!editRouteStops.length || !editForm.boardingDestinationId) return []
+    const idx = editRouteStops.findIndex(
+      (s) => s.destinationId === editForm.boardingDestinationId,
+    )
+    if (idx < 0) return editRouteStops.slice(1)
+    return editRouteStops.slice(idx + 1)
+  }, [editRouteStops, editForm.boardingDestinationId])
+
+  const saveEdit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editBooking) return
+    if (!editForm.passengerName.trim()) {
+      setEditError('اسم الراكب مطلوب')
+      return
+    }
+    if (!editForm.boardingDestinationId || !editForm.arrivalDestinationId) {
+      setEditError('اختر مناطق الانطلاق والوصول')
+      return
+    }
+    setEditBusy(true)
+    setEditError(null)
+    const err = await updateBooking(editBooking.id, {
+      passengerName: editForm.passengerName.trim(),
+      ticketNumber: editForm.ticketNumber.trim(),
+      passportNumber: editForm.passportNumber.trim(),
+      boardingDestinationId: editForm.boardingDestinationId,
+      arrivalDestinationId: editForm.arrivalDestinationId,
+      paymentMethod: editForm.paymentMethod,
+      notes: editForm.notes.trim(),
+    })
+    setEditBusy(false)
+    if (err) {
+      setEditError(err)
+      return
+    }
+    setEditBooking(null)
   }
 
   return (
@@ -356,6 +438,15 @@ export function OfficeBookingsPage() {
                           <button
                             type="button"
                             className="btn btn-ghost btn-sm"
+                            onClick={() => openEdit(b)}
+                          >
+                            تعديل
+                          </button>
+                        )}
+                        {can('book') && b.status === 'confirmed' && (
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-sm"
                             onClick={() => setChangeSeatId(b.id)}
                           >
                             تغيير مقعد
@@ -414,6 +505,123 @@ export function OfficeBookingsPage() {
             <button type="button" className="btn btn-ghost" onClick={() => setChangeSeatId(null)}>
               إغلاق
             </button>
+          </div>
+        </div>
+      )}
+
+      {editBooking && (
+        <div className="modal-backdrop" onClick={() => setEditBooking(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h2>تعديل الحجز</h2>
+            <form onSubmit={(e) => void saveEdit(e)}>
+              <div className="form-grid">
+                <div className="field">
+                  <label>اسم الراكب</label>
+                  <input
+                    required
+                    value={editForm.passengerName}
+                    onChange={(e) =>
+                      setEditForm((f) => ({ ...f, passengerName: e.target.value }))
+                    }
+                  />
+                </div>
+                <div className="field">
+                  <label>رقم التذكرة</label>
+                  <input
+                    value={editForm.ticketNumber}
+                    onChange={(e) =>
+                      setEditForm((f) => ({ ...f, ticketNumber: e.target.value }))
+                    }
+                  />
+                </div>
+                <div className="field">
+                  <label>رقم الجواز</label>
+                  <input
+                    value={editForm.passportNumber}
+                    onChange={(e) =>
+                      setEditForm((f) => ({ ...f, passportNumber: e.target.value }))
+                    }
+                  />
+                </div>
+                <div className="field">
+                  <label>منطقة الانطلاق</label>
+                  <select
+                    required
+                    value={editForm.boardingDestinationId}
+                    onChange={(e) => {
+                      const boardId = e.target.value
+                      const idx = editRouteStops.findIndex((s) => s.destinationId === boardId)
+                      const nextArrivals =
+                        idx < 0 ? editRouteStops.slice(1) : editRouteStops.slice(idx + 1)
+                      setEditForm((f) => ({
+                        ...f,
+                        boardingDestinationId: boardId,
+                        arrivalDestinationId:
+                          nextArrivals[nextArrivals.length - 1]?.destinationId ?? '',
+                      }))
+                    }}
+                  >
+                    {editBoardingStops.map((s) => (
+                      <option key={s.destinationId} value={s.destinationId}>
+                        {getDestination(s.destinationId)?.name ?? s.destinationId}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="field">
+                  <label>منطقة الوصول</label>
+                  <select
+                    required
+                    value={editForm.arrivalDestinationId}
+                    onChange={(e) =>
+                      setEditForm((f) => ({ ...f, arrivalDestinationId: e.target.value }))
+                    }
+                  >
+                    {editArrivalStops.map((s) => (
+                      <option key={s.destinationId} value={s.destinationId}>
+                        {getDestination(s.destinationId)?.name ?? s.destinationId}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="field">
+                  <label>طريقة الدفع</label>
+                  <select
+                    value={editForm.paymentMethod}
+                    onChange={(e) =>
+                      setEditForm((f) => ({
+                        ...f,
+                        paymentMethod: e.target.value as PaymentMethod,
+                      }))
+                    }
+                  >
+                    <option value="cash">نقدي</option>
+                    <option value="transfer">تحويل</option>
+                    <option value="credit">آجل</option>
+                  </select>
+                </div>
+                <div className="field" style={{ gridColumn: '1 / -1' }}>
+                  <label>الملاحظات</label>
+                  <input
+                    value={editForm.notes}
+                    onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))}
+                  />
+                </div>
+              </div>
+              {editError && <p className="error-msg">{editError}</p>}
+              <div className="actions" style={{ marginTop: '1rem' }}>
+                <button type="submit" className="btn btn-primary" disabled={editBusy}>
+                  {editBusy ? 'جاري الحفظ…' : 'حفظ'}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => setEditBooking(null)}
+                >
+                  إلغاء
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

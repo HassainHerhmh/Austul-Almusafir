@@ -26,6 +26,7 @@ import TransitAccountsSettings from './pages/admin/accounts/setup/TransitAccount
 import { AdminBookingsPage } from './pages/admin/AdminBookingsPage'
 import { AdminHome } from './pages/admin/AdminHome'
 import { AdminReportsPage } from './pages/admin/AdminReportsPage'
+import { AdminJournalReviewPage } from './pages/admin/AdminJournalReviewPage'
 import { BusesPage } from './pages/admin/BusesPage'
 import { DestinationsPage } from './pages/admin/DestinationsPage'
 import { DriversPage } from './pages/admin/DriversPage'
@@ -95,6 +96,7 @@ export default function App() {
               </Route>
 
               <Route path="reports" element={<AdminReportsPage />} />
+              <Route path="journal-review" element={<AdminJournalReviewPage />} />
               <Route path="settings" element={<SettingsPage />} />
             </Route>
 

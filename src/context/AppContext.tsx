@@ -90,6 +90,8 @@ interface AppContextValue {
         | 'passengerName'
         | 'ticketNumber'
         | 'passportNumber'
+        | 'boardingDestinationId'
+        | 'arrivalDestinationId'
         | 'seatNumber'
         | 'status'
         | 'paymentMethod'

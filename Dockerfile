@@ -13,10 +13,13 @@ COPY backend/docker-entrypoint.sh ./docker-entrypoint.sh
 
 RUN chmod +x docker-entrypoint.sh
 
-# prisma generate يحتاج قيمة DATABASE_URL أثناء البناء فقط (ليست اتصال حقيقي)
-ENV DATABASE_URL="mysql://build:build@127.0.0.1:3306/build"
-RUN npx prisma generate && npx tsc
+# للاستخدام أثناء prisma generate فقط — يُمسَح بعدها حتى لا يبقى في التشغيل
+ARG PRISMA_BUILD_URL="mysql://build:build@127.0.0.1:3306/build"
+RUN DATABASE_URL="$PRISMA_BUILD_URL" npx prisma generate \
+  && DATABASE_URL="$PRISMA_BUILD_URL" npx tsc
 
+# لا تُثبّت DATABASE_URL في صورة التشغيل
+ENV DATABASE_URL=""
 ENV PORT=8080
 EXPOSE 8080
 

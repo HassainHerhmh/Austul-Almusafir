@@ -1,14 +1,20 @@
 import 'dotenv/config'
 
 /**
- * على Railway غالباً يتوفر MYSQL_URL وليس DATABASE_URL.
- * Prisma يحتاج DATABASE_URL دائماً.
+ * على Railway: MYSQL_URL / MYSQL_PUBLIC_URL لهما الأولوية على DATABASE_URL
+ * (حتى لا يبقى رابط البناء المحلي mysql://...@127.0.0.1).
  */
 export function ensureDatabaseUrl() {
-  if (!process.env.DATABASE_URL) {
-    if (process.env.MYSQL_URL) {
-      process.env.DATABASE_URL = process.env.MYSQL_URL
-    } else if (process.env.MYSQLHOST) {
+  const looksLocal = (url?: string) =>
+    !!url &&
+    (/127\.0\.0\.1|localhost|mysql:\/\/build:/.test(url) || url.includes('@build:'))
+
+  if (process.env.MYSQL_URL) {
+    process.env.DATABASE_URL = process.env.MYSQL_URL
+  } else if (process.env.MYSQL_PUBLIC_URL) {
+    process.env.DATABASE_URL = process.env.MYSQL_PUBLIC_URL
+  } else if (!process.env.DATABASE_URL || looksLocal(process.env.DATABASE_URL)) {
+    if (process.env.MYSQLHOST) {
       const user = encodeURIComponent(process.env.MYSQLUSER || 'root')
       const pass = encodeURIComponent(process.env.MYSQLPASSWORD || '')
       const host = process.env.MYSQLHOST
@@ -18,9 +24,9 @@ export function ensureDatabaseUrl() {
     }
   }
 
-  if (!process.env.DATABASE_URL) {
+  if (!process.env.DATABASE_URL || looksLocal(process.env.DATABASE_URL)) {
     throw new Error(
-      'DATABASE_URL غير موجود. أضفه في Railway أو استخدم MYSQL_URL من إضافة MySQL.',
+      'DATABASE_URL غير صحيح. على Railway: اربط MySQL بالخدمة وأضف متغير MYSQL_URL (Variable reference).',
     )
   }
 }

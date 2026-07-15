@@ -597,16 +597,63 @@ function handleGet(url: string, config?: { params?: Record<string, any> }): any 
     return ok({ tree: buildAccountTree(list), list })
   }
   if (path === '/accounts/main-for-cashboxes') {
+    // كل حسابات الأصول الأب (رئيسي أو لها أبناء)
+    const parentIds = new Set(
+      store.accounts.map((a) => a.parent_id).filter((id): id is number => id != null),
+    )
+    const byId = new Map(store.accounts.map((a) => [a.id, a]))
+    const assetsRoot =
+      store.accounts.find((a) => a.code === '1') ||
+      store.accounts.find((a) => a.name_ar === 'الأصول')
+
+    const underAssets = (a: Account) => {
+      if (!assetsRoot) return a.code === '1' || a.code.startsWith('1')
+      let cur: Account | undefined = a
+      while (cur) {
+        if (cur.id === assetsRoot.id) return true
+        cur = cur.parent_id != null ? byId.get(cur.parent_id) : undefined
+      }
+      return false
+    }
+
     const accounts = store.accounts
-      .filter((a) => a.account_level === 'رئيسي' && /صندوق|نقد|أصول|متداول/i.test(a.name_ar + (a.name_en || '')))
-    const fallback = store.accounts.filter((a) => a.account_level === 'رئيسي')
-    return ok({ accounts: (accounts.length ? accounts : fallback).map(enrichAccount) })
+      .filter(
+        (a) =>
+          underAssets(a) &&
+          (a.account_level === 'رئيسي' || parentIds.has(a.id)),
+      )
+      .map(enrichAccount)
+      .sort((a, b) => a.code.localeCompare(b.code, 'ar'))
+    return ok({ accounts, list: accounts })
   }
   if (path === '/accounts/main-for-banks') {
+    const parentIds = new Set(
+      store.accounts.map((a) => a.parent_id).filter((id): id is number => id != null),
+    )
+    const byId = new Map(store.accounts.map((a) => [a.id, a]))
+    const assetsRoot =
+      store.accounts.find((a) => a.code === '1') ||
+      store.accounts.find((a) => a.name_ar === 'الأصول')
+
+    const underAssets = (a: Account) => {
+      if (!assetsRoot) return a.code === '1' || a.code.startsWith('1')
+      let cur: Account | undefined = a
+      while (cur) {
+        if (cur.id === assetsRoot.id) return true
+        cur = cur.parent_id != null ? byId.get(cur.parent_id) : undefined
+      }
+      return false
+    }
+
     const accounts = store.accounts
-      .filter((a) => a.account_level === 'رئيسي' && /بنك|أصول|متداول/i.test(a.name_ar + (a.name_en || '')))
-    const fallback = store.accounts.filter((a) => a.account_level === 'رئيسي')
-    return ok({ accounts: (accounts.length ? accounts : fallback).map(enrichAccount) })
+      .filter(
+        (a) =>
+          underAssets(a) &&
+          (a.account_level === 'رئيسي' || parentIds.has(a.id)),
+      )
+      .map(enrichAccount)
+      .sort((a, b) => a.code.localeCompare(b.code, 'ar'))
+    return ok({ accounts, list: accounts })
   }
   if (path === '/accounts/sub-for-ceiling') {
     const parentIds = new Set(

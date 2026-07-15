@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import api from '../../../../api/accountingApi';
+import { serverApi } from '../../../../api/serverApi';
 import { DEFAULT_BRANCH_NAME } from "../constants";
 
 /* =========================
@@ -25,7 +26,54 @@ type Account = {
   id: number;
   code: string;
   name_ar: string;
+  parent_id?: number | null;
+  account_level?: string;
 };
+
+/** كل حسابات الأصول الأب (رئيسي أو لها أبناء) لاختيار أب الصندوق */
+function assetParentAccounts(list: any[]): Account[] {
+  const rows = list.map((a) => ({
+    id: Number(a.id),
+    code: String(a.code ?? ""),
+    name_ar: a.name_ar ?? a.nameAr ?? "",
+    parent_id: a.parent_id ?? a.parentId ?? null,
+    account_level: a.account_level ?? a.accountLevel ?? "",
+  }));
+  const byId = new Map(rows.map((a) => [a.id, a]));
+  const assetsRoot =
+    rows.find((a) => a.code === "1") ||
+    rows.find((a) => a.name_ar === "الأصول");
+
+  const underAssets = (a: Account) => {
+    if (!assetsRoot) return a.code === "1" || a.code.startsWith("1");
+    let cur: Account | undefined = a;
+    while (cur) {
+      if (cur.id === assetsRoot.id) return true;
+      cur =
+        cur.parent_id != null ? byId.get(Number(cur.parent_id)) : undefined;
+    }
+    return false;
+  };
+
+  const parentIds = new Set(
+    rows.map((a) => a.parent_id).filter((id): id is number => id != null),
+  );
+
+  const seen = new Set<string>();
+  return rows
+    .filter(
+      (a) =>
+        underAssets(a) &&
+        (a.account_level === "رئيسي" || parentIds.has(a.id)),
+    )
+    .filter((a) => {
+      const key = a.code || String(a.id);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .sort((a, b) => a.code.localeCompare(b.code, "ar"));
+}
 
 /* =========================
    Component
@@ -63,8 +111,15 @@ const CashBoxes: React.FC = () => {
   };
 
   const loadAccounts = async () => {
-    const res = await api.get("/accounts/main-for-cashboxes");
-    if (res.data.success) setAccounts(res.data.accounts);
+    try {
+      const res = await serverApi.accounts.list();
+      setAccounts(assetParentAccounts(res.list ?? []));
+    } catch {
+      const res = await api.get("/accounts/main-for-cashboxes");
+      if (res.data.success) {
+        setAccounts(assetParentAccounts(res.data.accounts || res.data.list || []));
+      }
+    }
   };
 
   useEffect(() => {

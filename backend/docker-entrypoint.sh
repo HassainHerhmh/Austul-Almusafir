@@ -1,30 +1,33 @@
 #!/bin/sh
 set -e
 
-# تفضيل متغيرات MySQL من Railway دائماً (لا تستخدم DATABASE_URL الخاص بالبناء)
-if [ -n "$MYSQL_URL" ]; then
-  export DATABASE_URL="$MYSQL_URL"
-elif [ -n "$MYSQL_PUBLIC_URL" ]; then
+# على بعض مشاريع Railway العنوان الداخلي (.internal) يفشل —
+# نفضّل MYSQL_PUBLIC_URL ثم MYSQL_URL ثم بناء الرابط يدوياً
+if [ -n "$MYSQL_PUBLIC_URL" ]; then
   export DATABASE_URL="$MYSQL_PUBLIC_URL"
+elif [ -n "$DATABASE_URL" ] && ! echo "$DATABASE_URL" | grep -Eq '127\.0\.0\.1|localhost|mysql://build:'; then
+  : # استخدم DATABASE_URL إن كان مضبوطاً وليس وهمي البناء
+elif [ -n "$MYSQL_URL" ]; then
+  export DATABASE_URL="$MYSQL_URL"
 elif [ -n "$MYSQLHOST" ]; then
   export DATABASE_URL="mysql://${MYSQLUSER}:${MYSQLPASSWORD}@${MYSQLHOST}:${MYSQLPORT:-3306}/${MYSQLDATABASE}"
 fi
 
-# تجاهل رابط البناء الوهمي إن وُجد
 case "$DATABASE_URL" in
-  *127.0.0.1*|*localhost*|*@build:*|*://build:*)
-    echo "ERROR: DATABASE_URL ما زال يشير لمحلي ($DATABASE_URL)"
-    echo "اربط خدمة MySQL بالمشروع ومرّر MYSQL_URL إلى خدمة الـ API (Variable reference)."
+  *127.0.0.1*|*localhost*|*://build:*)
+    echo "ERROR: DATABASE_URL محلي/وهمي: $DATABASE_URL"
     exit 1
     ;;
 esac
 
 if [ -z "$DATABASE_URL" ]; then
-  echo "ERROR: أضف MYSQL_URL أو DATABASE_URL لخدمة الـ API على Railway"
+  echo "ERROR: على خدمة الـ API أضف:"
+  echo "  DATABASE_URL = \${{MySQL.MYSQL_PUBLIC_URL}}"
+  echo "  أو MYSQL_PUBLIC_URL عبر Variable Reference"
+  echo "  و JWT_SECRET"
   exit 1
 fi
 
-echo "Using database host from DATABASE_URL…"
 echo "Prisma db push…"
 npx prisma db push --skip-generate
 echo "Seed…"

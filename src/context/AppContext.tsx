@@ -26,6 +26,7 @@ import type {
   PaymentMethod,
   Role,
   Trip,
+  TripStatus,
   User,
   Voucher,
 } from '../types'
@@ -469,27 +470,97 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const res = trip.id
       ? await serverApi.trips.update(trip.id, payload)
       : await serverApi.trips.create(payload)
-    setState((s) => ({ ...s, trips: upsertById(s.trips, res.trip) }))
+    setState((s) => ({
+      ...s,
+      trips: upsertById(s.trips, normalizeTrip(res.trip as Parameters<typeof normalizeTrip>[0])),
+    }))
+  }
+
+  const patchTripLocal = (id: string, status: TripStatus) => {
+    setState((s) => ({
+      ...s,
+      trips: s.trips.map((t) => (t.id === id ? { ...t, status } : t)),
+    }))
+  }
+
+  const applyTripResponse = (trip: unknown) => {
+    if (!trip || typeof trip !== 'object' || !('id' in trip)) return
+    setState((s) => ({
+      ...s,
+      trips: upsertById(s.trips, normalizeTrip(trip as Parameters<typeof normalizeTrip>[0])),
+    }))
   }
 
   const cancelTrip = async (id: string) => {
-    const res = await serverApi.trips.cancel(id)
-    setState((s) => ({ ...s, trips: upsertById(s.trips, res.trip) }))
+    let prev: TripStatus | undefined
+    setState((s) => {
+      prev = s.trips.find((t) => t.id === id)?.status
+      return {
+        ...s,
+        trips: s.trips.map((t) => (t.id === id ? { ...t, status: 'cancelled' as const } : t)),
+      }
+    })
+    try {
+      const res = await serverApi.trips.cancel(id)
+      applyTripResponse(res.trip)
+    } catch (err) {
+      if (prev) patchTripLocal(id, prev)
+      throw err
+    }
   }
 
   const openTrip = async (id: string) => {
-    const res = await serverApi.trips.open(id)
-    setState((s) => ({ ...s, trips: upsertById(s.trips, res.trip) }))
+    let prev: TripStatus | undefined
+    setState((s) => {
+      prev = s.trips.find((t) => t.id === id)?.status
+      return {
+        ...s,
+        trips: s.trips.map((t) => (t.id === id ? { ...t, status: 'open' as const } : t)),
+      }
+    })
+    try {
+      const res = await serverApi.trips.open(id)
+      applyTripResponse(res.trip)
+    } catch (err) {
+      if (prev) patchTripLocal(id, prev)
+      throw err
+    }
   }
 
   const closeTrip = async (id: string) => {
-    const res = await serverApi.trips.close(id)
-    setState((s) => ({ ...s, trips: upsertById(s.trips, res.trip) }))
+    let prev: TripStatus | undefined
+    setState((s) => {
+      prev = s.trips.find((t) => t.id === id)?.status
+      return {
+        ...s,
+        trips: s.trips.map((t) => (t.id === id ? { ...t, status: 'closed' as const } : t)),
+      }
+    })
+    try {
+      const res = await serverApi.trips.close(id)
+      applyTripResponse(res.trip)
+    } catch (err) {
+      if (prev) patchTripLocal(id, prev)
+      throw err
+    }
   }
 
   const reopenTrip = async (id: string) => {
-    const res = await serverApi.trips.reopen(id)
-    setState((s) => ({ ...s, trips: upsertById(s.trips, res.trip) }))
+    let prev: TripStatus | undefined
+    setState((s) => {
+      prev = s.trips.find((t) => t.id === id)?.status
+      return {
+        ...s,
+        trips: s.trips.map((t) => (t.id === id ? { ...t, status: 'open' as const } : t)),
+      }
+    })
+    try {
+      const res = await serverApi.trips.reopen(id)
+      applyTripResponse(res.trip)
+    } catch (err) {
+      if (prev) patchTripLocal(id, prev)
+      throw err
+    }
   }
 
   const upsertCustomer: AppContextValue['upsertCustomer'] = async (customer) => {

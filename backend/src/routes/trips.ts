@@ -216,8 +216,14 @@ tripsRouter.post(
   '/:id/open',
   requireAdmin,
   asyncHandler(async (req, res) => {
-    const existing = await prisma.trip.findUnique({ where: { id: paramId(req) } })
+    const existing = await prisma.trip.findUnique({
+      where: { id: paramId(req) },
+      include: { stops: true },
+    })
     if (!existing) return fail(res, 'الرحلة غير موجودة', 404)
+    if (existing.status === 'open') {
+      return ok(res, { trip: mapTrip(existing) })
+    }
     if (existing.status !== 'scheduled' && existing.status !== 'closed') {
       return fail(res, 'يمكن فتح الرحلات المجدولة أو المقفلة فقط')
     }
@@ -234,8 +240,14 @@ tripsRouter.post(
   '/:id/close',
   requireAdmin,
   asyncHandler(async (req, res) => {
-    const existing = await prisma.trip.findUnique({ where: { id: paramId(req) } })
+    const existing = await prisma.trip.findUnique({
+      where: { id: paramId(req) },
+      include: { stops: true },
+    })
     if (!existing) return fail(res, 'الرحلة غير موجودة', 404)
+    if (existing.status === 'closed') {
+      return ok(res, { trip: mapTrip(existing) })
+    }
     if (existing.status !== 'open') {
       return fail(res, 'يمكن إقفال الرحلات المفتوحة فقط')
     }
@@ -252,8 +264,14 @@ tripsRouter.post(
   '/:id/reopen',
   requireAdmin,
   asyncHandler(async (req, res) => {
-    const existing = await prisma.trip.findUnique({ where: { id: paramId(req) } })
+    const existing = await prisma.trip.findUnique({
+      where: { id: paramId(req) },
+      include: { stops: true },
+    })
     if (!existing) return fail(res, 'الرحلة غير موجودة', 404)
+    if (existing.status === 'open') {
+      return ok(res, { trip: mapTrip(existing) })
+    }
     if (existing.status !== 'closed' && existing.status !== 'departed') {
       return fail(res, 'يمكن إعادة فتح الرحلات المقفلة فقط')
     }

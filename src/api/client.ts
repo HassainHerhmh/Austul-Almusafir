@@ -32,10 +32,16 @@ export async function apiRequest<T extends Record<string, unknown>>(
   if (!headers.has('Content-Type') && options.body) {
     headers.set('Content-Type', 'application/json')
   }
+  headers.set('Cache-Control', 'no-cache')
+  headers.set('Pragma', 'no-cache')
   const token = getToken()
   if (token) headers.set('Authorization', `Bearer ${token}`)
 
-  const res = await fetch(`${API_BASE}${path}`, { ...options, headers })
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers,
+    cache: 'no-store',
+  })
   let data: ApiOk<T> | ApiFail
   try {
     data = (await res.json()) as ApiOk<T> | ApiFail

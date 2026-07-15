@@ -60,7 +60,11 @@ export function normalizeTrip(trip: LegacyTrip): Trip {
     date: trip.date,
     departureTime: trip.departureTime,
     price: trip.price,
-    status: trip.status,
+    status: (['scheduled', 'open', 'closed', 'departed', 'cancelled', 'completed'] as const).includes(
+      trip.status as never,
+    )
+      ? (trip.status as Trip['status'])
+      : 'scheduled',
     stops,
   }
 }

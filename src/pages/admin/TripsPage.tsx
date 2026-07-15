@@ -242,7 +242,10 @@ export function TripsPage() {
                                 type="button"
                                 className="btn btn-primary btn-sm"
                                 onClick={() => {
-                                  if (confirm('فتح الرحلة للحجز عند الوكلاء؟')) void openTrip(t.id)
+                                  if (!confirm('فتح الرحلة للحجز عند الوكلاء؟')) return
+                                  void openTrip(t.id).catch((err: unknown) => {
+                                    alert(err instanceof Error ? err.message : 'تعذر فتح الرحلة')
+                                  })
                                 }}
                               >
                                 فتح
@@ -251,7 +254,10 @@ export function TripsPage() {
                                 type="button"
                                 className="btn btn-danger btn-sm"
                                 onClick={() => {
-                                  if (confirm('إلغاء الرحلة؟')) void cancelTrip(t.id)
+                                  if (!confirm('إلغاء الرحلة؟')) return
+                                  void cancelTrip(t.id).catch((err: unknown) => {
+                                    alert(err instanceof Error ? err.message : 'تعذر إلغاء الرحلة')
+                                  })
                                 }}
                               >
                                 إلغاء
@@ -265,11 +271,14 @@ export function TripsPage() {
                                 className="btn btn-amber btn-sm"
                                 onClick={() => {
                                   if (
-                                    confirm(
+                                    !confirm(
                                       'إقفال الرحلة؟ لن يتمكن الوكلاء من الحجز عليها بعد الإقفال.',
                                     )
                                   )
-                                    void closeTrip(t.id)
+                                    return
+                                  void closeTrip(t.id).catch((err: unknown) => {
+                                    alert(err instanceof Error ? err.message : 'تعذر إقفال الرحلة')
+                                  })
                                 }}
                               >
                                 إقفال
@@ -278,7 +287,10 @@ export function TripsPage() {
                                 type="button"
                                 className="btn btn-danger btn-sm"
                                 onClick={() => {
-                                  if (confirm('إلغاء الرحلة؟')) void cancelTrip(t.id)
+                                  if (!confirm('إلغاء الرحلة؟')) return
+                                  void cancelTrip(t.id).catch((err: unknown) => {
+                                    alert(err instanceof Error ? err.message : 'تعذر إلغاء الرحلة')
+                                  })
                                 }}
                               >
                                 إلغاء
@@ -290,7 +302,10 @@ export function TripsPage() {
                               type="button"
                               className="btn btn-ghost btn-sm"
                               onClick={() => {
-                                if (confirm('إعادة فتح الرحلة للحجز؟')) void reopenTrip(t.id)
+                                if (!confirm('إعادة فتح الرحلة للحجز؟')) return
+                                void reopenTrip(t.id).catch((err: unknown) => {
+                                  alert(err instanceof Error ? err.message : 'تعذر إعادة الفتح')
+                                })
                               }}
                             >
                               إعادة فتح

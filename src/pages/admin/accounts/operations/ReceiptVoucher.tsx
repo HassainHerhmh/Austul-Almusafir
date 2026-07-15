@@ -14,10 +14,14 @@ type Voucher = {
   receiptType: "cash" | "bank" | "";
   cashBox?: string;
   bankAccount?: string;
+  cashBoxId?: number | null;
+  bankAccountId?: number | null;
   transferNo?: string;
   currency: string;
+  currencyId?: number | null;
   amount: string;
   account: string;
+  accountId?: number | null;
   analyticAccount?: string;
   costCenter?: string;
   notes?: string;
@@ -135,10 +139,10 @@ const ReceiptVoucher: React.FC = () => {
   };
 
 useEffect(() => {
-  if (cashBoxes.length || bankAccounts.length) {
+  if (cashBoxes.length || bankAccounts.length || accounts.length) {
     loadVouchers();
   }
-}, [cashBoxes, bankAccounts]);
+}, [cashBoxes, bankAccounts, accounts]);
 
 
  const fetchCashBoxes = async () => {
@@ -247,6 +251,11 @@ const getValidatedPayload = () => {
     return null;
   }
 
+  const accountId = Number(form.account);
+  const currencyId = Number(form.currency_id);
+  const selectedAccount = accounts.find((a) => a.id === accountId);
+  const selectedCurrency = currencies.find((c) => c.id === currencyId);
+
   return {
     voucher_no: form.voucherNo,
     voucher_date: form.date,
@@ -256,9 +265,11 @@ const getValidatedPayload = () => {
     bank_account_id:
       form.receiptType === "bank" ? Number(form.bankAccount) : null,
     transfer_no: form.transferNo || null,
-    currency_id: Number(form.currency_id),
+    currency_id: currencyId,
+    currency_name: selectedCurrency?.name_ar || form.currency || null,
     amount: Number(form.amount),
-    account_id: Number(form.account),
+    account_id: accountId,
+    account_name: selectedAccount?.name_ar || null,
     analytic_account_id: form.analyticAccount || null,
     cost_center_id: form.costCenter || null,
     journal_type_id: form.journalTypeId ? Number(form.journalTypeId) : null,
@@ -278,38 +289,41 @@ const loadVouchers = async () => {
   if (res.data.success) {
     setList(
       res.data.list.map((v: any) => {
-        const cashBoxName =
-          v.cash_box_account_id
-            ? cashBoxes.find(c => c.id === v.cash_box_account_id)?.name_ar || ""
-            : "";
-
-        const bankAccountName =
-          v.bank_account_id
-            ? bankAccounts.find(b => b.id === v.bank_account_id)?.name_ar || ""
-            : "";
+        const cashBox =
+          v.cash_box_account_id != null
+            ? cashBoxes.find((c) => c.id === v.cash_box_account_id)
+            : undefined;
+        const bank =
+          v.bank_account_id != null
+            ? bankAccounts.find((b) => b.id === v.bank_account_id)
+            : undefined;
+        const acc =
+          v.account_id != null
+            ? accounts.find((a) => a.id === v.account_id)
+            : undefined;
 
         return {
           id: v.id,
           voucherNo: v.voucher_no,
-          date: v.voucher_date.split("T")[0],
+          date: String(v.voucher_date || "").split("T")[0],
           receiptType: v.receipt_type,
-
-          // ✅ أسماء للعرض
-          cashBox: cashBoxName, 
-          bankAccount: bankAccountName,
-
+          cashBox: cashBox?.name_ar || "",
+          bankAccount: bank?.name_ar || "",
+          cashBoxId: v.cash_box_account_id ?? null,
+          bankAccountId: v.bank_account_id ?? null,
           transferNo: v.transfer_no,
           currency: v.currency_name,
+          currencyId: v.currency_id ?? null,
           amount: String(v.amount),
-          account: v.account_name,
-
+          account: acc?.name_ar || v.account_name || "",
+          accountId: v.account_id ?? null,
           analyticAccount: v.analytic_account_id,
           costCenter: v.cost_center_id,
           notes: v.notes,
           handling: v.handling,
           createdAt: v.created_at,
-     user: v.user_name || "—",     // بدل الرقم
-  branch: v.branch_name || DEFAULT_BRANCH_NAME,
+          user: v.user_name || "—",
+          branch: v.branch_name || DEFAULT_BRANCH_NAME,
         };
       })
     );
@@ -426,26 +440,43 @@ const openEdit = () => {
   const v = list.find(x => x.id === selectedId);
   if (!v) return;
 
+  const accountId =
+    v.accountId != null
+      ? String(v.accountId)
+      : accounts.find((a) => a.name_ar === v.account)?.id?.toString() || "";
+  const currencyId =
+    v.currencyId != null
+      ? String(v.currencyId)
+      : currencies.find((c) => c.name_ar === v.currency)?.id?.toString() || "";
+  const cashBoxId =
+    v.cashBoxId != null
+      ? String(v.cashBoxId)
+      : v.cashBox
+        ? String(cashBoxes.find((c) => c.name_ar === v.cashBox)?.id || "")
+        : "";
+  const bankAccountId =
+    v.bankAccountId != null
+      ? String(v.bankAccountId)
+      : v.bankAccount
+        ? String(bankAccounts.find((b) => b.name_ar === v.bankAccount)?.id || "")
+        : "";
+
   setForm({
     voucherNo: v.voucherNo,
     date: v.date,
     receiptType: v.receiptType,
-    cashBox: v.cashBox ? String(
-      cashBoxes.find(c => c.name_ar === v.cashBox)?.id || ""
-    ) : "",
-    bankAccount: v.bankAccount ? String(
-      bankAccounts.find(b => b.name_ar === v.bankAccount)?.id || ""
-    ) : "",
+    cashBox: cashBoxId,
+    bankAccount: bankAccountId,
     transferNo: v.transferNo || "",
-    currency_id: currencies.find(c => c.name_ar === v.currency)?.id?.toString() || "",
+    currency_id: currencyId,
     currency: v.currency,
     amount: v.amount,
-    account: accounts.find(a => a.name_ar === v.account)?.id?.toString() || "",
+    account: accountId,
     analyticAccount: v.analyticAccount || "",
     costCenter: v.costCenter || "",
     handling: v.handling || "",
     notes: v.notes || "",
-    journalTypeId: "", // Could be set from v if available in future
+    journalTypeId: "",
   });
 
   setShowModal(true);

@@ -302,7 +302,7 @@ function entryLabel(referenceType: string): string {
     case 'admin_settlement':
       return 'تسديد (أدمن)'
     case 'manual_journal':
-      return 'قيد يومي'
+      return 'سند قيد'
     default:
       return referenceType
   }

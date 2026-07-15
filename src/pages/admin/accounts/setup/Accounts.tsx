@@ -246,16 +246,14 @@ const Accounts = () => {
     setForm((prev) => {
       const nextFinancial =
         selectedParent?.financial_statement || getRootFinancialStatement(prev.name_ar);
-      const nextLevel: AccountLevel = form.parent ? "فرعي" : prev.level;
 
-      if (prev.financial === nextFinancial && prev.level === nextLevel) {
+      if (prev.financial === nextFinancial) {
         return prev;
       }
 
       return {
         ...prev,
         financial: nextFinancial,
-        level: nextLevel,
       };
     });
   }, [form.parent, form.name_ar, accountsList]);
@@ -289,7 +287,7 @@ const Accounts = () => {
       name_en: form.name_en || null,
       parent_id: form.parent ? Number(form.parent) : null,
       account_group_id: form.group ? Number(form.group) : null,
-      account_level: form.parent ? ("فرعي" as const) : form.level,
+      account_level: form.level,
       financial_statement: form.financial || null,
     };
 
@@ -318,7 +316,7 @@ const Accounts = () => {
       name_en: form.name_en || null,
       parent_id: form.parent ? Number(form.parent) : null,
       account_group_id: form.group ? Number(form.group) : null,
-      account_level: form.parent ? ("فرعي" as const) : form.level,
+      account_level: form.level,
       financial_statement: form.financial || null,
     };
 
@@ -349,7 +347,7 @@ const Accounts = () => {
             <FloatingSelect
               label="حساب الأب"
               value={form.parent}
-              onChange={(v) => setForm({ ...form, parent: v, level: v ? "فرعي" : form.level })}
+              onChange={(v) => setForm({ ...form, parent: v })}
               options={mainAccountsOptions}
             />
 
@@ -389,7 +387,6 @@ const Accounts = () => {
                 { value: "رئيسي", label: "رئيسي" },
                 { value: "فرعي", label: "فرعي" },
               ]}
-              disabled={Boolean(form.parent)}
             />
 
             <FloatingSelect

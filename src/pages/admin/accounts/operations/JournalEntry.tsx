@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import api from '../../../../api/accountingApi'
 import { serverApi } from '../../../../api/serverApi'
 import { DEFAULT_BRANCH_NAME } from '../constants'
@@ -24,6 +24,8 @@ type Row = {
   currency_name: string
   from_account: string
   to_account: string
+  debit_account_id: number
+  credit_account_id: number
   notes: string
   user_name: string
   branch_name: string
@@ -35,11 +37,14 @@ const JournalEntry: React.FC = () => {
   const [accounts, setAccounts] = useState<Account[]>([])
   const [currencies, setCurrencies] = useState<Currency[]>([])
   const [rows, setRows] = useState<Row[]>([])
-  const [filtered, setFiltered] = useState<Row[]>([])
 
   const [showModal, setShowModal] = useState(false)
   const [selectedRow, setSelectedRow] = useState<Row | null>(null)
+  const [editRef, setEditRef] = useState<number | null>(null)
   const [busy, setBusy] = useState(false)
+
+  const [filterDate, setFilterDate] = useState(today)
+  const [allDates, setAllDates] = useState(false)
 
   const [date, setDate] = useState(today)
   const [amount, setAmount] = useState('')
@@ -60,20 +65,21 @@ const JournalEntry: React.FC = () => {
     void loadRows()
   }, [])
 
-  useEffect(() => {
-    const q = search.trim()
-    if (!q) setFiltered(rows)
-    else {
-      setFiltered(
-        rows.filter(
-          (r) =>
-            r.from_account.includes(q) ||
-            r.to_account.includes(q) ||
-            (r.notes || '').includes(q),
-        ),
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return rows.filter((r) => {
+      const matchDate =
+        allDates || (r.journal_date && r.journal_date.slice(0, 10) === filterDate)
+      if (!matchDate) return false
+      if (!q) return true
+      return (
+        r.from_account.toLowerCase().includes(q) ||
+        r.to_account.toLowerCase().includes(q) ||
+        (r.notes || '').toLowerCase().includes(q) ||
+        String(r.reference_id).includes(q)
       )
-    }
-  }, [search, rows])
+    })
+  }, [rows, search, filterDate, allDates])
 
   const fetchAccounts = async () => {
     try {
@@ -141,6 +147,8 @@ const JournalEntry: React.FC = () => {
           to_account: credit
             ? `${credit.account_code} — ${credit.account_name}`
             : '—',
+          debit_account_id: debit?.account_id || 0,
+          credit_account_id: credit?.account_id || 0,
           notes: debit?.notes || credit?.notes || '',
           user_name: 'مدير النظام',
           branch_name: DEFAULT_BRANCH_NAME,
@@ -148,12 +156,16 @@ const JournalEntry: React.FC = () => {
       })
       mapped.sort((a, b) => b.journal_date.localeCompare(a.journal_date) || b.id - a.id)
       setRows(mapped)
-      setFiltered(mapped)
     } catch {
       const res = await api.get('/journal-entries')
       if (res.data?.success) {
-        setRows(res.data.list || [])
-        setFiltered(res.data.list || [])
+        setRows(
+          (res.data.list || []).map((r: any) => ({
+            ...r,
+            debit_account_id: r.debit_account_id || 0,
+            credit_account_id: r.credit_account_id || 0,
+          })),
+        )
       }
     }
   }
@@ -167,11 +179,31 @@ const JournalEntry: React.FC = () => {
     setToAccount('')
     setToAccountName('')
     setNotes('')
-    setSelectedRow(null)
+    setEditRef(null)
   }
 
   const openAdd = () => {
     resetForm()
+    setShowModal(true)
+  }
+
+  const openEdit = (row?: Row | null) => {
+    const target = row ?? selectedRow
+    if (!target) {
+      alert('حدد قيدًا أولاً')
+      return
+    }
+    const debitAcc = accounts.find((a) => a.id === target.debit_account_id)
+    const creditAcc = accounts.find((a) => a.id === target.credit_account_id)
+    setSelectedRow(target)
+    setEditRef(target.reference_id)
+    setDate(target.journal_date.slice(0, 10))
+    setAmount(String(target.amount))
+    setFromAccount(String(target.debit_account_id || ''))
+    setFromAccountName(debitAcc?.name_ar || target.from_account)
+    setToAccount(String(target.credit_account_id || ''))
+    setToAccountName(creditAcc?.name_ar || target.to_account)
+    setNotes(target.notes || '')
     setShowModal(true)
   }
 
@@ -207,18 +239,25 @@ const JournalEntry: React.FC = () => {
       return
     }
 
+    const payload = {
+      journal_date: date,
+      amount: Number(amount),
+      debit_account_id: Number(fromAccount),
+      credit_account_id: Number(toAccount),
+      notes: notes || 'قيد يومي',
+    }
+
     setBusy(true)
     try {
-      await serverApi.accounts.createManualJournal({
-        journal_date: date,
-        amount: Number(amount),
-        debit_account_id: Number(fromAccount),
-        credit_account_id: Number(toAccount),
-        notes: notes || 'قيد يومي',
-      })
+      if (editRef) {
+        await serverApi.accounts.updateManualJournal(editRef, payload)
+      } else {
+        await serverApi.accounts.createManualJournal(payload)
+      }
       await loadRows()
       setShowModal(false)
       resetForm()
+      setSelectedRow(null)
     } catch (err) {
       alert(err instanceof Error ? err.message : 'فشل حفظ القيد')
     } finally {
@@ -300,8 +339,21 @@ const JournalEntry: React.FC = () => {
           </button>
           <button
             type="button"
+            onClick={() => openEdit()}
+            disabled={!selectedRow}
+            className={`acc-btn acc-btn-outline px-4 py-2 rounded-lg ${
+              !selectedRow ? 'cursor-not-allowed opacity-50' : ''
+            }`}
+          >
+            تعديل
+          </button>
+          <button
+            type="button"
             onClick={() => void remove()}
-            className="acc-btn acc-btn-danger px-4 py-2 rounded-lg"
+            disabled={!selectedRow}
+            className={`acc-btn acc-btn-danger px-4 py-2 rounded-lg ${
+              !selectedRow ? 'cursor-not-allowed opacity-50' : ''
+            }`}
           >
             حذف
           </button>
@@ -320,6 +372,29 @@ const JournalEntry: React.FC = () => {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
+      </div>
+
+      <div className="flex justify-between items-center px-1">
+        <div className="acc-muted text-sm">
+          {allDates ? 'عرض كل التواريخ' : `عرض يوم ${filterDate}`}
+        </div>
+        <div className="flex items-center gap-3">
+          <input
+            type="date"
+            className="acc-input w-40"
+            disabled={allDates}
+            value={filterDate}
+            onChange={(e) => setFilterDate(e.target.value)}
+          />
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={allDates}
+              onChange={(e) => setAllDates(e.target.checked)}
+            />
+            كل التواريخ
+          </label>
+        </div>
       </div>
 
       <div className="acc-table-wrap">
@@ -342,6 +417,7 @@ const JournalEntry: React.FC = () => {
                 <tr
                   key={r.reference_id}
                   onClick={() => setSelectedRow(r)}
+                  onDoubleClick={() => openEdit(r)}
                   className={`cursor-pointer ${
                     selectedRow?.reference_id === r.reference_id ? 'acc-row-selected' : ''
                   }`}
@@ -373,7 +449,9 @@ const JournalEntry: React.FC = () => {
             className="acc-modal-panel w-full max-w-[720px] space-y-4 rounded-xl p-6"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="acc-heading text-center text-lg">إضافة قيد يومي</h3>
+            <h3 className="acc-heading text-center text-lg">
+              {editRef ? 'تعديل قيد يومي' : 'إضافة قيد يومي'}
+            </h3>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div>
@@ -474,7 +552,7 @@ const JournalEntry: React.FC = () => {
                 disabled={busy}
                 className="acc-btn acc-btn-primary rounded-lg px-5 py-2"
               >
-                {busy ? 'جاري الحفظ…' : 'حفظ'}
+                {busy ? 'جاري الحفظ…' : editRef ? 'حفظ التعديل' : 'حفظ'}
               </button>
             </div>
           </div>

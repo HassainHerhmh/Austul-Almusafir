@@ -34,29 +34,10 @@ function mapAccount(
   }
 }
 
-/** حساب قابل للترحيل: فرعي، أو له أب وليس أباً لحساب آخر */
+/** حساب قابل للترحيل: المستوى فرعي فقط (الأب تحت الأب يبقى رئيسي ولا يُرحَّل عليه) */
 async function listPostableAccounts() {
   const all = await prisma.account.findMany({ orderBy: { code: 'asc' } })
-  const parentIds = new Set(
-    all.map((a) => a.parentId).filter((id): id is number => id != null),
-  )
-
-  const postable = all.filter(
-    (a) =>
-      a.accountLevel === 'فرعي' ||
-      (a.parentId != null && !parentIds.has(a.id)),
-  )
-
-  // أصلح المستوى إن كان حساباً ورقياً ومصنّفاً خطأً كرئيسي
-  for (const a of postable) {
-    if (a.accountLevel !== 'فرعي' && a.parentId != null && !parentIds.has(a.id)) {
-      await prisma.account.update({
-        where: { id: a.id },
-        data: { accountLevel: 'فرعي' },
-      })
-      a.accountLevel = 'فرعي'
-    }
-  }
+  const postable = all.filter((a) => a.accountLevel === 'فرعي')
 
   // إزالة التكرار بنفس الكود (تظهر مرة واحدة في قوائم السندات)
   const seenCodes = new Set<string>()
@@ -138,7 +119,7 @@ accountsRouter.get(
         case 'admin_settlement':
           return 'تسديد (أدمن)'
         case 'manual_journal':
-          return 'قيد يومي'
+          return 'سند قيد'
         default:
           return t
       }
@@ -217,6 +198,71 @@ accountsRouter.post(
   }),
 )
 
+accountsRouter.put(
+  '/journal-manual/:ref',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const ref = Number(paramId(req, 'ref'))
+    if (!ref) return fail(res, 'مرجع غير صالح')
+
+    const body = z
+      .object({
+        journal_date: z.string().min(1),
+        amount: z.number().positive(),
+        debit_account_id: z.number().int().positive(),
+        credit_account_id: z.number().int().positive(),
+        notes: z.string().optional(),
+      })
+      .safeParse(req.body)
+    if (!body.success) return fail(res, 'بيانات القيد غير صالحة')
+    if (body.data.debit_account_id === body.data.credit_account_id) {
+      return fail(res, 'الحساب المدين والدائن يجب أن يختلفا')
+    }
+
+    const existing = await prisma.journalLine.count({
+      where: { referenceId: ref, referenceType: 'manual_journal' },
+    })
+    if (!existing) return fail(res, 'القيد غير موجود', 404)
+
+    const [debitAcc, creditAcc] = await Promise.all([
+      prisma.account.findUnique({ where: { id: body.data.debit_account_id } }),
+      prisma.account.findUnique({ where: { id: body.data.credit_account_id } }),
+    ])
+    if (!debitAcc || !creditAcc) return fail(res, 'أحد الحسابات غير موجود', 404)
+
+    const notes = body.data.notes?.trim() || 'قيد يومي'
+    await prisma.$transaction([
+      prisma.journalLine.deleteMany({
+        where: { referenceId: ref, referenceType: 'manual_journal' },
+      }),
+      prisma.journalLine.createMany({
+        data: [
+          {
+            referenceId: ref,
+            referenceType: 'manual_journal',
+            journalDate: body.data.journal_date,
+            accountId: body.data.debit_account_id,
+            debit: body.data.amount,
+            credit: 0,
+            notes,
+          },
+          {
+            referenceId: ref,
+            referenceType: 'manual_journal',
+            journalDate: body.data.journal_date,
+            accountId: body.data.credit_account_id,
+            debit: 0,
+            credit: body.data.amount,
+            notes,
+          },
+        ],
+      }),
+    ])
+
+    return ok(res, { referenceId: ref })
+  }),
+)
+
 accountsRouter.delete(
   '/journal-manual/:ref',
   requireAdmin,
@@ -258,8 +304,12 @@ accountsRouter.post(
     if (!body.success) return fail(res, 'بيانات غير صالحة')
 
     const parentId = body.data.parent_id ?? null
-    let level = body.data.account_level ?? (parentId ? 'فرعي' : 'رئيسي')
-    if (parentId) level = 'فرعي'
+    const level =
+      body.data.account_level ?? (parentId ? 'فرعي' : 'رئيسي')
+
+    if (level === 'فرعي' && !parentId) {
+      return fail(res, 'الحساب الفرعي يجب أن يرتبط بحساب أب')
+    }
 
     let code = body.data.code
     if (!code) {
@@ -307,11 +357,14 @@ accountsRouter.put(
 
     const parentId =
       body.data.parent_id !== undefined ? body.data.parent_id : prev.parentId
-    let level =
+    const level =
       body.data.account_level !== undefined
         ? body.data.account_level
         : prev.accountLevel
-    if (parentId) level = 'فرعي'
+
+    if (level === 'فرعي' && !parentId) {
+      return fail(res, 'الحساب الفرعي يجب أن يرتبط بحساب أب')
+    }
 
     if (body.data.code && body.data.code !== prev.code) {
       const clash = await prisma.account.findUnique({ where: { code: body.data.code } })

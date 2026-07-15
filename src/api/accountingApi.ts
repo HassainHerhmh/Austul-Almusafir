@@ -665,28 +665,15 @@ function handleGet(url: string, config?: { params?: Record<string, any> }): any 
     return ok({ accounts, list: accounts })
   }
   if (path === '/accounts/sub-for-ceiling') {
-    const parentIds = new Set(
-      store.accounts.map((a) => a.parent_id).filter((id): id is number => id != null),
-    )
     const seenCodes = new Set<string>()
     const list = store.accounts
-      .filter(
-        (a) =>
-          a.account_level === 'فرعي' ||
-          (a.parent_id != null && !parentIds.has(a.id)),
-      )
+      .filter((a) => a.account_level === 'فرعي')
       .filter((a) => {
         if (seenCodes.has(a.code)) return false
         seenCodes.add(a.code)
         return true
       })
-      .map((a) => {
-        if (a.account_level !== 'فرعي' && a.parent_id != null && !parentIds.has(a.id)) {
-          a.account_level = 'فرعي'
-        }
-        return enrichAccount(a)
-      })
-    persist()
+      .map(enrichAccount)
     return ok({ list, accounts: list })
   }
 
@@ -1142,6 +1129,8 @@ function handlePost(url: string, body: any = {}): any {
 
   if (path === '/receipt-vouchers') {
     const id = nextId('receiptVouchers')
+    const accountId = Number(body.account_id)
+    const currencyId = Number(body.currency_id)
     const v: ReceiptVoucher = {
       id,
       voucher_no: body.voucher_no || `RV-${1000 + id}`,
@@ -1152,11 +1141,11 @@ function handlePost(url: string, body: any = {}): any {
       cash_box_account_id: body.cash_box_account_id ?? null,
       bank_account_id: body.bank_account_id ?? null,
       transfer_no: body.transfer_no ?? null,
-      currency_id: Number(body.currency_id),
-      currency_name: currencyName(Number(body.currency_id)),
+      currency_id: currencyId,
+      currency_name: body.currency_name || currencyName(currencyId),
       amount: Number(body.amount),
-      account_id: Number(body.account_id),
-      account_name: accountName(Number(body.account_id)),
+      account_id: accountId,
+      account_name: body.account_name || accountName(accountId),
       analytic_account_id: body.analytic_account_id ?? null,
       cost_center_id: body.cost_center_id ?? null,
       journal_type_id: body.journal_type_id ?? null,
@@ -1211,10 +1200,10 @@ function handlePost(url: string, body: any = {}): any {
       bank_account_id: body.bank_account_id ?? null,
       transfer_no: body.transfer_no ?? null,
       currency_id: Number(body.currency_id),
-      currency_name: currencyName(Number(body.currency_id)),
+      currency_name: body.currency_name || currencyName(Number(body.currency_id)),
       amount: Number(body.amount),
       account_id: Number(body.account_id),
-      account_name: accountName(Number(body.account_id)),
+      account_name: body.account_name || accountName(Number(body.account_id)),
       analytic_account_id: body.analytic_account_id ?? null,
       cost_center_id: body.cost_center_id ?? null,
       journal_type_id: body.journal_type_id ?? 1,
@@ -1535,14 +1524,50 @@ function handlePut(url: string, body: any = {}): any {
     const idx = store.receiptVouchers.findIndex((v) => v.id === id)
     if (idx < 0) fail('السند غير موجود')
     const prev = store.receiptVouchers[idx]
+    const accountId =
+      body.account_id != null ? Number(body.account_id) : prev.account_id
+    const currencyId =
+      body.currency_id != null ? Number(body.currency_id) : prev.currency_id
     store.receiptVouchers[idx] = {
       ...prev,
-      ...body,
+      voucher_no: body.voucher_no ?? prev.voucher_no,
+      receipt_type: body.receipt_type ?? prev.receipt_type,
+      cash_box_account_id:
+        body.cash_box_account_id !== undefined
+          ? body.cash_box_account_id
+          : prev.cash_box_account_id,
+      bank_account_id:
+        body.bank_account_id !== undefined
+          ? body.bank_account_id
+          : prev.bank_account_id,
+      transfer_no:
+        body.transfer_no !== undefined ? body.transfer_no : prev.transfer_no,
+      currency_id: currencyId,
+      currency_name:
+        body.currency_name || currencyName(currencyId) || prev.currency_name,
+      amount: body.amount != null ? Number(body.amount) : prev.amount,
+      account_id: accountId,
+      account_name:
+        body.account_name || accountName(accountId) || prev.account_name,
+      analytic_account_id:
+        body.analytic_account_id !== undefined
+          ? body.analytic_account_id
+          : prev.analytic_account_id,
+      cost_center_id:
+        body.cost_center_id !== undefined
+          ? body.cost_center_id
+          : prev.cost_center_id,
+      journal_type_id:
+        body.journal_type_id !== undefined
+          ? body.journal_type_id
+          : prev.journal_type_id,
+      notes: body.notes !== undefined ? body.notes : prev.notes,
+      handling: body.handling !== undefined ? body.handling : prev.handling,
       id,
-      currency_name: body.currency_id ? currencyName(Number(body.currency_id)) : prev.currency_name,
-      account_name: body.account_id ? accountName(Number(body.account_id)) : prev.account_name,
       voucher_date: body.voucher_date
-        ? (body.voucher_date.includes('T') ? body.voucher_date : `${body.voucher_date}T00:00:00.000Z`)
+        ? body.voucher_date.includes('T')
+          ? body.voucher_date
+          : `${body.voucher_date}T00:00:00.000Z`
         : prev.voucher_date,
     }
     persist()
@@ -1555,14 +1580,51 @@ function handlePut(url: string, body: any = {}): any {
     const idx = store.paymentVouchers.findIndex((v) => v.id === id)
     if (idx < 0) fail('السند غير موجود')
     const prev = store.paymentVouchers[idx]
+    const accountId =
+      body.account_id != null ? Number(body.account_id) : prev.account_id
+    const currencyId =
+      body.currency_id != null ? Number(body.currency_id) : prev.currency_id
     store.paymentVouchers[idx] = {
       ...prev,
-      ...body,
+      voucher_no: body.voucher_no ?? prev.voucher_no,
+      payment_type: body.payment_type ?? prev.payment_type,
+      payment_type_name: body.payment_type_name ?? prev.payment_type_name,
+      cash_box_account_id:
+        body.cash_box_account_id !== undefined
+          ? body.cash_box_account_id
+          : prev.cash_box_account_id,
+      bank_account_id:
+        body.bank_account_id !== undefined
+          ? body.bank_account_id
+          : prev.bank_account_id,
+      transfer_no:
+        body.transfer_no !== undefined ? body.transfer_no : prev.transfer_no,
+      currency_id: currencyId,
+      currency_name:
+        body.currency_name || currencyName(currencyId) || prev.currency_name,
+      amount: body.amount != null ? Number(body.amount) : prev.amount,
+      account_id: accountId,
+      account_name:
+        body.account_name || accountName(accountId) || prev.account_name,
+      analytic_account_id:
+        body.analytic_account_id !== undefined
+          ? body.analytic_account_id
+          : prev.analytic_account_id,
+      cost_center_id:
+        body.cost_center_id !== undefined
+          ? body.cost_center_id
+          : prev.cost_center_id,
+      journal_type_id:
+        body.journal_type_id !== undefined
+          ? body.journal_type_id
+          : prev.journal_type_id,
+      notes: body.notes !== undefined ? body.notes : prev.notes,
+      handling: body.handling !== undefined ? body.handling : prev.handling,
       id,
-      currency_name: body.currency_id ? currencyName(Number(body.currency_id)) : prev.currency_name,
-      account_name: body.account_id ? accountName(Number(body.account_id)) : prev.account_name,
       voucher_date: body.voucher_date
-        ? (body.voucher_date.includes('T') ? body.voucher_date : `${body.voucher_date}T00:00:00.000Z`)
+        ? body.voucher_date.includes('T')
+          ? body.voucher_date
+          : `${body.voucher_date}T00:00:00.000Z`
         : prev.voucher_date,
     }
     persist()

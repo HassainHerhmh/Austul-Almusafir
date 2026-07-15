@@ -264,7 +264,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       offices: officeList,
       users: userList,
       destinations: (destinations.list ?? []).map(asDestination),
-      buses: buses.list ?? [],
+      buses: (buses.list ?? []).map((b: any) => ({
+        ...b,
+        busNumber: b.busNumber ?? '',
+        year: b.year ?? '',
+      })),
       drivers: (drivers.list ?? []).map((d: any) => ({
         ...d,
         nationality: d.nationality ?? '',

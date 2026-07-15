@@ -45,8 +45,12 @@ export type PricingMode = 'trip' | 'boarding'
 
 export interface Bus {
   id: string
+  /** رقم الحافلة (مثل 101) */
+  busNumber: string
   plateNumber: string
   type: string
+  /** سنة الموديل */
+  year: string
   seats: number
   status: BusStatus
 }

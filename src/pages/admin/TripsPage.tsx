@@ -203,8 +203,15 @@ export function TripsPage() {
                       </td>
                       <td>{t.date}</td>
                       <td>{t.departureTime}</td>
-                      <td>{getBus(t.busId)?.plateNumber}</td>
-                      <td>{getBus(t.busId)?.type || '—'}</td>
+                      <td>
+                        {getBus(t.busId)?.busNumber
+                          ? `${getBus(t.busId)!.busNumber} — ${getBus(t.busId)!.plateNumber}`
+                          : getBus(t.busId)?.plateNumber}
+                      </td>
+                      <td>
+                        {[getBus(t.busId)?.type, getBus(t.busId)?.year].filter(Boolean).join(' ') ||
+                          '—'}
+                      </td>
                       <td>{getDriver(t.driverId)?.name ?? '—'}</td>
                       <td>
                         {t.assistantName
@@ -364,7 +371,10 @@ export function TripsPage() {
                   >
                     {state.buses.map((b) => (
                       <option key={b.id} value={b.id}>
-                        {b.plateNumber} — {b.type} ({b.seats} مقعد)
+                        {[b.busNumber, b.plateNumber, b.type, b.year]
+                          .filter(Boolean)
+                          .join(' — ')}{' '}
+                        ({b.seats} مقعد)
                       </option>
                     ))}
                   </select>

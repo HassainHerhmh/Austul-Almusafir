@@ -9,8 +9,10 @@ import {
 } from '../../utils/importExport'
 
 const empty = {
+  busNumber: '',
   plateNumber: '',
   type: '',
+  year: '',
   seats: 50,
   status: 'available' as BusStatus,
 }
@@ -45,8 +47,10 @@ export function BusesPage() {
   const startEdit = (b: Bus) => {
     setEditId(b.id)
     setForm({
+      busNumber: b.busNumber || '',
       plateNumber: b.plateNumber,
       type: b.type,
+      year: b.year || '',
       seats: b.seats,
       status: b.status,
     })
@@ -57,8 +61,10 @@ export function BusesPage() {
     downloadExcel(
       'الباصات.xlsx',
       state.buses.map((b) => ({
+        'رقم الحافلة': b.busNumber || '',
         'رقم اللوحة': b.plateNumber,
         'موديل الحافلة': b.type,
+        'سنة الحافلة': b.year || '',
         المقاعد: b.seats,
         الحالة: statusLabel(b.status),
       })),
@@ -68,16 +74,25 @@ export function BusesPage() {
   const exportPdf = () => {
     exportTablePdf(
       'قائمة الباصات',
-      ['رقم اللوحة', 'موديل الحافلة', 'المقاعد', 'الحالة'],
-      state.buses.map((b) => [b.plateNumber, b.type, b.seats, statusLabel(b.status)]),
+      ['رقم الحافلة', 'رقم اللوحة', 'موديل الحافلة', 'سنة الحافلة', 'المقاعد', 'الحالة'],
+      state.buses.map((b) => [
+        b.busNumber || '—',
+        b.plateNumber,
+        b.type,
+        b.year || '—',
+        b.seats,
+        statusLabel(b.status),
+      ]),
     )
   }
 
   const downloadTemplate = () => {
     downloadExcel('نموذج_استيراد_باصات.xlsx', [
       {
-        'رقم اللوحة': '22-12345',
-        'موديل الحافلة': 'مرسيدس',
+        'رقم الحافلة': '101',
+        'رقم اللوحة': 'أ ص ح 2234',
+        'موديل الحافلة': 'زونج تونج',
+        'سنة الحافلة': '2025',
         المقاعد: 50,
         الحالة: 'متاح',
       },
@@ -94,6 +109,13 @@ export function BusesPage() {
       let skipped = 0
       const byPlate = new Map(state.buses.map((b) => [b.plateNumber, b.id]))
       for (const row of rows) {
+        const busNumber = pick(row, [
+          'رقم الحافلة',
+          'م الحافلة',
+          'رقمالحافلة',
+          'busNumber',
+          'fleetNumber',
+        ])
         const plateNumber = pick(row, ['رقم اللوحة', 'اللوحة', 'plateNumber', 'plate'])
         const type = pick(row, [
           'موديل الحافلة',
@@ -105,9 +127,10 @@ export function BusesPage() {
           'model',
           'Model',
         ])
+        const year = pick(row, ['سنة الحافلة', 'السنة', 'سنة', 'year', 'Year'])
         const seatsRaw = pick(row, ['المقاعد', 'seats', 'Seats'])
-        const seats = Math.max(1, Number(seatsRaw) || 0)
-        if (!plateNumber || !type || seats < 1) {
+        const seats = Math.max(1, Number(seatsRaw) || 50)
+        if (!plateNumber || !type) {
           skipped++
           continue
         }
@@ -115,8 +138,10 @@ export function BusesPage() {
         const existingId = byPlate.get(plateNumber)
         const saved = await upsertBus({
           ...(existingId ? { id: existingId } : {}),
+          busNumber,
           plateNumber,
           type,
+          year,
           seats,
           status,
         })
@@ -179,20 +204,22 @@ export function BusesPage() {
           <table className="data">
             <thead>
               <tr>
-                <th style={{ width: 56 }}>#</th>
+                <th>رقم الحافلة</th>
                 <th>رقم اللوحة</th>
                 <th>موديل الحافلة</th>
+                <th>سنة الحافلة</th>
                 <th>المقاعد</th>
                 <th>الحالة</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
-              {state.buses.map((b, i) => (
+              {state.buses.map((b) => (
                 <tr key={b.id}>
-                  <td>{i + 1}</td>
+                  <td>{b.busNumber || '—'}</td>
                   <td>{b.plateNumber}</td>
                   <td>{b.type}</td>
+                  <td>{b.year || '—'}</td>
                   <td>{b.seats}</td>
                   <td>
                     <span
@@ -226,6 +253,14 @@ export function BusesPage() {
             <form onSubmit={save}>
               <div className="form-grid">
                 <div className="field">
+                  <label>رقم الحافلة</label>
+                  <input
+                    value={form.busNumber}
+                    onChange={(e) => setForm({ ...form, busNumber: e.target.value })}
+                    placeholder="مثال: 101"
+                  />
+                </div>
+                <div className="field">
                   <label>رقم اللوحة</label>
                   <input
                     required
@@ -239,7 +274,15 @@ export function BusesPage() {
                     required
                     value={form.type}
                     onChange={(e) => setForm({ ...form, type: e.target.value })}
-                    placeholder="مثال: مرسيدس"
+                    placeholder="مثال: زونج تونج"
+                  />
+                </div>
+                <div className="field">
+                  <label>سنة الحافلة</label>
+                  <input
+                    value={form.year}
+                    onChange={(e) => setForm({ ...form, year: e.target.value })}
+                    placeholder="مثال: 2025"
                   />
                 </div>
                 <div className="field">

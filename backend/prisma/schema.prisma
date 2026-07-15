@@ -49,8 +49,12 @@ model Destination {
 
 model Bus {
   id          String @id @default(cuid())
+  /** رقم الحافلة الداخلي (مثل 101) */
+  busNumber   String @default("")
   plateNumber String @unique
   type        String
+  /** سنة الموديل */
+  year        String @default("")
   seats       Int
   status      String @default("available")
   trips       Trip[]

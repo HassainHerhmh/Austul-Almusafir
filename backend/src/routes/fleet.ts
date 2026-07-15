@@ -73,7 +73,7 @@ busesRouter.use(authRequired)
 busesRouter.get(
   '/',
   asyncHandler(async (_req, res) => {
-    const list = await prisma.bus.findMany({ orderBy: { plateNumber: 'asc' } })
+    const list = await prisma.bus.findMany({ orderBy: [{ busNumber: 'asc' }, { plateNumber: 'asc' }] })
     return ok(res, { list })
   }),
 )
@@ -84,8 +84,10 @@ busesRouter.post(
   asyncHandler(async (req, res) => {
     const body = z
       .object({
+        busNumber: z.string().optional(),
         plateNumber: z.string().min(1),
         type: z.string().min(1),
+        year: z.string().optional(),
         seats: z.number().int().positive(),
         status: z.enum(['available', 'maintenance', 'inactive']).optional(),
       })
@@ -93,8 +95,10 @@ busesRouter.post(
     if (!body.success) return fail(res, 'بيانات غير صالحة')
     const bus = await prisma.bus.create({
       data: {
+        busNumber: body.data.busNumber?.trim() ?? '',
         plateNumber: body.data.plateNumber,
         type: body.data.type,
+        year: body.data.year?.trim() ?? '',
         seats: body.data.seats,
         status: body.data.status ?? 'available',
       },
@@ -109,14 +113,23 @@ busesRouter.put(
   asyncHandler(async (req, res) => {
     const body = z
       .object({
+        busNumber: z.string().optional(),
         plateNumber: z.string().min(1).optional(),
         type: z.string().min(1).optional(),
+        year: z.string().optional(),
         seats: z.number().int().positive().optional(),
         status: z.enum(['available', 'maintenance', 'inactive']).optional(),
       })
       .safeParse(req.body)
     if (!body.success) return fail(res, 'بيانات غير صالحة')
-    const bus = await prisma.bus.update({ where: { id: paramId(req) }, data: body.data })
+    const bus = await prisma.bus.update({
+      where: { id: paramId(req) },
+      data: {
+        ...body.data,
+        ...(body.data.busNumber !== undefined ? { busNumber: body.data.busNumber.trim() } : {}),
+        ...(body.data.year !== undefined ? { year: body.data.year.trim() } : {}),
+      },
+    })
     return ok(res, { bus })
   }),
 )

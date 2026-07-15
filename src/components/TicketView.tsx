@@ -37,6 +37,10 @@ export function TicketView({ booking, trip, onClose }: Props) {
             <strong>{booking.passengerName}</strong>
           </div>
           <div>
+            <span>رقم التذكرة</span>
+            <strong>{booking.ticketNumber || '—'}</strong>
+          </div>
+          <div>
             <span>رقم الجواز</span>
             <strong>{booking.passportNumber || '—'}</strong>
           </div>

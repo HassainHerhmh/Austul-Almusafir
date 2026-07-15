@@ -18,6 +18,7 @@ export function AdminBookingsPage() {
             <thead>
               <tr>
                 <th>الراكب</th>
+                <th>رقم التذكرة</th>
                 <th>رقم الجواز</th>
                 <th>منطقة الانطلاق</th>
                 <th>منطقة الوصول</th>
@@ -38,6 +39,7 @@ export function AdminBookingsPage() {
                   return (
                     <tr key={b.id}>
                       <td>{b.passengerName}</td>
+                      <td>{b.ticketNumber || '—'}</td>
                       <td>{b.passportNumber || '—'}</td>
                       <td>{getDestination(b.boardingDestinationId)?.name || '—'}</td>
                       <td>{getDestination(b.arrivalDestinationId)?.name || '—'}</td>

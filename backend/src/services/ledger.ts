@@ -233,3 +233,183 @@ export async function reverseBookingCharge(bookingId: string) {
     },
   })
 }
+
+function voucherRefId(voucherId: string): number {
+  return bookingRefId(`voucher:${voucherId}`)
+}
+
+async function ensureCashAccount() {
+  const existing =
+    (await prisma.account.findFirst({ where: { code: '11101' } })) ||
+    (await prisma.account.findFirst({ where: { nameAr: 'الصندوق الرئيسي' } }))
+  if (existing) return existing.id
+
+  const parent = await prisma.account.findFirst({ where: { code: '111' } })
+  const row = await prisma.account.create({
+    data: {
+      code: '11101',
+      nameAr: 'الصندوق الرئيسي',
+      nameEn: 'Main Cash',
+      parentId: parent?.id ?? null,
+      accountLevel: 'فرعي',
+      financialStatement: 'الميزانية العمومية',
+    },
+  })
+  return row.id
+}
+
+/**
+ * تسديد/قبض من المكتب يُسجّله الأدمن فقط على كشف الذمة:
+ * مدين الصندوق · دائن ذمة المكتب
+ */
+export async function postAdminOfficeSettlement(input: {
+  voucherId: string
+  ledgerAccountId: number
+  amount: number
+  description: string
+  date: string
+}) {
+  if (input.amount <= 0) return
+
+  const ref = voucherRefId(input.voucherId)
+  const exists = await prisma.journalLine.findFirst({
+    where: { referenceType: 'admin_settlement', referenceId: ref },
+  })
+  if (exists) return
+
+  const cashId = await ensureCashAccount()
+  const notes = input.description
+
+  await prisma.journalLine.createMany({
+    data: [
+      {
+        referenceId: ref,
+        referenceType: 'admin_settlement',
+        journalDate: input.date,
+        accountId: cashId,
+        debit: input.amount,
+        credit: 0,
+        notes,
+      },
+      {
+        referenceId: ref,
+        referenceType: 'admin_settlement',
+        journalDate: input.date,
+        accountId: input.ledgerAccountId,
+        debit: 0,
+        credit: input.amount,
+        notes,
+      },
+    ],
+  })
+}
+
+export type StatementLine = {
+  id: number
+  journal_date: string
+  debit: number
+  credit: number
+  balance: number
+  notes: string | null
+  reference_type: string
+  reference_id: number
+  entry_label: string
+}
+
+function entryLabel(referenceType: string): string {
+  switch (referenceType) {
+    case 'booking':
+      return 'تذكرة'
+    case 'booking_commission':
+      return 'عمولة'
+    case 'admin_settlement':
+      return 'تسديد (أدمن)'
+    default:
+      return referenceType
+  }
+}
+
+const STATEMENT_TYPES = ['booking', 'booking_commission', 'admin_settlement'] as const
+
+/** كشف حساب ذمة المكتب: تذاكر + عمولات + تسديدات الأدمن فقط */
+export async function getOfficeLedgerStatement(input: {
+  ledgerAccountId: number
+  fromDate?: string | null
+  toDate?: string | null
+  types?: string[] | null
+}) {
+  const allowed = new Set<string>(STATEMENT_TYPES)
+  const requested =
+    input.types && input.types.length
+      ? input.types.filter((t) => allowed.has(t))
+      : [...STATEMENT_TYPES]
+  const types = requested.length ? requested : [...STATEMENT_TYPES]
+  const typeFilter = { referenceType: { in: types } }
+
+  let openingBalance = 0
+  if (input.fromDate) {
+    const openingRows = await prisma.journalLine.groupBy({
+      by: ['accountId'],
+      where: {
+        accountId: input.ledgerAccountId,
+        journalDate: { lt: input.fromDate },
+        ...typeFilter,
+      },
+      _sum: { debit: true, credit: true },
+    })
+    const sum = openingRows[0]?._sum
+    openingBalance = (sum?.debit ?? 0) - (sum?.credit ?? 0)
+  }
+
+  const dateWhere =
+    input.fromDate && input.toDate
+      ? { journalDate: { gte: input.fromDate, lte: input.toDate } }
+      : input.toDate
+        ? { journalDate: { lte: input.toDate } }
+        : input.fromDate
+          ? { journalDate: { gte: input.fromDate } }
+          : {}
+
+  const lines = await prisma.journalLine.findMany({
+    where: {
+      accountId: input.ledgerAccountId,
+      ...dateWhere,
+      ...typeFilter,
+    },
+    orderBy: [{ journalDate: 'asc' }, { id: 'asc' }],
+  })
+
+  let balance = openingBalance
+  const list: StatementLine[] = []
+
+  if (input.fromDate && (openingBalance !== 0 || lines.length > 0)) {
+    list.push({
+      id: 0,
+      journal_date: input.fromDate,
+      debit: openingBalance > 0 ? openingBalance : 0,
+      credit: openingBalance < 0 ? Math.abs(openingBalance) : 0,
+      balance: openingBalance,
+      notes: 'رصيد سابق',
+      reference_type: 'opening',
+      reference_id: 0,
+      entry_label: 'رصيد سابق',
+    })
+  }
+
+  for (const l of lines) {
+    balance += l.debit - l.credit
+    list.push({
+      id: l.id,
+      journal_date: l.journalDate,
+      debit: l.debit,
+      credit: l.credit,
+      balance,
+      notes: l.notes,
+      reference_type: l.referenceType,
+      reference_id: l.referenceId,
+      entry_label: entryLabel(l.referenceType),
+    })
+  }
+
+  return { list, openingBalance, closingBalance: balance }
+}

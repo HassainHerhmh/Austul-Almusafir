@@ -30,6 +30,7 @@ const officeLinks: {
   { to: '/office/bookings', label: 'الحجوزات', pageId: 'bookings' },
   { to: '/office/customers', label: 'العملاء', pageId: 'customers' },
   { to: '/office/accounting', label: 'المحاسبة', pageId: 'accounting' },
+  { to: '/office/statement', label: 'كشف الحساب', pageId: 'statement' },
   { to: '/office/reports', label: 'التقارير', pageId: 'reports' },
 ]
 

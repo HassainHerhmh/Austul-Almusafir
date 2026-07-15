@@ -45,6 +45,7 @@ function asBooking(b: any): Booking {
     officeId: b.officeId,
     customerId: b.customerId,
     passengerName: b.passengerName,
+    ticketNumber: b.ticketNumber ?? '',
     passportNumber: b.passportNumber ?? '',
     boardingDestinationId: b.boardingDestinationId ?? '',
     arrivalDestinationId: b.arrivalDestinationId ?? '',
@@ -86,6 +87,36 @@ export const serverApi = {
       }),
     balance: (id: string) =>
       apiRequest<{ balance: number; officeId: string }>(`/api/offices/${id}/balance`),
+    statement: (
+      id: string,
+      params?: { from?: string | null; to?: string | null; types?: string | null },
+    ) => {
+      const q = new URLSearchParams()
+      if (params?.from) q.set('from', params.from)
+      if (params?.to) q.set('to', params.to)
+      if (params?.types) q.set('types', params.types)
+      const qs = q.toString()
+      return apiRequest<{
+        officeId: string
+        officeName: string
+        ledgerAccountId: number
+        fromDate: string | null
+        toDate: string | null
+        openingBalance: number
+        closingBalance: number
+        list: Array<{
+          id: number
+          journal_date: string
+          debit: number
+          credit: number
+          balance: number
+          notes: string | null
+          reference_type: string
+          reference_id: number
+          entry_label: string
+        }>
+      }>(`/api/offices/${id}/statement${qs ? `?${qs}` : ''}`)
+    },
   },
 
   users: {

@@ -31,7 +31,7 @@ export function OfficeAccountingPage() {
 
   const save = (e: React.FormEvent) => {
     e.preventDefault()
-    addVoucher({
+    void addVoucher({
       officeId,
       type,
       amount,
@@ -83,7 +83,7 @@ export function OfficeAccountingPage() {
 
       <div className="panel">
         <div className="panel-head">
-          <h2>كشف الحساب</h2>
+          <h2>السندات</h2>
         </div>
         <div className="table-wrap">
           <table className="data">
@@ -96,18 +96,26 @@ export function OfficeAccountingPage() {
               </tr>
             </thead>
             <tbody>
-              {vouchers.map((v) => (
-                <tr key={v.id}>
-                  <td>{v.date}</td>
-                  <td>
-                    <span className={`badge ${v.type === 'receipt' ? 'badge-ok' : 'badge-warn'}`}>
-                      {v.type === 'receipt' ? 'قبض' : 'صرف'}
-                    </span>
+              {vouchers.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="empty">
+                    لا توجد سندات بعد
                   </td>
-                  <td>{v.description}</td>
-                  <td>{formatMoney(v.amount)}</td>
                 </tr>
-              ))}
+              ) : (
+                vouchers.map((v) => (
+                  <tr key={v.id}>
+                    <td>{v.date}</td>
+                    <td>
+                      <span className={`badge ${v.type === 'receipt' ? 'badge-ok' : 'badge-warn'}`}>
+                        {v.type === 'receipt' ? 'قبض' : 'صرف'}
+                      </span>
+                    </td>
+                    <td>{v.description}</td>
+                    <td>{formatMoney(v.amount)}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -122,8 +130,8 @@ export function OfficeAccountingPage() {
                 <div className="field">
                   <label>النوع</label>
                   <select value={type} onChange={(e) => setType(e.target.value as VoucherType)}>
-                    <option value="receipt">سند قبض</option>
-                    <option value="payment">سند صرف</option>
+                    <option value="receipt">سند قبض (مبيعات المكتب)</option>
+                    <option value="payment">سند صرف (مصروف المكتب)</option>
                   </select>
                 </div>
                 <div className="field">

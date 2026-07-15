@@ -107,6 +107,8 @@ export interface Booking {
   officeId: string
   customerId: string
   passengerName: string
+  /** رقم التذكرة */
+  ticketNumber: string
   passportNumber: string
   /** محطة/مدينة الانطلاق من مسار الرحلة */
   boardingDestinationId: string

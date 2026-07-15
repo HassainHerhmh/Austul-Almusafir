@@ -44,7 +44,8 @@ bookingsRouter.post(
         tripId: z.string(),
         officeId: z.string().optional(),
         passengerName: z.string().min(1),
-        phone: z.string().min(1),
+        ticketNumber: z.string().min(1),
+        phone: z.string().default(''),
         nationalId: z.string().default(''),
         passportNumber: z.string().default(''),
         boardingDestinationId: z.string().min(1),
@@ -106,25 +107,25 @@ bookingsRouter.post(
       }
     }
 
-    let customer = await prisma.customer.findFirst({
-      where: {
-        officeId,
-        OR: [
-          { phone: body.data.phone },
-          ...(body.data.nationalId ? [{ nationalId: body.data.nationalId }] : []),
-          ...(body.data.passportNumber
-            ? [{ passportNumber: body.data.passportNumber }]
-            : []),
-        ],
-      },
-    })
+    const phone = body.data.phone.trim()
+    const or: Array<Record<string, string>> = []
+    if (phone) or.push({ phone })
+    if (body.data.nationalId) or.push({ nationalId: body.data.nationalId })
+    if (body.data.passportNumber) or.push({ passportNumber: body.data.passportNumber })
+
+    let customer =
+      or.length > 0
+        ? await prisma.customer.findFirst({
+            where: { officeId, OR: or },
+          })
+        : null
 
     if (customer) {
       customer = await prisma.customer.update({
         where: { id: customer.id },
         data: {
           name: body.data.passengerName,
-          phone: body.data.phone,
+          phone: phone || customer.phone,
           nationalId: body.data.nationalId,
           passportNumber: body.data.passportNumber,
         },
@@ -133,7 +134,7 @@ bookingsRouter.post(
       customer = await prisma.customer.create({
         data: {
           name: body.data.passengerName,
-          phone: body.data.phone,
+          phone,
           nationalId: body.data.nationalId,
           passportNumber: body.data.passportNumber,
           officeId,
@@ -147,6 +148,7 @@ bookingsRouter.post(
         officeId,
         customerId: customer.id,
         passengerName: body.data.passengerName,
+        ticketNumber: body.data.ticketNumber.trim(),
         passportNumber: body.data.passportNumber,
         boardingDestinationId: body.data.boardingDestinationId,
         arrivalDestinationId: body.data.arrivalDestinationId,
@@ -223,6 +225,7 @@ bookingsRouter.patch(
     const body = z
       .object({
         passengerName: z.string().min(1).optional(),
+        ticketNumber: z.string().min(1).optional(),
         passportNumber: z.string().optional(),
         seatNumber: z.number().int().positive().optional(),
         status: z.enum(['confirmed', 'cancelled', 'refunded']).optional(),

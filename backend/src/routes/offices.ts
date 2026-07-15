@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { prisma } from '../config'
 import { authRequired, requireAdmin } from '../middleware/auth'
-import { ensureOfficeLedgerAccount, getAccountBalance } from '../services/ledger'
+import { ensureOfficeLedgerAccount, getAccountBalance, getOfficeLedgerStatement } from '../services/ledger'
 import { asyncHandler, fail, ok, paramId } from '../utils/http'
 
 export const officesRouter = Router()
@@ -31,6 +31,48 @@ officesRouter.get(
     }
     const balance = await getAccountBalance(office.ledgerAccountId)
     return ok(res, { balance, officeId: office.id })
+  }),
+)
+
+officesRouter.get(
+  '/:id/statement',
+  asyncHandler(async (req, res) => {
+    const office = await prisma.office.findUnique({ where: { id: paramId(req) } })
+    if (!office) return fail(res, 'المكتب غير موجود', 404)
+    if (req.user!.role !== 'admin' && req.user!.officeId !== office.id) {
+      return fail(res, 'ليس لديك صلاحية', 403)
+    }
+
+    let ledgerAccountId = office.ledgerAccountId
+    if (!ledgerAccountId) {
+      ledgerAccountId = await ensureOfficeLedgerAccount(office.name)
+      await prisma.office.update({
+        where: { id: office.id },
+        data: { ledgerAccountId },
+      })
+    }
+
+    const fromDate = typeof req.query.from === 'string' && req.query.from ? req.query.from : null
+    const toDate = typeof req.query.to === 'string' && req.query.to ? req.query.to : null
+    const typesRaw = typeof req.query.types === 'string' ? req.query.types : ''
+    const types = typesRaw
+      ? typesRaw.split(',').map((t) => t.trim()).filter(Boolean)
+      : null
+
+    const result = await getOfficeLedgerStatement({
+      ledgerAccountId,
+      fromDate,
+      toDate,
+      types,
+    })
+    return ok(res, {
+      officeId: office.id,
+      officeName: office.name,
+      ledgerAccountId,
+      fromDate,
+      toDate,
+      ...result,
+    })
   }),
 )
 

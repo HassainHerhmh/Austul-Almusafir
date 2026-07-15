@@ -51,6 +51,7 @@ export function loadState(): AppState {
         })),
         bookings: (parsed.bookings ?? []).map((b) => ({
           ...b,
+          ticketNumber: b.ticketNumber ?? '',
           passportNumber: b.passportNumber ?? '',
           notes: b.notes ?? '',
           boardingDestinationId: b.boardingDestinationId ?? '',

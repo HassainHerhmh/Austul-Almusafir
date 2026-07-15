@@ -124,6 +124,8 @@ model Booking {
   customerId     String
   customer       Customer  @relation(fields: [customerId], references: [id])
   passengerName  String
+  /** رقم التذكرة الظاهر للمسافر */
+  ticketNumber   String    @default("")
   passportNumber String    @default("")
   /** مدينة/محطة الانطلاق من محطات مسار الرحلة */
   boardingDestinationId String @default("")

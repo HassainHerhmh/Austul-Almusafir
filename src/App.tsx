@@ -33,6 +33,7 @@ import { OfficesPage } from './pages/admin/OfficesPage'
 import { TripsPage } from './pages/admin/TripsPage'
 import { UsersPage } from './pages/admin/UsersPage'
 import { OfficeAccountingPage } from './pages/office/OfficeAccountingPage'
+import { OfficeStatementPage } from './pages/office/OfficeStatementPage'
 import { OfficeBookingsPage } from './pages/office/OfficeBookingsPage'
 import { OfficeCustomersPage } from './pages/office/OfficeCustomersPage'
 import { OfficeHome } from './pages/office/OfficeHome'
@@ -111,6 +112,7 @@ export default function App() {
               <Route path="bookings" element={<OfficeBookingsPage />} />
               <Route path="customers" element={<OfficeCustomersPage />} />
               <Route path="accounting" element={<OfficeAccountingPage />} />
+              <Route path="statement" element={<OfficeStatementPage />} />
               <Route path="reports" element={<OfficeReportsPage />} />
             </Route>
 

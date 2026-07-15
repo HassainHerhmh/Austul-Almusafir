@@ -72,6 +72,7 @@ interface AppContextValue {
     tripId: string
     officeId: string
     passengerName: string
+    ticketNumber: string
     phone: string
     passportNumber: string
     boardingDestinationId: string
@@ -86,7 +87,13 @@ interface AppContextValue {
     patch: Partial<
       Pick<
         Booking,
-        'passengerName' | 'passportNumber' | 'seatNumber' | 'status' | 'paymentMethod' | 'notes'
+        | 'passengerName'
+        | 'ticketNumber'
+        | 'passportNumber'
+        | 'seatNumber'
+        | 'status'
+        | 'paymentMethod'
+        | 'notes'
       >
     >,
   ) => Promise<string | null>
@@ -186,6 +193,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (!currentUser) return false
       if (currentUser.role === 'admin') return true
       if (!resolvedPermissions) return false
+      if (pageId === 'statement' && action === 'view') {
+        return (
+          !!resolvedPermissions.statement?.view || !!resolvedPermissions.accounting?.view
+        )
+      }
       return !!resolvedPermissions[pageId]?.[action]
     },
     [currentUser, resolvedPermissions],
@@ -579,6 +591,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         tripId: input.tripId,
         officeId: input.officeId,
         passengerName: input.passengerName,
+        ticketNumber: input.ticketNumber,
         phone: input.phone,
         passportNumber: input.passportNumber,
         boardingDestinationId: input.boardingDestinationId,

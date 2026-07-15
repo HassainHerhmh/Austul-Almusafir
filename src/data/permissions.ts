@@ -35,6 +35,7 @@ export const officePermissionSections: PermissionSection[] = [
   { id: 'bookings', label: 'الحجوزات', path: '/office/bookings' },
   { id: 'customers', label: 'العملاء', path: '/office/customers' },
   { id: 'accounting', label: 'المحاسبة', path: '/office/accounting' },
+  { id: 'statement', label: 'كشف الحساب', path: '/office/statement' },
   { id: 'reports', label: 'التقارير', path: '/office/reports' },
 ]
 
@@ -86,6 +87,7 @@ export function roleDefaultPermissions(role: Role): UserPermissionsMap {
   if (role === 'accountant') {
     base.dashboard = { view: true, add: false, edit: false, delete: false }
     base.accounting = { view: true, add: true, edit: true, delete: false }
+    base.statement = { view: true, add: false, edit: false, delete: false }
     base.reports = { view: true, add: false, edit: false, delete: false }
   }
 
@@ -153,4 +155,9 @@ export const LEGACY_ACTION_TO_PAGE: Record<string, { page: string; action: PageA
   view_accounts: { page: 'accounting', action: 'view' },
   view_reports: { page: 'reports', action: 'view' },
   manage_office_users: { page: 'staff', action: 'view' },
+}
+
+/** كشف الحساب يتبع صلاحية المحاسبة إن لم تُضبط مستقلة */
+export function hasStatementAccess(permissions: UserPermissionsMap): boolean {
+  return hasPageAction(permissions, 'statement', 'view') || hasPageAction(permissions, 'accounting', 'view')
 }

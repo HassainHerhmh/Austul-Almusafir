@@ -32,6 +32,7 @@ export function OfficeBookingsPage() {
   const [tripId, setTripId] = useState(params.get('trip') ?? trips[0]?.id ?? '')
   const [seat, setSeat] = useState<number | null>(null)
   const [passengerName, setPassengerName] = useState('')
+  const [ticketNumber, setTicketNumber] = useState('')
   const [phone, setPhone] = useState('')
   const [passportNumber, setPassportNumber] = useState('')
   const [boardingDestinationId, setBoardingDestinationId] = useState('')
@@ -117,6 +118,7 @@ export function OfficeBookingsPage() {
       tripId,
       officeId,
       passengerName,
+      ticketNumber,
       phone,
       passportNumber,
       boardingDestinationId,
@@ -132,6 +134,7 @@ export function OfficeBookingsPage() {
     }
     setError(null)
     setPassengerName('')
+    setTicketNumber('')
     setPhone('')
     setPassportNumber('')
     setNotes('')
@@ -197,8 +200,17 @@ export function OfficeBookingsPage() {
                 />
               </div>
               <div className="field">
+                <label>رقم التذكرة</label>
+                <input
+                  required
+                  value={ticketNumber}
+                  onChange={(e) => setTicketNumber(e.target.value)}
+                  placeholder="مثال: T-1001"
+                />
+              </div>
+              <div className="field">
                 <label>الهاتف</label>
-                <input required value={phone} onChange={(e) => setPhone(e.target.value)} />
+                <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="اختياري" />
               </div>
               <div className="field">
                 <label>رقم الجواز</label>
@@ -294,6 +306,7 @@ export function OfficeBookingsPage() {
             <thead>
               <tr>
                 <th>الراكب</th>
+                <th>رقم التذكرة</th>
                 <th>رقم الجواز</th>
                 <th>منطقة الانطلاق</th>
                 <th>منطقة الوصول</th>
@@ -312,6 +325,7 @@ export function OfficeBookingsPage() {
                 return (
                   <tr key={b.id}>
                     <td>{b.passengerName}</td>
+                    <td>{b.ticketNumber || '—'}</td>
                     <td>{b.passportNumber || '—'}</td>
                     <td>{getDestination(b.boardingDestinationId)?.name || '—'}</td>
                     <td>{getDestination(b.arrivalDestinationId)?.name || '—'}</td>

@@ -2,6 +2,10 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { prisma } from '../config'
 import { authRequired, requireRoles } from '../middleware/auth'
+import {
+  ensureOfficeLedgerAccount,
+  postAdminOfficeSettlement,
+} from '../services/ledger'
 import { asyncHandler, fail, ok } from '../utils/http'
 
 export const customersRouter = Router()
@@ -100,6 +104,33 @@ vouchersRouter.post(
         relatedBookingId: body.data.relatedBookingId,
       },
     })
+
+    // سندات الوكيل (مبيعات/صندوق) لا تُرحَّل لكشف الذمة.
+    // التسديد على الكشف: أدمن فقط (سند صرف بدون حجز مرتبط).
+    if (
+      req.user!.role === 'admin' &&
+      !body.data.relatedBookingId &&
+      body.data.type === 'payment'
+    ) {
+      let office = await prisma.office.findUnique({ where: { id: officeId } })
+      if (office && !office.ledgerAccountId) {
+        const ledgerAccountId = await ensureOfficeLedgerAccount(office.name)
+        office = await prisma.office.update({
+          where: { id: office.id },
+          data: { ledgerAccountId },
+        })
+      }
+      if (office?.ledgerAccountId) {
+        await postAdminOfficeSettlement({
+          voucherId: voucher.id,
+          ledgerAccountId: office.ledgerAccountId,
+          amount: voucher.amount,
+          description: voucher.description,
+          date: voucher.date,
+        })
+      }
+    }
+
     return ok(res, { voucher }, 201)
   }),
 )

@@ -94,7 +94,7 @@ export function DriversPage() {
       {
         الاسم: 'أحمد علي',
         الهاتف: '777000111',
-        'رقم الهوية': '1234567890',
+        'رقم الحدود / الهوية': '1234567890',
         الجنسية: 'يمني',
         النوع: 'رسمي',
         الحالة: 'نشط',
@@ -113,13 +113,18 @@ export function DriversPage() {
       const byIdCard = new Map(state.drivers.map((d) => [d.licenseNumber, d.id]))
       for (const row of rows) {
         const name = pick(row, ['الاسم', 'name', 'Name'])
-        const phone = pick(row, ['الهاتف', 'phone', 'Phone'])
+        const phone = pick(row, ['الهاتف', 'phone', 'Phone', 'جوال', 'موبايل', 'mobile', 'Mobile'])
         const licenseNumber = pick(row, [
+          'رقم الحدود / الهوية',
+          'رقم الحدود/الهوية',
+          'رقم الحدود',
           'رقم الهوية',
           'رقم الرخصة',
           'الهوية',
+          'الحدود',
           'licenseNumber',
           'nationalId',
+          'idNumber',
         ])
         if (!name || !phone || !licenseNumber) {
           skipped++

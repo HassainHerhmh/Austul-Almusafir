@@ -18,19 +18,24 @@ function cell(v: unknown) {
   return String(v ?? '').trim()
 }
 
-/** يطابق مفاتيح الأعمدة العربية أو الإنجليزية */
+function normHeader(s: string) {
+  return s.replace(/[\s_\-–—/\\|]+/g, '').toLowerCase()
+}
+
+/** يطابق مفاتيح الأعمدة العربية أو الإنجليزية (دقيق أو يحتوي على المفتاح) */
 export function pick(row: Record<string, unknown>, keys: string[]) {
   for (const key of keys) {
     if (row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== '') {
       return cell(row[key])
     }
   }
-  const lower = Object.fromEntries(
-    Object.entries(row).map(([k, v]) => [k.replace(/\s+/g, '').toLowerCase(), v]),
-  )
+  const entries = Object.entries(row).map(([k, v]) => [normHeader(k), v] as const)
   for (const key of keys) {
-    const k = key.replace(/\s+/g, '').toLowerCase()
-    if (lower[k] !== undefined && String(lower[k]).trim() !== '') return cell(lower[k])
+    const nk = normHeader(key)
+    for (const [hk, v] of entries) {
+      if (!hk || v === undefined || v === null || String(v).trim() === '') continue
+      if (hk === nk || hk.includes(nk) || nk.includes(hk)) return cell(v)
+    }
   }
   return ''
 }

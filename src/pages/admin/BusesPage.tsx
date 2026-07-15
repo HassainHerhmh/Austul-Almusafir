@@ -63,8 +63,8 @@ export function BusesPage() {
       state.buses.map((b) => ({
         'رقم الحافلة': b.busNumber || '',
         'رقم اللوحة': b.plateNumber,
-        'موديل الحافلة': b.type,
-        'سنة الحافلة': b.year || '',
+        النوع: b.type,
+        'موديل الحافلة': b.year || '',
         المقاعد: b.seats,
         الحالة: statusLabel(b.status),
       })),
@@ -74,7 +74,7 @@ export function BusesPage() {
   const exportPdf = () => {
     exportTablePdf(
       'قائمة الباصات',
-      ['رقم الحافلة', 'رقم اللوحة', 'موديل الحافلة', 'سنة الحافلة', 'المقاعد', 'الحالة'],
+      ['رقم الحافلة', 'رقم اللوحة', 'النوع', 'موديل الحافلة', 'المقاعد', 'الحالة'],
       state.buses.map((b) => [
         b.busNumber || '—',
         b.plateNumber,
@@ -91,8 +91,8 @@ export function BusesPage() {
       {
         'رقم الحافلة': '101',
         'رقم اللوحة': 'أ ص ح 2234',
-        'موديل الحافلة': 'زونج تونج',
-        'سنة الحافلة': '2025',
+        النوع: 'زونج تونج',
+        'موديل الحافلة': '2025',
         المقاعد: 50,
         الحالة: 'متاح',
       },
@@ -117,17 +117,13 @@ export function BusesPage() {
           'fleetNumber',
         ])
         const plateNumber = pick(row, ['رقم اللوحة', 'اللوحة', 'plateNumber', 'plate'])
-        const type = pick(row, [
-          'موديل الحافلة',
-          'الموديل',
-          'موديل',
-          'النوع',
-          'type',
-          'Type',
-          'model',
-          'Model',
-        ])
-        const year = pick(row, ['سنة الحافلة', 'السنة', 'سنة', 'year', 'Year'])
+        const typeCol = pick(row, ['النوع', 'نوع الحافلة', 'type', 'Type'])
+        const modelCol = pick(row, ['موديل الحافلة', 'الموديل', 'موديل', 'model', 'Model'])
+        const yearCol = pick(row, ['سنة الحافلة', 'السنة', 'سنة', 'year', 'Year'])
+        const type =
+          typeCol || (modelCol && !/^\d{4}/.test(modelCol) ? modelCol : '')
+        const year =
+          yearCol || (modelCol && /^\d{4}/.test(modelCol) ? modelCol : '')
         const seatsRaw = pick(row, ['المقاعد', 'seats', 'Seats'])
         const seats = Math.max(1, Number(seatsRaw) || 50)
         if (!plateNumber || !type) {
@@ -206,8 +202,8 @@ export function BusesPage() {
               <tr>
                 <th>رقم الحافلة</th>
                 <th>رقم اللوحة</th>
+                <th>النوع</th>
                 <th>موديل الحافلة</th>
-                <th>سنة الحافلة</th>
                 <th>المقاعد</th>
                 <th>الحالة</th>
                 <th></th>
@@ -269,7 +265,7 @@ export function BusesPage() {
                   />
                 </div>
                 <div className="field">
-                  <label>موديل الحافلة</label>
+                  <label>النوع</label>
                   <input
                     required
                     value={form.type}
@@ -278,7 +274,7 @@ export function BusesPage() {
                   />
                 </div>
                 <div className="field">
-                  <label>سنة الحافلة</label>
+                  <label>موديل الحافلة</label>
                   <input
                     value={form.year}
                     onChange={(e) => setForm({ ...form, year: e.target.value })}

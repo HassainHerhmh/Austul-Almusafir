@@ -49,7 +49,7 @@ export interface Bus {
   busNumber: string
   plateNumber: string
   type: string
-  /** سنة الموديل */
+  /** سنة/موديل الموديل (مثل 2025) */
   year: string
   seats: number
   status: BusStatus

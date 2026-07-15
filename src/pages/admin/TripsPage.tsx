@@ -172,6 +172,7 @@ export function TripsPage() {
                 <th>التاريخ</th>
                 <th>الوقت</th>
                 <th>الباص</th>
+                <th>النوع</th>
                 <th>موديل الحافلة</th>
                 <th>السائق الرسمي</th>
                 <th>السائق المعاون</th>
@@ -208,10 +209,8 @@ export function TripsPage() {
                           ? `${getBus(t.busId)!.busNumber} — ${getBus(t.busId)!.plateNumber}`
                           : getBus(t.busId)?.plateNumber}
                       </td>
-                      <td>
-                        {[getBus(t.busId)?.type, getBus(t.busId)?.year].filter(Boolean).join(' ') ||
-                          '—'}
-                      </td>
+                      <td>{getBus(t.busId)?.type || '—'}</td>
+                      <td>{getBus(t.busId)?.year || '—'}</td>
                       <td>{getDriver(t.driverId)?.name ?? '—'}</td>
                       <td>
                         {t.assistantName

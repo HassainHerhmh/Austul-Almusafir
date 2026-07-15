@@ -113,7 +113,7 @@ export function AdminJournalReviewPage() {
     <div>
       <header className="page-header">
         <div>
-          <h1>مراجعة القيود</h1>
+          <h2 className="acc-heading text-xl">مراجعة القيود</h2>
         </div>
       </header>
 

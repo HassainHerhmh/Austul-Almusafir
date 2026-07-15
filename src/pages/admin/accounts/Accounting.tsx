@@ -38,12 +38,13 @@ const Accounting = () => {
   const isSetup = location.pathname.includes('/accounts/setup')
   const isOperations = location.pathname.includes('/accounts/operations')
   const isReports = location.pathname.includes('/accounts/reports')
+  const isJournalReview = location.pathname.includes('/accounts/journal-review')
 
   return (
     <div className="acc-shell space-y-6" dir="rtl">
       <h1 className="acc-title text-2xl">الحسابات</h1>
 
-      <div className="flex gap-6 acc-border-b pb-2 text-sm font-semibold">
+      <div className="flex gap-6 acc-border-b pb-2 text-sm font-semibold flex-wrap">
         <Link
           to={`${BASE}/setup/accounts`}
           className={`acc-parent-tab ${isSetup ? 'active' : ''}`}
@@ -63,6 +64,13 @@ const Accounting = () => {
           className={`acc-parent-tab ${isReports ? 'active' : ''}`}
         >
           التقارير
+        </Link>
+
+        <Link
+          to={`${BASE}/journal-review`}
+          className={`acc-parent-tab ${isJournalReview ? 'active' : ''}`}
+        >
+          مراجعة القيود
         </Link>
       </div>
 

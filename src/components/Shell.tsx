@@ -15,7 +15,6 @@ const adminLinks = [
   { to: '/admin/bookings', label: 'الحجوزات' },
   { to: '/admin/accounts', label: 'الحسابات' },
   { to: '/admin/reports', label: 'التقارير' },
-  { to: '/admin/journal-review', label: 'مراجعة القيود' },
   { to: '/admin/settings', label: 'الإعدادات' },
 ]
 

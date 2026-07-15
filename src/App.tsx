@@ -93,10 +93,10 @@ export default function App() {
                 <Route path="reports" element={<AccountReports />}>
                   <Route path="account-statement" element={<AccountStatement />} />
                 </Route>
+                <Route path="journal-review" element={<AdminJournalReviewPage />} />
               </Route>
 
               <Route path="reports" element={<AdminReportsPage />} />
-              <Route path="journal-review" element={<AdminJournalReviewPage />} />
               <Route path="settings" element={<SettingsPage />} />
             </Route>
 

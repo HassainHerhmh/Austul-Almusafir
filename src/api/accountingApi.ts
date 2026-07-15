@@ -69,6 +69,8 @@ type Bank = {
   bank_group_name: string
   account_id: number
   account_name: string
+  parent_account_id?: number | null
+  parent_account_name?: string | null
   user_name: string
   branch_name: string
 }
@@ -91,6 +93,8 @@ type CashBox = {
   cashbox_group_name: string
   account_id: number
   account_name: string
+  parent_account_id?: number | null
+  parent_account_name?: string | null
   user_name: string | null
   branch_name: string | null
 }
@@ -243,7 +247,7 @@ function buildSeed(): Store {
       created_at: now(), branch_name: BRANCH, group_name: 'الأصول', parent_name: 'الأصول المتداولة',
     },
     {
-      id: 4, code: '11101', name_ar: 'صندوق الصندوق الرئيسي', name_en: 'Main Cash', parent_id: 3,
+      id: 4, code: '11101', name_ar: 'الصندوق الرئيسي', name_en: 'Main Cash', parent_id: 3,
       account_group_id: 1, account_level: 'فرعي', financial_statement: 'الميزانية العمومية',
       created_at: now(), branch_name: BRANCH, group_name: 'الأصول', parent_name: 'الصناديق',
     },
@@ -366,14 +370,18 @@ function buildSeed(): Store {
 
   const banks: Bank[] = [
     {
-      id: 1, name_ar: 'بنك الكريمي', name_en: 'Al-Kuraimi', code: 'BK01',
+      id: 1, name_ar: 'بنك الكريمي', name_en: 'Al-Kuraimi', code: '11201',
       bank_group_id: 1, bank_group_name: 'بنوك محلية', account_id: 7,
-      account_name: 'بنك الكريمي', user_name: USER, branch_name: BRANCH,
+      account_name: 'بنك الكريمي',
+      parent_account_id: 6, parent_account_name: '112 — البنوك',
+      user_name: USER, branch_name: BRANCH,
     },
     {
-      id: 2, name_ar: 'بنك التضامن', name_en: 'Tadhamon', code: 'BK02',
+      id: 2, name_ar: 'بنك التضامن', name_en: 'Tadhamon', code: '11202',
       bank_group_id: 1, bank_group_name: 'بنوك محلية', account_id: 8,
-      account_name: 'بنك التضامن', user_name: USER, branch_name: BRANCH,
+      account_name: 'بنك التضامن',
+      parent_account_id: 6, parent_account_name: '112 — البنوك',
+      user_name: USER, branch_name: BRANCH,
     },
   ]
 
@@ -384,9 +392,10 @@ function buildSeed(): Store {
 
   const cashBoxes: CashBox[] = [
     {
-      id: 1, name_ar: 'الصندوق الرئيسي', name_en: 'Main Box', code: 'CB01',
+      id: 1, name_ar: 'الصندوق الرئيسي', name_en: 'Main Box', code: '11101',
       cash_box_group_id: 1, cashbox_group_name: 'صناديق المكاتب',
-      account_id: 4, account_name: 'صندوق الصندوق الرئيسي',
+      account_id: 4, account_name: 'الصندوق الرئيسي',
+      parent_account_id: 3, parent_account_name: '111 — الصناديق',
       user_name: USER, branch_name: BRANCH,
     },
   ]
@@ -724,12 +733,28 @@ function handleGet(url: string, config?: { params?: Record<string, any> }): any 
 
   // Banks
   if (path === '/banks') {
-    const banks = store.banks.filter(
-      (b) =>
-        matchSearch(b.name_ar, search) ||
-        matchSearch(b.code, search) ||
-        matchSearch(b.bank_group_name, search)
-    )
+    const banks = store.banks
+      .filter(
+        (b) =>
+          matchSearch(b.name_ar, search) ||
+          matchSearch(b.code, search) ||
+          matchSearch(b.bank_group_name, search),
+      )
+      .map((b) => {
+        if (b.parent_account_name) return b
+        const acc = store.accounts.find((a) => a.id === b.account_id)
+        const parent = acc?.parent_id != null
+          ? store.accounts.find((a) => a.id === acc.parent_id)
+          : null
+        return {
+          ...b,
+          code: acc?.code || b.code,
+          parent_account_id: parent?.id ?? b.parent_account_id ?? null,
+          parent_account_name: parent
+            ? `${parent.code} — ${parent.name_ar}`
+            : b.parent_account_name ?? null,
+        }
+      })
     return ok({ banks, list: banks })
   }
 
@@ -743,12 +768,28 @@ function handleGet(url: string, config?: { params?: Record<string, any> }): any 
 
   // Cash boxes
   if (path === '/cash-boxes') {
-    const list = store.cashBoxes.filter(
-      (c) =>
-        matchSearch(c.name_ar, search) ||
-        matchSearch(c.code, search) ||
-        matchSearch(c.cashbox_group_name, search)
-    )
+    const list = store.cashBoxes
+      .filter(
+        (c) =>
+          matchSearch(c.name_ar, search) ||
+          matchSearch(c.code, search) ||
+          matchSearch(c.cashbox_group_name, search),
+      )
+      .map((c) => {
+        if (c.parent_account_name) return c
+        const acc = store.accounts.find((a) => a.id === c.account_id)
+        const parent = acc?.parent_id != null
+          ? store.accounts.find((a) => a.id === acc.parent_id)
+          : null
+        return {
+          ...c,
+          code: acc?.code || c.code,
+          parent_account_id: parent?.id ?? c.parent_account_id ?? null,
+          parent_account_name: parent
+            ? `${parent.code} — ${parent.name_ar}`
+            : c.parent_account_name ?? null,
+        }
+      })
     return ok({ list, cashBoxes: list })
   }
 
@@ -912,32 +953,49 @@ function handlePost(url: string, body: any = {}): any {
     const group = store.bankGroups.find((g) => g.id === Number(body.bank_group_id))
     if (!group) fail('مجموعة البنك مطلوبة')
     const parentId = Number(body.parent_account_id)
-    const accId = nextId('accounts')
-    const code = nextAccountCode(parentId)
-    const account: Account = {
-      id: accId,
-      code,
-      name_ar: body.name_ar,
-      name_en: body.name_en ?? null,
-      parent_id: parentId,
-      account_group_id: 1,
-      account_level: 'فرعي',
-      financial_statement: 'الميزانية العمومية',
-      created_at: now(),
-      branch_name: BRANCH,
-      group_name: 'الأصول',
-      parent_name: accountName(parentId),
+    const parent = store.accounts.find((a) => a.id === parentId)
+    const parentLabel =
+      body.parent_account_name ||
+      (parent ? `${parent.code} — ${parent.name_ar}` : accountName(parentId))
+
+    let accId = Number(body.account_id)
+    let accountCode = body.account_code || body.code
+    let accountNameAr = body.name_ar
+
+    // إن لم يُمرَّر حساب من السيرفر: أنشئ حساباً محلياً (توافق)
+    if (!accId) {
+      accId = nextId('accounts')
+      accountCode = nextAccountCode(parentId)
+      const account: Account = {
+        id: accId,
+        code: accountCode,
+        name_ar: body.name_ar,
+        name_en: body.name_en ?? null,
+        parent_id: parentId,
+        account_group_id: 1,
+        account_level: 'فرعي',
+        financial_statement: 'الميزانية العمومية',
+        created_at: now(),
+        branch_name: BRANCH,
+        group_name: 'الأصول',
+        parent_name: parent?.name_ar ?? null,
+      }
+      store.accounts.push(account)
+    } else {
+      accountNameAr = body.account_name || body.name_ar
     }
-    store.accounts.push(account)
+
     const bank: Bank = {
       id: nextId('banks'),
       name_ar: body.name_ar,
       name_en: body.name_en ?? null,
-      code: body.code || `BK${String(store.banks.length + 1).padStart(2, '0')}`,
+      code: accountCode || body.code || `BK${String(store.banks.length + 1).padStart(2, '0')}`,
       bank_group_id: group.id,
       bank_group_name: group.name_ar,
       account_id: accId,
-      account_name: body.name_ar,
+      account_name: accountNameAr,
+      parent_account_id: parentId || null,
+      parent_account_name: parentLabel,
       user_name: USER,
       branch_name: BRANCH,
     }
@@ -964,31 +1022,48 @@ function handlePost(url: string, body: any = {}): any {
     const group = store.cashboxGroups.find((g) => g.id === Number(body.cash_box_group_id))
     if (!group) fail('مجموعة الصندوق مطلوبة')
     const parentId = Number(body.parent_account_id)
-    const accId = nextId('accounts')
-    const account: Account = {
-      id: accId,
-      code: nextAccountCode(parentId),
-      name_ar: body.name_ar,
-      name_en: body.name_en ?? null,
-      parent_id: parentId,
-      account_group_id: 1,
-      account_level: 'فرعي',
-      financial_statement: 'الميزانية العمومية',
-      created_at: now(),
-      branch_name: BRANCH,
-      group_name: 'الأصول',
-      parent_name: accountName(parentId),
+    const parent = store.accounts.find((a) => a.id === parentId)
+    const parentLabel =
+      body.parent_account_name ||
+      (parent ? `${parent.code} — ${parent.name_ar}` : accountName(parentId))
+
+    let accId = Number(body.account_id)
+    let accountCode = body.account_code || body.code
+    let accountNameAr = body.name_ar
+
+    if (!accId) {
+      accId = nextId('accounts')
+      accountCode = nextAccountCode(parentId)
+      const account: Account = {
+        id: accId,
+        code: accountCode,
+        name_ar: body.name_ar,
+        name_en: body.name_en ?? null,
+        parent_id: parentId,
+        account_group_id: 1,
+        account_level: 'فرعي',
+        financial_statement: 'الميزانية العمومية',
+        created_at: now(),
+        branch_name: BRANCH,
+        group_name: 'الأصول',
+        parent_name: parent?.name_ar ?? null,
+      }
+      store.accounts.push(account)
+    } else {
+      accountNameAr = body.account_name || body.name_ar
     }
-    store.accounts.push(account)
+
     const box: CashBox = {
       id: nextId('cashBoxes'),
       name_ar: body.name_ar,
       name_en: body.name_en ?? null,
-      code: body.code || `CB${String(store.cashBoxes.length + 1).padStart(2, '0')}`,
+      code: accountCode || body.code || `CB${String(store.cashBoxes.length + 1).padStart(2, '0')}`,
       cash_box_group_id: group.id,
       cashbox_group_name: group.name_ar,
       account_id: accId,
-      account_name: body.name_ar,
+      account_name: accountNameAr,
+      parent_account_id: parentId || null,
+      parent_account_name: parentLabel,
       user_name: USER,
       branch_name: BRANCH,
     }

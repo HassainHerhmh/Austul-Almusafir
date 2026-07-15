@@ -12,7 +12,10 @@ type CashBox = {
   name_en: string | null;
   code: string;
   cashbox_group_name: string;
+  account_id?: number;
   account_name: string;
+  parent_account_id?: number | null;
+  parent_account_name?: string | null;
   user_name: string | null;
   branch_name: string | null;
 };
@@ -75,6 +78,36 @@ function assetParentAccounts(list: any[]): Account[] {
     .sort((a, b) => a.code.localeCompare(b.code, "ar"));
 }
 
+function enrichWithParent(
+  boxes: CashBox[],
+  chart: any[],
+): CashBox[] {
+  const byId = new Map(chart.map((a) => [Number(a.id), a]));
+  return boxes.map((c) => {
+    if (c.parent_account_name) return c;
+    const leaf =
+      (c.account_id != null ? byId.get(Number(c.account_id)) : null) ||
+      chart.find(
+        (a) =>
+          a.name_ar === c.name_ar ||
+          a.name_ar === c.account_name ||
+          a.code === c.code,
+      );
+    if (!leaf) return c;
+    const parentId = leaf.parent_id ?? leaf.parentId;
+    const parent = parentId != null ? byId.get(Number(parentId)) : null;
+    if (!parent) return { ...c, account_id: leaf.id, code: leaf.code || c.code };
+    return {
+      ...c,
+      account_id: leaf.id,
+      code: leaf.code || c.code,
+      account_name: leaf.name_ar,
+      parent_account_id: parent.id,
+      parent_account_name: `${parent.code} — ${parent.name_ar}`,
+    };
+  });
+}
+
 /* =========================
    Component
 ========================= */
@@ -82,9 +115,11 @@ const CashBoxes: React.FC = () => {
   const [cashBoxes, setCashBoxes] = useState<CashBox[]>([]);
   const [groups, setGroups] = useState<CashBoxGroup[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [chart, setChart] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const [form, setForm] = useState({
     name_ar: "",
@@ -94,16 +129,23 @@ const CashBoxes: React.FC = () => {
     parent_account_id: "",
   });
 
-  /* =========================
-     Load Data
-  ========================= */
- const loadCashBoxes = async () => {
-  const res = await api.get("/cash-boxes", { params: { search } });
-  if (res.data.success) {
-    setCashBoxes(res.data.list || res.data.cashBoxes || []);
-  }
-};
-
+  const loadCashBoxes = async () => {
+    const res = await api.get("/cash-boxes", { params: { search } });
+    if (!res.data.success) return;
+    const list = res.data.list || res.data.cashBoxes || [];
+    let chartRows = chart;
+    if (!chartRows.length) {
+      try {
+        const r = await serverApi.accounts.list();
+        chartRows = r.list ?? [];
+        setChart(chartRows);
+        setAccounts(assetParentAccounts(chartRows));
+      } catch {
+        /* ignore */
+      }
+    }
+    setCashBoxes(enrichWithParent(list, chartRows));
+  };
 
   const loadGroups = async () => {
     const res = await api.get("/cashbox-groups");
@@ -113,11 +155,13 @@ const CashBoxes: React.FC = () => {
   const loadAccounts = async () => {
     try {
       const res = await serverApi.accounts.list();
+      setChart(res.list ?? []);
       setAccounts(assetParentAccounts(res.list ?? []));
     } catch {
       const res = await api.get("/accounts/main-for-cashboxes");
       if (res.data.success) {
-        setAccounts(assetParentAccounts(res.data.accounts || res.data.list || []));
+        const rows = res.data.accounts || res.data.list || [];
+        setAccounts(assetParentAccounts(rows));
       }
     }
   };
@@ -128,12 +172,9 @@ const CashBoxes: React.FC = () => {
 
   useEffect(() => {
     loadGroups();
-    loadAccounts();
+    loadAccounts().then(() => loadCashBoxes());
   }, []);
 
-  /* =========================
-     Save (Add / Edit)
-  ========================= */
   const saveCashBox = async () => {
     if (!form.name_ar || !form.cash_box_group_id) {
       alert("يرجى تعبئة الحقول المطلوبة");
@@ -141,6 +182,7 @@ const CashBoxes: React.FC = () => {
     }
 
     try {
+      setBusy(true);
       if (editId) {
         await api.put(`/cash-boxes/${editId}`, {
           name_ar: form.name_ar,
@@ -149,31 +191,64 @@ const CashBoxes: React.FC = () => {
         });
       } else {
         if (!form.parent_account_id) {
-          alert("يرجى تعبئة جميع الحقول المطلوبة");
+          alert("يرجى اختيار حساب الأب");
           return;
         }
 
-        const user = JSON.parse(localStorage.getItem("card-platform-user") || "{}");
+        const parent = accounts.find(
+          (a) => String(a.id) === form.parent_account_id,
+        );
+        if (!parent) {
+          alert("حساب الأب غير موجود");
+          return;
+        }
+
+        // إنشاء الحساب الفرعي في دليل السيرفر ليظهر في الشجرة والجدول
+        const created = await serverApi.accounts.create({
+          name_ar: form.name_ar.trim(),
+          name_en: form.name_en.trim() || null,
+          parent_id: Number(form.parent_account_id),
+          account_level: "فرعي",
+          financial_statement: "الميزانية العمومية",
+        });
+        const account = (created as any).account;
+        if (!account?.id) {
+          alert("تعذر إنشاء الحساب في الدليل");
+          return;
+        }
+
+        const user = JSON.parse(
+          localStorage.getItem("card-platform-user") || "{}",
+        );
 
         await api.post("/cash-boxes", {
-          name_ar: form.name_ar,
-          name_en: form.name_en || null,
+          name_ar: form.name_ar.trim(),
+          name_en: form.name_en.trim() || null,
           cash_box_group_id: Number(form.cash_box_group_id),
           parent_account_id: Number(form.parent_account_id),
+          parent_account_name: `${parent.code} — ${parent.name_ar}`,
+          account_id: account.id,
+          account_code: account.code,
+          account_name: account.name_ar,
           created_by: user.id || null,
         });
+
+        await loadAccounts();
       }
 
       closeModal();
-      loadCashBoxes();
+      await loadCashBoxes();
     } catch (err: any) {
-      alert(err.response?.data?.message || "حدث خطأ");
+      alert(
+        err?.message ||
+          err.response?.data?.message ||
+          "حدث خطأ أثناء الحفظ",
+      );
+    } finally {
+      setBusy(false);
     }
   };
 
-  /* =========================
-     Delete
-  ========================= */
   const deleteCashBox = async (id: number) => {
     if (!window.confirm("هل أنت متأكد من الحذف؟")) return;
     try {
@@ -184,9 +259,6 @@ const CashBoxes: React.FC = () => {
     }
   };
 
-  /* =========================
-     Helpers
-  ========================= */
   const openAdd = () => {
     setEditId(null);
     setForm({
@@ -208,7 +280,9 @@ const CashBoxes: React.FC = () => {
       cash_box_group_id:
         groups.find((g) => g.name_ar === c.cashbox_group_name)?.id.toString() ||
         "",
-      parent_account_id: "",
+      parent_account_id: c.parent_account_id
+        ? String(c.parent_account_id)
+        : "",
     });
     setShowModal(true);
   };
@@ -218,14 +292,10 @@ const CashBoxes: React.FC = () => {
     setEditId(null);
   };
 
-  /* =========================
-     Render
-  ========================= */
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">الصناديق النقدية</h1>
 
-      {/* ===== Tools ===== */}
       <div className="flex justify-between items-center">
         <input
           placeholder="بحث"
@@ -242,7 +312,9 @@ const CashBoxes: React.FC = () => {
             ➕ إضافة
           </button>
           <button
-            onClick={loadCashBoxes}
+            onClick={() => {
+              void loadAccounts().then(() => loadCashBoxes());
+            }}
             className="acc-btn acc-btn-primary px-4 py-2 rounded"
           >
             🔄 تحديث
@@ -256,7 +328,6 @@ const CashBoxes: React.FC = () => {
         </div>
       </div>
 
-      {/* ===== Table ===== */}
       <div className="acc-table-wrap">
         <table className="acc-table text-center">
           <thead>
@@ -265,7 +336,7 @@ const CashBoxes: React.FC = () => {
               <th className="border px-3 py-2">الاسم الأجنبي</th>
               <th className="border px-3 py-2">الرقم</th>
               <th className="border px-3 py-2">مجموعة الصناديق</th>
-              <th className="border px-3 py-2">الحساب المحاسبي</th>
+              <th className="border px-3 py-2">حساب الأب</th>
               <th className="border px-3 py-2">الفرع</th>
               <th className="border px-3 py-2">الإجراءات</th>
             </tr>
@@ -277,7 +348,9 @@ const CashBoxes: React.FC = () => {
                 <td className="border px-3 py-2">{c.name_en || "-"}</td>
                 <td className="border px-3 py-2">{c.code}</td>
                 <td className="border px-3 py-2">{c.cashbox_group_name}</td>
-                <td className="border px-3 py-2">{c.account_name}</td>
+                <td className="border px-3 py-2">
+                  {c.parent_account_name || "-"}
+                </td>
                 <td className="border px-3 py-2">
                   {c.branch_name || DEFAULT_BRANCH_NAME}
                 </td>
@@ -299,7 +372,6 @@ const CashBoxes: React.FC = () => {
         </table>
       </div>
 
-      {/* ===== Modal ===== */}
       {showModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-[#eef4ee] p-6 rounded w-[420px] space-y-2">
@@ -328,7 +400,7 @@ const CashBoxes: React.FC = () => {
             {!editId && (
               <>
                 <div className="rounded border border-dashed border-gray-300 bg-white px-3 py-2 text-right text-sm text-gray-500">
-                  الرقم يتولد تلقائيًا من تسلسل الحسابات عند الحفظ
+                  الرقم يتولد تلقائيًا من تسلسل الحسابات عند الحفظ، ويظهر الصندوق في الدليل تحت حساب الأب
                 </div>
 
                 <select
@@ -342,7 +414,7 @@ const CashBoxes: React.FC = () => {
                   }
                 >
                   <option value="" hidden>
-                    الحساب المحاسبي (الأب)
+                    حساب الأب
                   </option>
                   {accounts.map((a) => (
                     <option key={a.id} value={a.id}>
@@ -374,12 +446,15 @@ const CashBoxes: React.FC = () => {
             </select>
 
             <div className="flex justify-between pt-2">
-              <button onClick={closeModal}>إلغاء</button>
+              <button onClick={closeModal} disabled={busy}>
+                إلغاء
+              </button>
               <button
-                onClick={saveCashBox}
+                onClick={() => void saveCashBox()}
+                disabled={busy}
                 className="acc-btn acc-btn-primary px-4 py-2 rounded"
               >
-                حفظ
+                {busy ? "جاري الحفظ..." : "حفظ"}
               </button>
             </div>
           </div>

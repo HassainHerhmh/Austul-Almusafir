@@ -2,9 +2,33 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { SeatMap } from '../../components/SeatMap'
 import { TicketView } from '../../components/TicketView'
-import { PAYMENT_LABELS, formatMoney, formatTimeAr } from '../../components/utils'
+import { PAYMENT_LABELS, formatMoney, formatTimeAr, todayStr } from '../../components/utils'
 import { useApp } from '../../context/AppContext'
+import { useBrand } from '../../context/BrandContext'
 import type { Booking, PaymentMethod } from '../../types'
+import { printTableReport } from '../../utils/importExport'
+
+const PRINT_COLUMNS = [
+  { key: 'passenger', label: 'الراكب' },
+  { key: 'ticketNumber', label: 'رقم التذكرة' },
+  { key: 'passport', label: 'رقم الجواز' },
+  { key: 'visa', label: 'نوع التأشيرة' },
+  { key: 'boarding', label: 'منطقة الانطلاق' },
+  { key: 'arrival', label: 'منطقة الوصول' },
+  { key: 'trip', label: 'الرحلة' },
+  { key: 'seat', label: 'المقعد' },
+  { key: 'payment', label: 'الدفع' },
+  { key: 'notes', label: 'الملاحظات' },
+  { key: 'status', label: 'الحالة' },
+  { key: 'price', label: 'السعر' },
+  { key: 'addedBy', label: 'أضافه' },
+] as const
+
+type PrintColKey = (typeof PRINT_COLUMNS)[number]['key']
+
+const DEFAULT_PRINT_COLS: Record<PrintColKey, boolean> = Object.fromEntries(
+  PRINT_COLUMNS.map((c) => [c.key, true]),
+) as Record<PrintColKey, boolean>
 
 export function OfficeBookingsPage() {
   const {
@@ -19,6 +43,7 @@ export function OfficeBookingsPage() {
     updateBooking,
     refreshBookings,
   } = useApp()
+  const { name: companyName, logoUrl, phones } = useBrand()
   const [params] = useSearchParams()
   const officeId = currentOffice!.id
 
@@ -54,6 +79,9 @@ export function OfficeBookingsPage() {
   const [error, setError] = useState<string | null>(null)
   const [ticketBooking, setTicketBooking] = useState<Booking | null>(null)
   const [editBooking, setEditBooking] = useState<Booking | null>(null)
+  const [filterDate, setFilterDate] = useState(todayStr())
+  const [printOpen, setPrintOpen] = useState(false)
+  const [printCols, setPrintCols] = useState<Record<PrintColKey, boolean>>(DEFAULT_PRINT_COLS)
   const [editForm, setEditForm] = useState({
     passengerName: '',
     ticketNumber: '',
@@ -116,9 +144,65 @@ export function OfficeBookingsPage() {
 
   const seats = tripId ? getTripSeats(tripId) : null
 
-  const myBookings = state.bookings
-    .filter((b) => b.officeId === officeId)
-    .sort((a, b) => b.bookedAt.localeCompare(a.bookedAt))
+  const myBookings = useMemo(
+    () =>
+      state.bookings
+        .filter((b) => b.officeId === officeId)
+        .filter((b) => !filterDate || b.bookedAt.slice(0, 10) === filterDate)
+        .sort((a, b) => b.bookedAt.localeCompare(a.bookedAt)),
+    [state.bookings, officeId, filterDate],
+  )
+
+  const printCell = (b: Booking, key: PrintColKey): string => {
+    const trip = state.trips.find((t) => t.id === b.tripId)
+    switch (key) {
+      case 'passenger':
+        return b.passengerName
+      case 'ticketNumber':
+        return b.ticketNumber || '—'
+      case 'passport':
+        return b.passportNumber || '—'
+      case 'visa':
+        return state.visaTypes.find((v) => v.id === b.visaTypeId)?.name || '—'
+      case 'boarding':
+        return getDestination(b.boardingDestinationId)?.name || '—'
+      case 'arrival':
+        return getDestination(b.arrivalDestinationId)?.name || '—'
+      case 'trip':
+        return trip ? getTripLabel(trip) : '—'
+      case 'seat':
+        return String(b.seatNumber)
+      case 'payment':
+        return PAYMENT_LABELS[b.paymentMethod]
+      case 'notes':
+        return b.notes?.trim() ? b.notes : '—'
+      case 'status':
+        return b.status === 'confirmed' ? 'مؤكد' : 'ملغى'
+      case 'price':
+        return formatMoney(b.price)
+      case 'addedBy':
+        return state.users.find((u) => u.id === b.bookedBy)?.name || '—'
+      default:
+        return '—'
+    }
+  }
+
+  const doPrint = () => {
+    const selected = PRINT_COLUMNS.filter((c) => printCols[c.key])
+    if (selected.length === 0) {
+      alert('اختر عموداً واحداً على الأقل')
+      return
+    }
+    printTableReport({
+      title: `حجوزات ${currentOffice?.name ?? ''}`,
+      companyName,
+      logoUrl,
+      phones,
+      headers: selected.map((c) => c.label),
+      rows: myBookings.map((b) => selected.map((c) => printCell(b, c.key))),
+    })
+    setPrintOpen(false)
+  }
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -405,8 +489,28 @@ export function OfficeBookingsPage() {
       )}
 
       <div className="panel">
-        <div className="panel-head">
+        <div className="panel-head" style={{ flexWrap: 'wrap', gap: '0.75rem' }}>
           <h2>حجوزات {currentOffice?.name}</h2>
+          <div className="actions" style={{ marginInlineStart: 'auto' }}>
+            <label className="field" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span style={{ whiteSpace: 'nowrap', fontSize: '0.9rem' }}>اليوم</span>
+              <input
+                type="date"
+                value={filterDate}
+                onChange={(e) => setFilterDate(e.target.value)}
+              />
+            </label>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => setFilterDate(todayStr())}
+            >
+              اليوم
+            </button>
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => setPrintOpen(true)}>
+              طباعة
+            </button>
+          </div>
         </div>
         <div className="table-wrap">
           <table className="data">
@@ -491,10 +595,78 @@ export function OfficeBookingsPage() {
                   </tr>
                 )
               })}
+              {myBookings.length === 0 && (
+                <tr>
+                  <td colSpan={14} className="empty">
+                    لا توجد حجوزات لهذا اليوم
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
       </div>
+
+      {printOpen && (
+        <div className="modal-backdrop" onClick={() => setPrintOpen(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h2>طباعة الحجوزات</h2>
+            <p style={{ color: 'var(--muted)', marginTop: 0 }}>
+              اختر الأعمدة للطباعة (حسب فلتر التاريخ المحدد).
+            </p>
+            <div className="actions" style={{ marginBottom: '0.5rem' }}>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() =>
+                  setPrintCols(
+                    Object.fromEntries(
+                      PRINT_COLUMNS.map((c) => [c.key, true]),
+                    ) as Record<PrintColKey, boolean>,
+                  )
+                }
+              >
+                تحديد الكل
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() =>
+                  setPrintCols(
+                    Object.fromEntries(
+                      PRINT_COLUMNS.map((c) => [c.key, false]),
+                    ) as Record<PrintColKey, boolean>,
+                  )
+                }
+              >
+                إلغاء الكل
+              </button>
+            </div>
+            <div className="print-cols-grid">
+              {PRINT_COLUMNS.map((c) => (
+                <label key={c.key}>
+                  <input
+                    type="checkbox"
+                    checked={printCols[c.key]}
+                    onChange={(e) =>
+                      setPrintCols((prev) => ({ ...prev, [c.key]: e.target.checked }))
+                    }
+                  />
+                  {c.label}
+                </label>
+              ))}
+            </div>
+            <div className="actions">
+              <button type="button" className="btn btn-primary" onClick={doPrint}>
+                طباعة
+              </button>
+              <button type="button" className="btn btn-ghost" onClick={() => setPrintOpen(false)}>
+                إغلاق
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {ticketBooking && (
         <div className="modal-backdrop" onClick={() => setTicketBooking(null)}>

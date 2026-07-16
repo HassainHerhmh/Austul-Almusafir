@@ -133,8 +133,6 @@ export function printTableReport(opts: {
 </head>
 <body>
   ${cliche}
-  <h1>${escapeHtml(title)}</h1>
-  <div class="meta">تاريخ الطباعة: ${new Date().toLocaleString('ar-YE')}</div>
   <table>
     <thead><tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join('')}</tr></thead>
     <tbody>

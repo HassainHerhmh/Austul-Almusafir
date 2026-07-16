@@ -1,6 +1,7 @@
 import 'dotenv/config'
 import { createApp } from './app'
 import { config, prisma } from './config'
+import { logger } from './utils/logger'
 
 async function migrateLegacyBookableTrips() {
   const key = 'migrated_scheduled_to_open_v1'
@@ -13,17 +14,18 @@ async function migrateLegacyBookableTrips() {
   await prisma.appSetting.create({
     data: { key, value: { at: new Date().toISOString(), count: result.count } },
   })
-  if (result.count > 0) {
-    console.log(`تم ترحيل ${result.count} رحلة من مجدولة إلى مفتوحة (مرة واحدة)`)
+  if (result.count > 0 && !config.isProduction) {
+    logger.info(`migrated ${result.count} trips to open`)
   }
 }
 
 const app = createApp()
 
 void migrateLegacyBookableTrips()
-  .catch((err) => console.error('ترحيل حالات الرحلات فشل:', err))
+  .catch((err) => logger.error('migration', err))
   .finally(() => {
     app.listen(config.port, '0.0.0.0', () => {
-      console.log(`أسطول المسافر API يعمل على 0.0.0.0:${config.port}`)
+      if (config.isProduction) logger.info('API ready')
+      else logger.info(`API listening on port ${config.port}`)
     })
   })

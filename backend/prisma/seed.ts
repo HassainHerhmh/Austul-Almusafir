@@ -61,7 +61,6 @@ async function main() {
         active: true,
       },
     })
-    console.log('تم إنشاء حساب المدير: admin / admin123')
   }
 
   const accCount = await prisma.account.count()
@@ -81,18 +80,15 @@ async function main() {
       })
       idByCode.set(row.code, created.id)
     }
-    console.log('تم إنشاء دليل الحسابات الأساسي')
-  } else {
-    // دليل موجود — لا نضيف ولا نعدّل حسابات تلقائياً (تُدار يدوياً)
-    console.log(`دليل الحسابات موجود مسبقاً (${accCount} حساب) — بدون تعديل تلقائي`)
   }
 
-  console.log('Seed مكتمل')
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('Seed complete')
+  }
 }
 
 main()
-  .catch((e) => {
-    console.error(e)
+  .catch(() => {
     process.exit(1)
   })
   .finally(async () => {

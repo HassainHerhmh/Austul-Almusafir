@@ -900,12 +900,6 @@ const openEdit = () => {
         </div>
       )}
 
-      <style>{`
-        .input { padding:8px; border-radius:8px; border:1px solid #ccc; background:#fff; }
-        .btn-green { background:#14532d; color:#fff; padding:8px 16px; border-radius:8px; }
-        .btn-gray { background:#e5e7eb; padding:8px 16px; border-radius:8px; }
-        .btn-red { background:#dc2626; color:#fff; padding:8px 16px; border-radius:8px; }
-      `}</style>
     </div>
   );
 };

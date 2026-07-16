@@ -366,9 +366,38 @@
 
 .acc-shell [class*='bg-gray-50'],
 .acc-shell [class*='bg-gray-100'],
-.acc-shell .bg-\[\#e9efe6\] {
+.acc-shell .bg-\[\#e9efe6\],
+.acc-shell [class*='bg-[#eef'],
+.acc-shell [class*='bg-[#e9e'] {
   background: var(--acc-solid-2) !important;
   color: var(--text) !important;
+}
+
+.acc-shell tr[class*='hover:bg-gray-50']:hover,
+.acc-shell tr[class*='hover:bg-gray-100']:hover,
+.acc-shell [class*='hover:bg-gray-50']:hover,
+.acc-shell [class*='hover:bg-gray-100']:hover {
+  background: var(--hover-bg) !important;
+}
+
+.acc-shell [class*='bg-gray-200'] {
+  background: var(--elevated) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--surface2) !important;
+}
+
+.acc-shell [class*='bg-blue-50'],
+.acc-shell [class*='dark:bg-blue-900'] {
+  background: color-mix(in srgb, var(--primary) 18%, transparent) !important;
+}
+
+.acc-shell [class*='text-blue-600'],
+.acc-shell [class*='dark:text-blue-300'] {
+  color: var(--nav-highlight-color) !important;
+}
+
+.acc-shell [class*='border-gray-400'] {
+  border-color: var(--surface2) !important;
 }
 
 .acc-shell [class*='text-gray-800'],
@@ -404,6 +433,7 @@
   color: var(--text) !important;
   border: 1px solid var(--surface2) !important;
   border-radius: 8px;
+  padding: 0.5rem 0.65rem;
 }
 
 .acc-shell input:focus,
@@ -413,6 +443,21 @@
   border-color: var(--primary) !important;
   outline: none;
   box-shadow: 0 0 0 3px var(--nav-highlight-bg);
+}
+
+.acc-shell input:disabled,
+.acc-shell select:disabled,
+.acc-shell textarea:disabled,
+.acc-shell .input:disabled {
+  background: var(--acc-solid-2) !important;
+  color: var(--text) !important;
+  opacity: 1;
+}
+
+.acc-shell input::placeholder,
+.acc-shell textarea::placeholder,
+.acc-shell .input::placeholder {
+  color: color-mix(in srgb, var(--muted) 88%, transparent) !important;
 }
 
 .acc-shell .btn-green {

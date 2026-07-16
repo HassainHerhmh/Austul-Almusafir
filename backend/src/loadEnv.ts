@@ -1,4 +1,5 @@
 import 'dotenv/config'
+import { logger } from './utils/logger'
 
 /**
  * على بعض مشاريع Railway العنوان الداخلي (.internal) لا يُستَجب —
@@ -23,7 +24,6 @@ export function ensureDatabaseUrl() {
   let chosen: string | undefined
   let via = 'unknown'
 
-  // صريح: إن طلب المستخدم الداخلي فقط عند توفر MYSQL_PRIVATE_URL + FORCE_PRIVATE_MYSQL=1
   if (process.env.FORCE_PRIVATE_MYSQL === '1' && process.env.MYSQL_PRIVATE_URL) {
     chosen = process.env.MYSQL_PRIVATE_URL
     via = 'private (forced)'
@@ -57,7 +57,9 @@ export function ensureDatabaseUrl() {
   }
 
   process.env.DATABASE_URL = withPool(chosen)
-  console.log(`[db] using ${via} MySQL connection`)
+  if (process.env.NODE_ENV !== 'production') {
+    logger.info(`[db] connected via ${via}`)
+  }
 }
 
 ensureDatabaseUrl()

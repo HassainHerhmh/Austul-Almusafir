@@ -760,6 +760,33 @@ table.data input::placeholder,
   border-color: var(--line) !important;
 }
 
+[data-theme='dark'] .btn-ghost {
+  background: var(--elevated);
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+[data-theme='dark'] .btn-ghost:hover {
+  background: var(--hover-tint);
+  border-color: var(--sea);
+}
+
+[data-theme='dark'] .field input:disabled,
+[data-theme='dark'] .field select:disabled,
+[data-theme='dark'] .field textarea:disabled {
+  background: var(--elevated);
+  color: var(--ink-soft);
+  opacity: 1;
+}
+
+[data-theme='dark'] input:-webkit-autofill,
+[data-theme='dark'] input:-webkit-autofill:hover,
+[data-theme='dark'] input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--ink);
+  box-shadow: 0 0 0 1000px var(--input-bg) inset;
+  caret-color: var(--ink);
+}
+
 /* ——— Forms ——— */
 .form-grid {
   display: grid;

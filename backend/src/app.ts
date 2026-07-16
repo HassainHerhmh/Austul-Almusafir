@@ -1,5 +1,6 @@
 import cors from 'cors'
 import express from 'express'
+import helmet from 'helmet'
 import { config } from './config'
 import { accountsRouter } from './routes/accounts'
 import { authRouter } from './routes/auth'
@@ -10,9 +11,21 @@ import { officesRouter } from './routes/offices'
 import { settingsRouter } from './routes/settings'
 import { tripsRouter } from './routes/trips'
 import { usersRouter } from './routes/users'
+import { logger } from './utils/logger'
 
 export function createApp() {
   const app = express()
+
+  app.set('trust proxy', 1)
+
+  app.use(
+    helmet({
+      contentSecurityPolicy: false,
+      crossOriginEmbedderPolicy: false,
+    }),
+  )
+
+  app.disable('x-powered-by')
 
   app.use(
     cors({
@@ -23,14 +36,11 @@ export function createApp() {
   app.use(express.json({ limit: '2mb' }))
 
   app.get('/api/health', (_req, res) => {
-    res.json({
-      success: true,
-      name: 'أسطول المسافر API',
-      version: '1.0.0',
-    })
+    res.json({ success: true })
   })
 
   app.use('/api/auth', authRouter)
+
   app.use('/api/offices', officesRouter)
   app.use('/api/users', usersRouter)
   app.use('/api/destinations', destinationsRouter)
@@ -50,8 +60,11 @@ export function createApp() {
       res: express.Response,
       _next: express.NextFunction,
     ) => {
-      console.error(err)
-      res.status(500).json({ success: false, message: err.message || 'خطأ في الخادم' })
+      logger.error('api', err)
+      res.status(500).json({
+        success: false,
+        message: logger.publicMessage(err),
+      })
     },
   )
 

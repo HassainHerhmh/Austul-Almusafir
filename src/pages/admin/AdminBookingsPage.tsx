@@ -1,7 +1,31 @@
 import { useMemo, useState } from 'react'
 import { PAYMENT_LABELS, formatMoney } from '../../components/utils'
 import { useApp } from '../../context/AppContext'
+import { useBrand } from '../../context/BrandContext'
 import type { Booking, PaymentMethod } from '../../types'
+import { printTableReport } from '../../utils/importExport'
+
+const PRINT_COLUMNS = [
+  { key: 'passenger', label: 'الراكب' },
+  { key: 'ticketNumber', label: 'رقم التذكرة' },
+  { key: 'passport', label: 'رقم الجواز' },
+  { key: 'visa', label: 'نوع التأشيرة' },
+  { key: 'boarding', label: 'منطقة الانطلاق' },
+  { key: 'arrival', label: 'منطقة الوصول' },
+  { key: 'seat', label: 'المقعد' },
+  { key: 'office', label: 'المكتب' },
+  { key: 'trip', label: 'الرحلة' },
+  { key: 'bookedAt', label: 'تاريخ الحجز' },
+  { key: 'status', label: 'الحالة' },
+  { key: 'price', label: 'السعر' },
+  { key: 'notes', label: 'الملاحظات' },
+] as const
+
+type PrintColKey = (typeof PRINT_COLUMNS)[number]['key']
+
+const DEFAULT_PRINT_COLS: Record<PrintColKey, boolean> = Object.fromEntries(
+  PRINT_COLUMNS.map((c) => [c.key, true]),
+) as Record<PrintColKey, boolean>
 
 export function AdminBookingsPage() {
   const {
@@ -12,8 +36,11 @@ export function AdminBookingsPage() {
     updateBooking,
     deleteBooking,
   } = useApp()
+  const { name: companyName, logoUrl, phones } = useBrand()
 
   const [editBooking, setEditBooking] = useState<Booking | null>(null)
+  const [printOpen, setPrintOpen] = useState(false)
+  const [printCols, setPrintCols] = useState<Record<PrintColKey, boolean>>(DEFAULT_PRINT_COLS)
   const [editForm, setEditForm] = useState({
     passengerName: '',
     ticketNumber: '',
@@ -116,6 +143,62 @@ export function AdminBookingsPage() {
     if (err) alert(err)
   }
 
+  const sortedBookings = useMemo(
+    () => [...state.bookings].sort((a, b) => b.bookedAt.localeCompare(a.bookedAt)),
+    [state.bookings],
+  )
+
+  const cellValue = (b: Booking, key: PrintColKey): string => {
+    const trip = state.trips.find((t) => t.id === b.tripId)
+    switch (key) {
+      case 'passenger':
+        return b.passengerName
+      case 'ticketNumber':
+        return b.ticketNumber || '—'
+      case 'passport':
+        return b.passportNumber || '—'
+      case 'visa':
+        return state.visaTypes.find((v) => v.id === b.visaTypeId)?.name || '—'
+      case 'boarding':
+        return getDestination(b.boardingDestinationId)?.name || '—'
+      case 'arrival':
+        return getDestination(b.arrivalDestinationId)?.name || '—'
+      case 'seat':
+        return String(b.seatNumber)
+      case 'office':
+        return getOffice(b.officeId)?.name || '—'
+      case 'trip':
+        return trip ? getTripLabel(trip) : '—'
+      case 'bookedAt':
+        return b.bookedAt.slice(0, 16).replace('T', ' ')
+      case 'status':
+        return b.status === 'confirmed' ? 'مؤكد' : 'ملغى'
+      case 'price':
+        return formatMoney(b.price)
+      case 'notes':
+        return b.notes?.trim() ? b.notes : '—'
+      default:
+        return '—'
+    }
+  }
+
+  const doPrint = () => {
+    const selected = PRINT_COLUMNS.filter((c) => printCols[c.key])
+    if (selected.length === 0) {
+      alert('اختر عموداً واحداً على الأقل')
+      return
+    }
+    printTableReport({
+      title: 'متابعة الحجوزات',
+      companyName,
+      logoUrl,
+      phones,
+      headers: selected.map((c) => c.label),
+      rows: sortedBookings.map((b) => selected.map((c) => cellValue(b, c.key))),
+    })
+    setPrintOpen(false)
+  }
+
   return (
     <div>
       <header className="page-header">
@@ -123,6 +206,9 @@ export function AdminBookingsPage() {
           <h1>متابعة الحجوزات</h1>
           <p>تعديل · إلغاء · حذف — الإلغاء والحذف يحذفان قيود المحاسبة</p>
         </div>
+        <button type="button" className="btn btn-primary" onClick={() => setPrintOpen(true)}>
+          طباعة
+        </button>
       </header>
 
       <div className="panel">
@@ -147,9 +233,7 @@ export function AdminBookingsPage() {
               </tr>
             </thead>
             <tbody>
-              {[...state.bookings]
-                .sort((a, b) => b.bookedAt.localeCompare(a.bookedAt))
-                .map((b) => {
+              {sortedBookings.map((b) => {
                   const trip = state.trips.find((t) => t.id === b.tripId)
                   return (
                     <tr key={b.id}>
@@ -217,6 +301,71 @@ export function AdminBookingsPage() {
           </table>
         </div>
       </div>
+
+      {printOpen && (
+        <div className="modal-backdrop" onClick={() => setPrintOpen(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h2>طباعة الحجوزات</h2>
+            <p style={{ color: 'var(--muted)', marginTop: 0 }}>
+              اختر الأعمدة التي تريد طباعتها. الكليشة (الشعار والاسم والأرقام) من الإعدادات.
+            </p>
+            <div className="actions" style={{ marginBottom: '0.5rem' }}>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() =>
+                  setPrintCols(
+                    Object.fromEntries(
+                      PRINT_COLUMNS.map((c) => [c.key, true]),
+                    ) as Record<PrintColKey, boolean>,
+                  )
+                }
+              >
+                تحديد الكل
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() =>
+                  setPrintCols(
+                    Object.fromEntries(
+                      PRINT_COLUMNS.map((c) => [c.key, false]),
+                    ) as Record<PrintColKey, boolean>,
+                  )
+                }
+              >
+                إلغاء الكل
+              </button>
+            </div>
+            <div className="print-cols-grid">
+              {PRINT_COLUMNS.map((c) => (
+                <label key={c.key}>
+                  <input
+                    type="checkbox"
+                    checked={printCols[c.key]}
+                    onChange={(e) =>
+                      setPrintCols((prev) => ({ ...prev, [c.key]: e.target.checked }))
+                    }
+                  />
+                  {c.label}
+                </label>
+              ))}
+            </div>
+            <div className="actions">
+              <button type="button" className="btn btn-primary" onClick={doPrint}>
+                طباعة
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => setPrintOpen(false)}
+              >
+                إغلاق
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {editBooking && (
         <div className="modal-backdrop" onClick={() => setEditBooking(null)}>

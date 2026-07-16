@@ -13,6 +13,8 @@ export const DEFAULT_BRAND_NAME = 'أسطول المسافر'
 export type BrandSettings = {
   name: string
   logoUrl: string | null
+  /** أرقام التواصل لكليشة الطباعة (سطر لكل رقم أو مفصولة بفاصلة) */
+  phones: string
 }
 
 type BrandContextValue = BrandSettings & {
@@ -25,14 +27,18 @@ type BrandContextValue = BrandSettings & {
 function loadBrand(): BrandSettings {
   try {
     const raw = localStorage.getItem(BRAND_KEY)
-    if (!raw) return { name: DEFAULT_BRAND_NAME, logoUrl: null }
+    if (!raw) return { name: DEFAULT_BRAND_NAME, logoUrl: null, phones: '' }
     const parsed = JSON.parse(raw) as Partial<BrandSettings>
     return {
-      name: typeof parsed.name === 'string' && parsed.name.trim() ? parsed.name.trim() : DEFAULT_BRAND_NAME,
+      name:
+        typeof parsed.name === 'string' && parsed.name.trim()
+          ? parsed.name.trim()
+          : DEFAULT_BRAND_NAME,
       logoUrl: typeof parsed.logoUrl === 'string' && parsed.logoUrl ? parsed.logoUrl : null,
+      phones: typeof parsed.phones === 'string' ? parsed.phones : '',
     }
   } catch {
-    return { name: DEFAULT_BRAND_NAME, logoUrl: null }
+    return { name: DEFAULT_BRAND_NAME, logoUrl: null, phones: '' }
   }
 }
 
@@ -49,21 +55,19 @@ export function BrandProvider({ children }: { children: ReactNode }) {
     const cleaned: BrandSettings = {
       name: next.name.trim() || DEFAULT_BRAND_NAME,
       logoUrl: next.logoUrl,
+      phones: next.phones.trim(),
     }
     persist(cleaned)
     setSettings(cleaned)
   }, [])
 
-  const setBrandName = useCallback(
-    (name: string) => {
-      setSettings((prev) => {
-        const next = { ...prev, name: name.trim() || DEFAULT_BRAND_NAME }
-        persist(next)
-        return next
-      })
-    },
-    [],
-  )
+  const setBrandName = useCallback((name: string) => {
+    setSettings((prev) => {
+      const next = { ...prev, name: name.trim() || DEFAULT_BRAND_NAME }
+      persist(next)
+      return next
+    })
+  }, [])
 
   const setLogoUrl = useCallback((logoUrl: string | null) => {
     setSettings((prev) => {
@@ -74,7 +78,7 @@ export function BrandProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const resetBrand = useCallback(() => {
-    const next = { name: DEFAULT_BRAND_NAME, logoUrl: null }
+    const next = { name: DEFAULT_BRAND_NAME, logoUrl: null, phones: '' }
     persist(next)
     setSettings(next)
   }, [])

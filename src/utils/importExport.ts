@@ -45,37 +45,118 @@ export function exportTablePdf(
   headers: string[],
   rows: (string | number)[][],
 ) {
+  printTableReport({ title, headers, rows })
+}
+
+function escapeHtml(s: string) {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+/** طباعة جدول مع كليشة (شعار + اسم الشركة + أرقام التواصل) */
+export function printTableReport(opts: {
+  title: string
+  headers: string[]
+  rows: (string | number)[][]
+  companyName?: string
+  logoUrl?: string | null
+  phones?: string
+}) {
+  const {
+    title,
+    headers,
+    rows,
+    companyName = '',
+    logoUrl = null,
+    phones = '',
+  } = opts
+
+  const phoneLines = phones
+    .split(/[\n,،]+/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+
+  const cliche = `
+    <div class="cliche">
+      ${
+        logoUrl
+          ? `<img class="logo" src="${logoUrl}" alt="" />`
+          : `<div class="logo-fallback">🚌</div>`
+      }
+      <div class="cliche-text">
+        ${companyName ? `<div class="company">${escapeHtml(companyName)}</div>` : ''}
+        ${
+          phoneLines.length
+            ? `<div class="phones">${phoneLines.map(escapeHtml).join(' · ')}</div>`
+            : ''
+        }
+      </div>
+    </div>`
+
   const html = `<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="utf-8" />
-  <title>${title}</title>
+  <title>${escapeHtml(title)}</title>
   <style>
-    body { font-family: Tahoma, Arial, sans-serif; padding: 24px; color: #111; }
-    h1 { font-size: 18px; margin: 0 0 16px; }
-    table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    th, td { border: 1px solid #ccc; padding: 8px 10px; text-align: right; }
-    th { background: #f3f4f6; }
-    @media print { body { padding: 0; } }
+    * { box-sizing: border-box; }
+    body { font-family: Tahoma, Arial, sans-serif; padding: 20px; color: #111; margin: 0; }
+    .cliche {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      border-bottom: 2px solid #1e3a5f;
+      padding-bottom: 14px;
+      margin-bottom: 16px;
+    }
+    .logo { width: 72px; height: 72px; object-fit: contain; }
+    .logo-fallback {
+      width: 72px; height: 72px; display: grid; place-items: center;
+      font-size: 36px; background: #f3f4f6; border-radius: 12px;
+    }
+    .company { font-size: 22px; font-weight: 700; color: #0c1a24; }
+    .phones { margin-top: 6px; font-size: 13px; color: #444; direction: ltr; text-align: right; }
+    h1 { font-size: 16px; margin: 0 0 12px; color: #333; }
+    .meta { font-size: 12px; color: #666; margin-bottom: 14px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th, td { border: 1px solid #ccc; padding: 7px 8px; text-align: right; }
+    th { background: #f3f4f6; font-weight: 700; }
+    @media print {
+      body { padding: 0; }
+      .cliche { break-inside: avoid; }
+      thead { display: table-header-group; }
+    }
   </style>
 </head>
 <body>
-  <h1>${title}</h1>
+  ${cliche}
+  <h1>${escapeHtml(title)}</h1>
+  <div class="meta">تاريخ الطباعة: ${new Date().toLocaleString('ar-YE')}</div>
   <table>
-    <thead><tr>${headers.map((h) => `<th>${h}</th>`).join('')}</tr></thead>
+    <thead><tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join('')}</tr></thead>
     <tbody>
-      ${rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join('')}</tr>`).join('')}
+      ${rows
+        .map(
+          (r) =>
+            `<tr>${r.map((c) => `<td>${escapeHtml(String(c))}</td>`).join('')}</tr>`,
+        )
+        .join('')}
     </tbody>
   </table>
   <script>window.onload = () => { window.print(); }</script>
 </body>
 </html>`
+
   const win = window.open('', '_blank')
   if (!win) {
-    alert('اسمح بالنوافذ المنبثقة لتصدير PDF')
+    alert('اسمح بالنوافذ المنبثقة للطباعة')
     return
   }
   win.document.open()
   win.document.write(html)
   win.document.close()
 }
+

@@ -13,9 +13,10 @@ function readAsDataUrl(file: File): Promise<string> {
 }
 
 export function SettingsPage() {
-  const { name, logoUrl, saveBrand, resetBrand } = useBrand()
+  const { name, logoUrl, phones, saveBrand, resetBrand } = useBrand()
   const [draftName, setDraftName] = useState(name)
   const [draftLogo, setDraftLogo] = useState<string | null>(logoUrl)
+  const [draftPhones, setDraftPhones] = useState(phones)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -43,7 +44,7 @@ export function SettingsPage() {
   const save = (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
-    saveBrand({ name: draftName, logoUrl: draftLogo })
+    saveBrand({ name: draftName, logoUrl: draftLogo, phones: draftPhones })
     setMessage('تم حفظ إعدادات المنصة')
   }
 
@@ -51,23 +52,30 @@ export function SettingsPage() {
     resetBrand()
     setDraftName(DEFAULT_BRAND_NAME)
     setDraftLogo(null)
+    setDraftPhones('')
     setMessage('تمت استعادة الاسم والشعار الافتراضي')
     setError(null)
     if (fileRef.current) fileRef.current.value = ''
   }
+
+  const phoneLines = draftPhones
+    .split(/[\n,،]+/)
+    .map((p) => p.trim())
+    .filter(Boolean)
 
   return (
     <div>
       <header className="page-header">
         <div>
           <h1>إعدادات المنصة</h1>
+          <p>الشعار واسم الشركة وأرقام التواصل تظهر في كليشة الطباعة</p>
         </div>
       </header>
 
       <div className="panel settings-panel">
         <form onSubmit={save} className="form-grid" style={{ gridTemplateColumns: '1fr' }}>
           <div className="field">
-            <label htmlFor="platform-name">اسم المنصة</label>
+            <label htmlFor="platform-name">اسم الشركة / المنصة</label>
             <input
               id="platform-name"
               value={draftName}
@@ -78,7 +86,7 @@ export function SettingsPage() {
           </div>
 
           <div className="field">
-            <label htmlFor="platform-logo">شعار المنصة</label>
+            <label htmlFor="platform-logo">شعار الشركة</label>
             <input
               id="platform-logo"
               ref={fileRef}
@@ -88,15 +96,38 @@ export function SettingsPage() {
             />
           </div>
 
+          <div className="field">
+            <label htmlFor="platform-phones">أرقام التواصل (لكليشة الطباعة)</label>
+            <textarea
+              id="platform-phones"
+              rows={3}
+              value={draftPhones}
+              onChange={(e) => setDraftPhones(e.target.value)}
+              placeholder={'مثال:\n777123456\n733987654'}
+              style={{ resize: 'vertical', minHeight: '4.5rem' }}
+            />
+            <span className="field-hint">سطر لكل رقم، أو مفصولة بفاصلة</span>
+          </div>
+
           <div className="settings-preview">
-            <span className="settings-preview-label">معاينة</span>
-            <div className="brand-mark settings-preview-brand">
-              <div className={`brand-icon${draftLogo ? ' has-logo' : ''}`}>
-                {draftLogo ? <img src={draftLogo} alt="" /> : <span aria-hidden>🚌</span>}
-              </div>
-              <div>
-                <div className="brand-name">{draftName.trim() || DEFAULT_BRAND_NAME}</div>
-                <div className="brand-sub">لوحة مدير النظام</div>
+            <span className="settings-preview-label">معاينة الكليشة</span>
+            <div className="print-cliche-preview">
+              {draftLogo ? (
+                <img src={draftLogo} alt="" className="print-cliche-logo" />
+              ) : (
+                <div className="print-cliche-logo-fallback" aria-hidden>
+                  🚌
+                </div>
+              )}
+              <div className="print-cliche-text">
+                <div className="print-cliche-name">
+                  {draftName.trim() || DEFAULT_BRAND_NAME}
+                </div>
+                {phoneLines.length > 0 ? (
+                  <div className="print-cliche-phones">{phoneLines.join(' · ')}</div>
+                ) : (
+                  <div className="print-cliche-phones muted">أضف أرقام التواصل أعلاه</div>
+                )}
               </div>
             </div>
           </div>

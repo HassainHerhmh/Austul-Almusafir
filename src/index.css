@@ -133,6 +133,23 @@ textarea {
   font: inherit;
 }
 
+/* Ensure readable inputs across pages in dark theme too.
+   Many pages rely on default inputs (e.g. Tailwind `border p-2`) without text color,
+   which can inherit light text on white background and appear empty. */
+:where(input, select, textarea) {
+  color: var(--ink);
+}
+
+:where(input:not([type='checkbox']):not([type='radio']):not([type='range']), select, textarea) {
+  background: var(--input-bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+:where(input:not([type='checkbox']):not([type='radio']):not([type='range'])::placeholder, textarea::placeholder) {
+  color: color-mix(in srgb, var(--muted) 92%, transparent);
+}
+
 button {
   cursor: pointer;
 }

@@ -29,6 +29,7 @@ model User {
   username     String    @unique
   passwordHash String
   name         String
+  phone        String    @default("")
   role         String
   officeId     String?
   office       Office?   @relation(fields: [officeId], references: [id])

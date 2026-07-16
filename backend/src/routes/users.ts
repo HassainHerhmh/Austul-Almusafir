@@ -19,6 +19,7 @@ function publicUser(u: {
   id: string
   username: string
   name: string
+  phone?: string | null
   role: string
   officeId: string | null
   active: boolean
@@ -28,6 +29,7 @@ function publicUser(u: {
     id: u.id,
     username: u.username,
     name: u.name,
+    phone: u.phone ?? '',
     role: u.role,
     officeId: u.officeId,
     active: u.active,
@@ -67,6 +69,7 @@ usersRouter.post(
         username: z.string().min(2),
         password: z.string().min(4),
         name: z.string().min(1),
+        phone: z.string().optional(),
         role: z.enum(['admin', 'office_manager', 'booking_clerk', 'accountant']),
         officeId: z.string().nullable().optional(),
         active: z.boolean().optional(),
@@ -89,6 +92,7 @@ usersRouter.post(
         username: body.data.username,
         passwordHash: await bcrypt.hash(body.data.password, 10),
         name: body.data.name,
+        phone: (body.data.phone ?? '').trim(),
         role,
         officeId,
         active: body.data.active ?? true,
@@ -113,6 +117,7 @@ usersRouter.put(
         username: z.string().min(2).optional(),
         password: z.string().min(4).optional(),
         name: z.string().min(1).optional(),
+        phone: z.string().optional(),
         role: z.enum(['admin', 'office_manager', 'booking_clerk', 'accountant']).optional(),
         officeId: z.string().nullable().optional(),
         active: z.boolean().optional(),
@@ -123,6 +128,7 @@ usersRouter.put(
     const data: Record<string, unknown> = { ...body.data }
     delete data.password
     if (body.data.password) data.passwordHash = await bcrypt.hash(body.data.password, 10)
+    if (body.data.phone !== undefined) data.phone = body.data.phone.trim()
     if (req.user!.role !== 'admin') {
       delete data.officeId
       if (body.data.role === 'admin') return fail(res, 'غير مسموح', 403)

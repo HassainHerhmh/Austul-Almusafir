@@ -7,6 +7,7 @@ const empty = {
   username: '',
   password: '',
   name: '',
+  phone: '',
   role: 'office_manager' as Role,
   officeId: '' as string | null,
   active: true,
@@ -44,6 +45,7 @@ export function UsersPage() {
       username: u.username,
       password: u.password,
       name: u.name,
+      phone: u.phone || '',
       role: u.role,
       officeId: u.officeId,
       active: u.active,
@@ -77,6 +79,7 @@ export function UsersPage() {
               <tr>
                 <th>الاسم</th>
                 <th>اسم المستخدم</th>
+                <th>الهاتف</th>
                 <th>الدور</th>
                 <th>المكتب</th>
                 <th>الحالة</th>
@@ -88,6 +91,7 @@ export function UsersPage() {
                 <tr key={u.id}>
                   <td>{u.name}</td>
                   <td>{u.username}</td>
+                  <td>{u.phone || '—'}</td>
                   <td>{ROLE_LABELS[u.role]}</td>
                   <td>{u.officeId ? state.offices.find((o) => o.id === u.officeId)?.name : '—'}</td>
                   <td>
@@ -140,6 +144,15 @@ export function UsersPage() {
                     required
                     value={form.username}
                     onChange={(e) => setForm({ ...form, username: e.target.value })}
+                  />
+                </div>
+                <div className="field">
+                  <label>رقم الهاتف</label>
+                  <input
+                    type="tel"
+                    value={form.phone}
+                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                    placeholder="05xxxxxxxx"
                   />
                 </div>
                 <div className="field">

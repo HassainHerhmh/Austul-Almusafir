@@ -31,6 +31,7 @@ function asUser(u: any): User {
     username: u.username,
     password: '',
     name: u.name,
+    phone: u.phone ?? '',
     role: u.role,
     officeId: u.officeId ?? null,
     active: !!u.active,

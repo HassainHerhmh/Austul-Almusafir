@@ -28,6 +28,19 @@ export function formatMoney(n: number) {
   return `${n.toLocaleString('ar-YE')} ر.ي`
 }
 
+/** تحويل HH:mm أو HH:mm:ss إلى عرض عربي مثل «1 مساء» / «8 صباحاً» */
+export function formatTimeAr(time: string | null | undefined) {
+  if (!time) return '—'
+  const m = String(time).trim().match(/^(\d{1,2}):(\d{2})/)
+  if (!m) return time
+  let h = Number(m[1])
+  const min = m[2]
+  if (!Number.isFinite(h) || h < 0 || h > 23) return time
+  const period = h < 12 ? 'صباحاً' : 'مساء'
+  const h12 = h % 12 === 0 ? 12 : h % 12
+  return min === '00' ? `${h12} ${period}` : `${h12}:${min} ${period}`
+}
+
 /** تاريخ محلي YYYY-MM-DD (يتجنب فرق توقيت UTC) */
 export function todayStr() {
   const d = new Date()

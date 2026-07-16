@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from 'express'
 import jwt from 'jsonwebtoken'
-import { config } from '../config'
+import { config, prisma } from '../config'
 
 export type AuthUser = {
   id: string
@@ -28,10 +28,32 @@ export function authRequired(req: Request, res: Response, next: NextFunction) {
   }
   try {
     req.user = jwt.verify(header.slice(7), config.jwtSecret) as AuthUser
-    next()
   } catch {
     return res.status(401).json({ success: false, message: 'جلسة غير صالحة' })
   }
+
+  void prisma.user
+    .findUnique({
+      where: { id: req.user.id },
+      select: { active: true, role: true, officeId: true, username: true },
+    })
+    .then((dbUser) => {
+      if (!dbUser) {
+        return res.status(401).json({ success: false, message: 'جلسة غير صالحة' })
+      }
+      if (!dbUser.active) {
+        return res.status(403).json({ success: false, message: 'تم إيقاف حسابك' })
+      }
+      // حافظ على بيانات JWT محدثة من قاعدة البيانات
+      req.user = {
+        id: req.user!.id,
+        username: dbUser.username,
+        role: dbUser.role,
+        officeId: dbUser.officeId,
+      }
+      next()
+    })
+    .catch(next)
 }
 
 export function requireRoles(...roles: string[]) {

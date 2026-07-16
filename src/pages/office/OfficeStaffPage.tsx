@@ -6,6 +6,7 @@ import type { Role, User } from '../../types'
 const emptyForm = {
   name: '',
   username: '',
+  phone: '',
   password: '',
   confirmPassword: '',
   role: 'booking_clerk' as Role,
@@ -50,6 +51,7 @@ export function OfficeStaffPage() {
     setForm({
       name: u.name,
       username: u.username,
+      phone: u.phone || '',
       password: '',
       confirmPassword: '',
       role: u.role,
@@ -89,6 +91,7 @@ export function OfficeStaffPage() {
         ...(editId ? { id: editId } : {}),
         name: form.name,
         username: form.username,
+        phone: form.phone.trim(),
         password: form.password || '',
         role: form.role,
         officeId,
@@ -146,6 +149,7 @@ export function OfficeStaffPage() {
               <tr>
                 <th>الاسم</th>
                 <th>اسم المستخدم</th>
+                <th>الهاتف</th>
                 <th>الدور</th>
                 <th>الحالة</th>
                 <th></th>
@@ -156,6 +160,7 @@ export function OfficeStaffPage() {
                 <tr key={u.id}>
                   <td>{u.name}</td>
                   <td>{u.username}</td>
+                  <td>{u.phone || '—'}</td>
                   <td>{ROLE_LABELS[u.role]}</td>
                   <td>
                     <span className={`badge ${u.active ? 'badge-ok' : 'badge-danger'}`}>
@@ -199,7 +204,7 @@ export function OfficeStaffPage() {
               ))}
               {staff.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="empty">
+                  <td colSpan={6} className="empty">
                     لا يوجد موظفون بعد
                   </td>
                 </tr>
@@ -229,6 +234,15 @@ export function OfficeStaffPage() {
                     required
                     value={form.username}
                     onChange={(e) => setForm({ ...form, username: e.target.value })}
+                  />
+                </div>
+                <div className="field">
+                  <label>رقم هاتف الموظف</label>
+                  <input
+                    type="tel"
+                    value={form.phone}
+                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                    placeholder="05xxxxxxxx"
                   />
                 </div>
                 <div className="field">

@@ -1,3 +1,4 @@
+import { formatTimeAr } from './utils'
 import type { Booking, Trip } from '../types'
 import { useApp } from '../context/AppContext'
 import { useBrand } from '../context/BrandContext'
@@ -63,7 +64,7 @@ export function TicketView({ booking, trip, onClose }: Props) {
           <div>
             <span>الانطلاق</span>
             <strong>
-              {trip.date} — {trip.departureTime}
+              {trip.date} — {formatTimeAr(trip.departureTime)}
             </strong>
           </div>
           <div>

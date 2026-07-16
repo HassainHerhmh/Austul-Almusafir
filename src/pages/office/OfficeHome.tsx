@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { formatMoney, todayStr } from '../../components/utils'
+import { formatMoney, formatTimeAr, todayStr } from '../../components/utils'
 import { useApp } from '../../context/AppContext'
 import type { TripStatus } from '../../types'
 
@@ -98,7 +98,7 @@ export function OfficeHome() {
                   </h3>
                   <div className="trip-meta">
                     <span>{trip.date}</span>
-                    <span>{trip.departureTime}</span>
+                    <span>{formatTimeAr(trip.departureTime)}</span>
                     <span>
                       {trip.pricingMode === 'boarding'
                         ? 'حسب الصعود'

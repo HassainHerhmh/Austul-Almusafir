@@ -1,5 +1,5 @@
 import { useApp } from '../../context/AppContext'
-import { formatMoney, todayStr } from '../../components/utils'
+import { formatMoney, formatTimeAr, todayStr } from '../../components/utils'
 
 export function AdminHome() {
   const { state, getTripLabel, getTripSeats, getOffice } = useApp()
@@ -57,7 +57,7 @@ export function AdminHome() {
                 <div>
                   <h3>{getTripLabel(trip)}</h3>
                   <div className="trip-meta">
-                    <span>{trip.departureTime}</span>
+                    <span>{formatTimeAr(trip.departureTime)}</span>
                     <span>{trip.stops.map((s) => s.point).filter(Boolean).join(' ← ')}</span>
                     <span>{formatMoney(trip.price)}</span>
                   </div>

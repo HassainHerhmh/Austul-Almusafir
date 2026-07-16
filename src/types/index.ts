@@ -27,6 +27,7 @@ export interface User {
   username: string
   password: string
   name: string
+  phone: string
   role: Role
   officeId: string | null
   active: boolean

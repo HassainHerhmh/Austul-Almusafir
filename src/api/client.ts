@@ -24,6 +24,8 @@ export class ApiError extends Error {
   }
 }
 
+export const ACCOUNT_SUSPENDED_EVENT = 'austul:account-suspended'
+
 export async function apiRequest<T extends Record<string, unknown>>(
   path: string,
   options: RequestInit = {},
@@ -53,6 +55,10 @@ export async function apiRequest<T extends Record<string, unknown>>(
     const fail = data as ApiFail
     const msg = typeof fail.message === 'string' && fail.message ? fail.message : 'حدث خطأ'
     if (res.status === 401) setToken(null)
+    if (res.status === 403 && /إيقاف|موقوف/.test(msg)) {
+      setToken(null)
+      window.dispatchEvent(new CustomEvent(ACCOUNT_SUSPENDED_EVENT, { detail: msg }))
+    }
     throw new ApiError(msg, res.status)
   }
   return data

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { SeatMap } from '../../components/SeatMap'
 import { TicketView } from '../../components/TicketView'
-import { PAYMENT_LABELS, formatMoney } from '../../components/utils'
+import { PAYMENT_LABELS, formatMoney, formatTimeAr } from '../../components/utils'
 import { useApp } from '../../context/AppContext'
 import type { Booking, PaymentMethod } from '../../types'
 
@@ -267,7 +267,7 @@ export function OfficeBookingsPage() {
                     const s = getTripSeats(t.id)
                     return (
                       <option key={t.id} value={t.id}>
-                        {getTripLabel(t)} — {t.date} {t.departureTime} (متبقي {s.remaining})
+                        {getTripLabel(t)} — {t.date} {formatTimeAr(t.departureTime)} (متبقي {s.remaining})
                       </option>
                     )
                   })}

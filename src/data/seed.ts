@@ -15,6 +15,7 @@ export const seedData: AppState = {
       username: 'admin',
       password: 'admin123',
       name: 'مدير أسطول المسافر',
+      phone: '',
       role: 'admin',
       officeId: null,
       active: true,
@@ -64,7 +65,10 @@ export function loadState(): AppState {
         trips: (parsed.trips ?? []).map((t) =>
           normalizeTrip(t as Parameters<typeof normalizeTrip>[0]),
         ),
-        users: parsed.users?.length ? parsed.users : seedData.users,
+        users: (parsed.users?.length ? parsed.users : seedData.users).map((u) => ({
+          ...u,
+          phone: u.phone ?? '',
+        })),
       }
     }
   } catch {

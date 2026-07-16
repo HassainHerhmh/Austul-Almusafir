@@ -62,6 +62,7 @@ authRouter.post(
         id: user.id,
         username: user.username,
         name: user.name,
+        phone: user.phone ?? '',
         role: user.role,
         officeId: user.officeId,
         active: user.active,
@@ -77,11 +78,13 @@ authRouter.get(
   asyncHandler(async (req, res) => {
     const user = await prisma.user.findUnique({ where: { id: req.user!.id } })
     if (!user) return fail(res, 'المستخدم غير موجود', 404)
+    if (!user.active) return fail(res, 'تم إيقاف حسابك', 403)
     return ok(res, {
       user: {
         id: user.id,
         username: user.username,
         name: user.name,
+        phone: user.phone ?? '',
         role: user.role,
         officeId: user.officeId,
         active: user.active,

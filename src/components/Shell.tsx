@@ -17,6 +17,7 @@ import {
   Wallet,
   ScrollText,
   Calculator,
+  Banknote,
   type LucideIcon,
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
@@ -56,10 +57,17 @@ const officeLinks: {
     icon: ShieldCheck,
   },
   { to: '/office/bookings', label: 'الحجوزات', pageId: 'bookings', icon: Ticket },
-  { to: '/office/customers', label: 'العملاء', pageId: 'customers', icon: UserCircle2 },
+  // العملاء مخفي مؤقتاً من قائمة المكاتب — لا حاجة له حالياً
+  // { to: '/office/customers', label: 'العملاء', pageId: 'customers', icon: UserCircle2 },
   { to: '/office/accounting', label: 'المحاسبة', pageId: 'accounting', icon: Wallet },
   { to: '/office/statement', label: 'كشف الحساب', pageId: 'statement', icon: ScrollText },
   { to: '/office/reports', label: 'التقارير', pageId: 'reports', icon: FileBarChart2 },
+  {
+    to: '/office/payments-report',
+    label: 'تقرير المدفوعات',
+    pageId: 'payments-report',
+    icon: Banknote,
+  },
 ]
 
 export function Shell() {

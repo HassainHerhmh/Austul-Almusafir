@@ -37,6 +37,7 @@ export const officePermissionSections: PermissionSection[] = [
   { id: 'accounting', label: 'المحاسبة', path: '/office/accounting' },
   { id: 'statement', label: 'كشف الحساب', path: '/office/statement' },
   { id: 'reports', label: 'التقارير', path: '/office/reports' },
+  { id: 'payments-report', label: 'تقرير المدفوعات', path: '/office/payments-report' },
 ]
 
 export function getAllPageIds(sections: PermissionSection[] = officePermissionSections): string[] {
@@ -89,6 +90,7 @@ export function roleDefaultPermissions(role: Role): UserPermissionsMap {
     base.accounting = { view: true, add: true, edit: true, delete: false }
     base.statement = { view: true, add: false, edit: false, delete: false }
     base.reports = { view: true, add: false, edit: false, delete: false }
+    base['payments-report'] = { view: true, add: false, edit: false, delete: false }
   }
 
   Object.keys(base).forEach((id) => {

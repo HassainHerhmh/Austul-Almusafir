@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { ApiError, getToken, setToken } from '../api/client'
+import { ApiError, getToken, setToken, ACCOUNT_SUSPENDED_EVENT } from '../api/client'
 import { asBooking, asDestination, asOffice, asUser, serverApi } from '../api/serverApi'
 import {
   LEGACY_ACTION_TO_PAGE,
@@ -361,6 +361,108 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setApiReady(false)
   }
 
+  /** مراقبة الحساب الموقوف + الخمول 15 دقيقة */
+  useEffect(() => {
+    if (!state.currentUserId || !getToken()) return
+
+    const IDLE_MS = 15 * 60 * 1000
+    const CHECK_MS = 30 * 1000
+    let idleTimer: ReturnType<typeof setTimeout> | undefined
+    let checking = false
+    let exiting = false
+
+    const exitSession = (message: string) => {
+      if (exiting) return
+      exiting = true
+      if (idleTimer) clearTimeout(idleTimer)
+      setToken(null)
+      setState(emptyState())
+      setBalances({})
+      setApiReady(false)
+      window.alert(message)
+    }
+
+    const resetIdle = () => {
+      if (exiting) return
+      if (idleTimer) clearTimeout(idleTimer)
+      idleTimer = setTimeout(() => {
+        exitSession('تم تسجيل الخروج بسبب الخمول لمدة ربع ساعة')
+      }, IDLE_MS)
+    }
+
+    const checkAccount = async () => {
+      if (exiting || checking || !getToken()) return
+      checking = true
+      try {
+        const me = await serverApi.me()
+        const user = asUser(me.user)
+        if (!user.active) {
+          exitSession('تم إيقاف حسابك')
+          return
+        }
+        setState((s) => {
+          if (!s.currentUserId) return s
+          const users = upsertById(s.users, user)
+          return { ...s, users }
+        })
+      } catch (e) {
+        if (e instanceof ApiError && /إيقاف|موقوف/.test(e.message)) {
+          exitSession(e.message || 'تم إيقاف حسابك')
+        } else if (e instanceof ApiError && e.status === 401) {
+          exitSession('انتهت الجلسة — سجّل الدخول مجدداً')
+        }
+      } finally {
+        checking = false
+      }
+    }
+
+    const onActivity = () => resetIdle()
+    const activityEvents: (keyof WindowEventMap)[] = [
+      'mousemove',
+      'mousedown',
+      'keydown',
+      'touchstart',
+      'scroll',
+      'click',
+    ]
+    activityEvents.forEach((ev) => window.addEventListener(ev, onActivity, { passive: true }))
+    resetIdle()
+
+    const interval = window.setInterval(() => {
+      void checkAccount()
+    }, CHECK_MS)
+
+    const onFocus = () => {
+      resetIdle()
+      void checkAccount()
+    }
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        resetIdle()
+        void checkAccount()
+      }
+    }
+    window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onVisibility)
+
+    const onSuspended = (ev: Event) => {
+      const detail = (ev as CustomEvent<string>).detail
+      exitSession(detail || 'تم إيقاف حسابك')
+    }
+    window.addEventListener(ACCOUNT_SUSPENDED_EVENT, onSuspended)
+
+    void checkAccount()
+
+    return () => {
+      if (idleTimer) clearTimeout(idleTimer)
+      window.clearInterval(interval)
+      activityEvents.forEach((ev) => window.removeEventListener(ev, onActivity))
+      window.removeEventListener('focus', onFocus)
+      document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener(ACCOUNT_SUSPENDED_EVENT, onSuspended)
+    }
+  }, [state.currentUserId])
+
   const resetData = () => {
     alert('البيانات على السيرفر — لا يمكن إعادة التعيين من الواجهة.')
   }
@@ -411,6 +513,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const payload: Record<string, unknown> = {
         username: user.username,
         name: user.name,
+        phone: user.phone ?? '',
         role: user.role,
         officeId: user.officeId,
         active: user.active,
@@ -423,6 +526,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         username: user.username,
         password: user.password,
         name: user.name,
+        phone: user.phone ?? '',
         role: user.role,
         officeId: user.officeId,
         active: user.active,

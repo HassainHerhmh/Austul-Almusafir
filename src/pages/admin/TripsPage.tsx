@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { formatMoney, todayStr } from '../../components/utils'
+import { formatMoney, formatTimeAr, todayStr } from '../../components/utils'
 import { useApp } from '../../context/AppContext'
 import type { PricingMode, Trip, TripStatus, TripStop } from '../../types'
 import { emptyStop, tripRoutePoints } from '../../utils/trip'
@@ -201,7 +201,7 @@ export function TripsPage() {
                         <span className="badge badge-info">{t.stops.length} محطة</span>
                       </td>
                       <td>{t.date}</td>
-                      <td>{t.departureTime}</td>
+                      <td>{formatTimeAr(t.departureTime)}</td>
                       <td>
                         {getBus(t.busId)?.busNumber
                           ? `${getBus(t.busId)!.busNumber} — ${getBus(t.busId)!.plateNumber}`

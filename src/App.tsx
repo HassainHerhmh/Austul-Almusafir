@@ -39,6 +39,7 @@ import { OfficeBookingsPage } from './pages/office/OfficeBookingsPage'
 import { OfficeCustomersPage } from './pages/office/OfficeCustomersPage'
 import { OfficeHome } from './pages/office/OfficeHome'
 import { OfficeReportsPage } from './pages/office/OfficeReportsPage'
+import { OfficePaymentsReportPage } from './pages/office/OfficePaymentsReportPage'
 import { OfficeStaffPage } from './pages/office/OfficeStaffPage'
 import { OfficePermissionsPage } from './pages/office/OfficePermissionsPage'
 import { SettingsPage } from './pages/admin/SettingsPage'
@@ -116,6 +117,7 @@ export default function App() {
               <Route path="accounting" element={<OfficeAccountingPage />} />
               <Route path="statement" element={<OfficeStatementPage />} />
               <Route path="reports" element={<OfficeReportsPage />} />
+              <Route path="payments-report" element={<OfficePaymentsReportPage />} />
             </Route>
 
             <Route path="*" element={<Navigate to="/login" replace />} />

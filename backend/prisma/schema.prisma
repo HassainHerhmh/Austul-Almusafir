@@ -48,6 +48,11 @@ model Destination {
   tripStops   TripStop[]
 }
 
+model VisaType {
+  id   String @id @default(cuid())
+  name String
+}
+
 model Bus {
   id          String @id @default(cuid())
   /** رقم الحافلة الداخلي (مثل 101) */
@@ -128,6 +133,8 @@ model Booking {
   /** رقم التذكرة الظاهر للمسافر */
   ticketNumber   String    @default("")
   passportNumber String    @default("")
+  /** نوع التأشيرة من قائمة الإدارة */
+  visaTypeId     String    @default("")
   /** مدينة/محطة الانطلاق من محطات مسار الرحلة */
   boardingDestinationId String @default("")
   /** مدينة/محطة الوصول من محطات مسار الرحلة */

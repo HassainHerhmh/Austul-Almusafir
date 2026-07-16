@@ -42,6 +42,11 @@ export interface Destination {
   ticketPrice: number
 }
 
+export interface VisaType {
+  id: string
+  name: string
+}
+
 export type PricingMode = 'trip' | 'boarding'
 
 export interface Bus {
@@ -111,6 +116,8 @@ export interface Booking {
   /** رقم التذكرة */
   ticketNumber: string
   passportNumber: string
+  /** نوع التأشيرة من قائمة الإدارة */
+  visaTypeId: string
   /** محطة/مدينة الانطلاق من مسار الرحلة */
   boardingDestinationId: string
   /** محطة/مدينة الوصول من مسار الرحلة */
@@ -138,6 +145,7 @@ export interface AppState {
   offices: Office[]
   users: User[]
   destinations: Destination[]
+  visaTypes: VisaType[]
   buses: Bus[]
   drivers: Driver[]
   trips: Trip[]

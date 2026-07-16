@@ -50,6 +50,7 @@ bookingsRouter.post(
         phone: z.string().default(''),
         nationalId: z.string().default(''),
         passportNumber: z.string().default(''),
+        visaTypeId: z.string().default(''),
         boardingDestinationId: z.string().min(1),
         arrivalDestinationId: z.string().min(1),
         seatNumber: z.number().int().positive(),
@@ -189,6 +190,7 @@ bookingsRouter.post(
         passengerName: body.data.passengerName,
         ticketNumber: body.data.ticketNumber.trim(),
         passportNumber: body.data.passportNumber,
+        visaTypeId: body.data.visaTypeId?.trim() || '',
         boardingDestinationId: body.data.boardingDestinationId,
         arrivalDestinationId: body.data.arrivalDestinationId,
         seatNumber: body.data.seatNumber,
@@ -256,6 +258,7 @@ bookingsRouter.patch(
         passengerName: z.string().min(1).optional(),
         ticketNumber: z.string().optional(),
         passportNumber: z.string().optional(),
+        visaTypeId: z.string().optional(),
         boardingDestinationId: z.string().min(1).optional(),
         arrivalDestinationId: z.string().min(1).optional(),
         seatNumber: z.number().int().positive().optional(),
@@ -304,6 +307,9 @@ bookingsRouter.patch(
     if (body.data.ticketNumber !== undefined) {
       data.ticketNumber = body.data.ticketNumber.trim()
     }
+    if (body.data.visaTypeId !== undefined) {
+      data.visaTypeId = body.data.visaTypeId.trim()
+    }
 
     const updated = await prisma.booking.update({
       where: { id: booking.id },
@@ -331,6 +337,24 @@ bookingsRouter.patch(
         bookedBy: updated.bookedById,
       },
     })
+  }),
+)
+
+bookingsRouter.delete(
+  '/:id',
+  requireRoles('admin'),
+  asyncHandler(async (req, res) => {
+    const booking = await prisma.booking.findUnique({ where: { id: paramId(req) } })
+    if (!booking) return fail(res, 'الحجز غير موجود', 404)
+
+    // حذف قيود المحاسبة المرتبطة بالحجز (تذكرة + عمولة)
+    await reverseBookingCharge(booking.id)
+
+    // حذف سندات مرتبطة بالحجز
+    await prisma.voucher.deleteMany({ where: { relatedBookingId: booking.id } })
+
+    await prisma.booking.delete({ where: { id: booking.id } })
+    return ok(res, { deleted: true })
   }),
 )
 

@@ -8,6 +8,7 @@ import type {
   Office,
   Trip,
   User,
+  VisaType,
   Voucher,
 } from '../types'
 
@@ -48,6 +49,7 @@ function asBooking(b: any): Booking {
     passengerName: b.passengerName,
     ticketNumber: b.ticketNumber ?? '',
     passportNumber: b.passportNumber ?? '',
+    visaTypeId: b.visaTypeId ?? '',
     boardingDestinationId: b.boardingDestinationId ?? '',
     arrivalDestinationId: b.arrivalDestinationId ?? '',
     seatNumber: b.seatNumber,
@@ -65,6 +67,13 @@ function asDestination(d: any): Destination {
     id: d.id,
     name: d.name,
     ticketPrice: Number(d.ticketPrice) || 0,
+  }
+}
+
+function asVisaType(v: any): VisaType {
+  return {
+    id: v.id,
+    name: v.name,
   }
 }
 
@@ -156,6 +165,22 @@ export const serverApi = {
       apiRequest<{ deleted: boolean }>(`/api/destinations/${id}`, { method: 'DELETE' }),
   },
 
+  visaTypes: {
+    list: () => apiRequest<{ list: VisaType[] }>('/api/visa-types'),
+    create: (data: unknown) =>
+      apiRequest<{ visaType: VisaType }>('/api/visa-types', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    update: (id: string, data: unknown) =>
+      apiRequest<{ visaType: VisaType }>(`/api/visa-types/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    remove: (id: string) =>
+      apiRequest<{ deleted: boolean }>(`/api/visa-types/${id}`, { method: 'DELETE' }),
+  },
+
   buses: {
     list: () => apiRequest<{ list: Bus[] }>('/api/buses'),
     create: (data: unknown) =>
@@ -214,6 +239,8 @@ export const serverApi = {
         method: 'PATCH',
         body: JSON.stringify(data),
       }),
+    remove: (id: string) =>
+      apiRequest<{ deleted: boolean }>(`/api/bookings/${id}`, { method: 'DELETE' }),
   },
 
   customers: {
@@ -393,4 +420,4 @@ export const serverApi = {
   },
 }
 
-export { asOffice, asUser, asBooking, asDestination }
+export { asOffice, asUser, asBooking, asDestination, asVisaType }

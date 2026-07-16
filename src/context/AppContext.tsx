@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from 'react'
 import { ApiError, getToken, setToken, ACCOUNT_SUSPENDED_EVENT } from '../api/client'
-import { asBooking, asDestination, asOffice, asUser, serverApi } from '../api/serverApi'
+import { asBooking, asDestination, asOffice, asUser, asVisaType, serverApi } from '../api/serverApi'
 import {
   LEGACY_ACTION_TO_PAGE,
   normalizePermissions,
@@ -28,6 +28,7 @@ import type {
   Trip,
   TripStatus,
   User,
+  VisaType,
   Voucher,
 } from '../types'
 import { normalizeTrip } from '../utils/trip'
@@ -42,8 +43,11 @@ interface AppContextValue {
   login: (username: string, password: string) => Promise<string | null>
   logout: () => void
   refreshAll: () => Promise<void>
+  /** تحديث الحجوزات فقط (للمقاعد) دون إعادة تحميل كامل */
+  refreshBookings: () => Promise<void>
   resetData: () => void
   getDestination: (id: string) => Destination | undefined
+  getVisaType: (id: string) => VisaType | undefined
   getBus: (id: string) => Bus | undefined
   getDriver: (id: string) => Driver | undefined
   getOffice: (id: string) => Office | undefined
@@ -62,6 +66,8 @@ interface AppContextValue {
   upsertDriver: (driver: Omit<Driver, 'id'> & { id?: string }) => Promise<Driver>
   deleteDriver: (id: string) => Promise<void>
   upsertDestination: (dest: Omit<Destination, 'id'> & { id?: string }) => Promise<void>
+  upsertVisaType: (visa: Omit<VisaType, 'id'> & { id?: string }) => Promise<void>
+  deleteVisaType: (id: string) => Promise<void>
   upsertTrip: (trip: Omit<Trip, 'id'> & { id?: string }) => Promise<void>
   cancelTrip: (id: string) => Promise<void>
   openTrip: (id: string) => Promise<void>
@@ -75,6 +81,7 @@ interface AppContextValue {
     ticketNumber: string
     phone: string
     passportNumber: string
+    visaTypeId: string
     boardingDestinationId: string
     arrivalDestinationId: string
     seatNumber: number
@@ -90,6 +97,7 @@ interface AppContextValue {
         | 'passengerName'
         | 'ticketNumber'
         | 'passportNumber'
+        | 'visaTypeId'
         | 'boardingDestinationId'
         | 'arrivalDestinationId'
         | 'seatNumber'
@@ -99,6 +107,7 @@ interface AppContextValue {
       >
     >,
   ) => Promise<string | null>
+  deleteBooking: (id: string) => Promise<string | null>
   addVoucher: (voucher: Omit<Voucher, 'id'> & { id?: string }) => Promise<void>
   can: (action: Permission) => boolean
   canPage: (pageId: string, action?: PageAction) => boolean
@@ -144,6 +153,7 @@ const emptyState = (currentUserId: string | null = null): AppState => ({
   offices: [],
   users: [],
   destinations: [],
+  visaTypes: [],
   buses: [],
   drivers: [],
   trips: [],
@@ -254,6 +264,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       offices,
       users,
       destinations,
+      visaTypes,
       buses,
       drivers,
       trips,
@@ -265,6 +276,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       serverApi.offices.list(),
       serverApi.users.list(),
       serverApi.destinations.list(),
+      serverApi.visaTypes.list().catch(() => ({ list: [] as any[] })),
       serverApi.buses.list(),
       serverApi.drivers.list(),
       serverApi.trips.list(),
@@ -283,6 +295,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       offices: officeList,
       users: userList,
       destinations: (destinations.list ?? []).map(asDestination),
+      visaTypes: (visaTypes.list ?? []).map(asVisaType),
       buses: (buses.list ?? []).map((b: any) => ({
         ...b,
         busNumber: b.busNumber ?? '',
@@ -305,6 +318,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const balanceScope = meUser.role === 'admin' ? undefined : meUser.officeId
     void refreshBalances(officeList, balanceScope)
   }, [refreshBalances])
+
+  const refreshBookings = useCallback(async () => {
+    if (!getToken()) return
+    try {
+      const bookings = await serverApi.bookings.list()
+      setState((s) => ({
+        ...s,
+        bookings: (bookings.list ?? []).map(asBooking),
+      }))
+    } catch {
+      // تحديث خلفي صامت — لا نقطع الواجهة عند فشل الشبكة
+    }
+  }, [])
 
   const saveUserPermissions = async (
     userId: string,
@@ -468,6 +494,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }
 
   const getDestination = (id: string) => state.destinations.find((d) => d.id === id)
+  const getVisaType = (id: string) => state.visaTypes.find((v) => v.id === id)
   const getBus = (id: string) => state.buses.find((b) => b.id === id)
   const getDriver = (id: string) => state.drivers.find((d) => d.id === id)
   const getOffice = (id: string) => state.offices.find((o) => o.id === id)
@@ -571,6 +598,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
       ...s,
       destinations: upsertById(s.destinations, asDestination(res.destination)),
     }))
+  }
+
+  const upsertVisaType: AppContextValue['upsertVisaType'] = async (visa) => {
+    const payload = { name: visa.name }
+    const res = visa.id
+      ? await serverApi.visaTypes.update(visa.id, payload)
+      : await serverApi.visaTypes.create(payload)
+    setState((s) => ({
+      ...s,
+      visaTypes: upsertById(s.visaTypes, asVisaType(res.visaType)),
+    }))
+  }
+
+  const deleteVisaType = async (id: string) => {
+    await serverApi.visaTypes.remove(id)
+    setState((s) => ({ ...s, visaTypes: s.visaTypes.filter((v) => v.id !== id) }))
   }
 
   const upsertTrip: AppContextValue['upsertTrip'] = async (trip) => {
@@ -700,6 +743,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         ticketNumber: input.ticketNumber,
         phone: input.phone,
         passportNumber: input.passportNumber,
+        visaTypeId: input.visaTypeId,
         boardingDestinationId: input.boardingDestinationId,
         arrivalDestinationId: input.arrivalDestinationId,
         seatNumber: input.seatNumber,
@@ -732,6 +776,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const deleteBooking = async (id: string) => {
+    try {
+      const existing = state.bookings.find((b) => b.id === id)
+      await serverApi.bookings.remove(id)
+      setState((s) => ({
+        ...s,
+        bookings: s.bookings.filter((b) => b.id !== id),
+        vouchers: s.vouchers.filter((v) => v.relatedBookingId !== id),
+      }))
+      if (existing) void refreshBalances(state.offices, existing.officeId)
+      return null
+    } catch (e) {
+      return e instanceof ApiError ? e.message : 'فشل حذف الحجز'
+    }
+  }
+
   const addVoucher: AppContextValue['addVoucher'] = async (voucher) => {
     const res = await serverApi.vouchers.create({
       officeId: voucher.officeId,
@@ -755,8 +815,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     login,
     logout,
     refreshAll,
+    refreshBookings,
     resetData,
     getDestination,
+    getVisaType,
     getBus,
     getDriver,
     getOffice,
@@ -770,6 +832,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     upsertDriver,
     deleteDriver,
     upsertDestination,
+    upsertVisaType,
+    deleteVisaType,
     upsertTrip,
     cancelTrip,
     openTrip,
@@ -778,6 +842,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     upsertCustomer,
     createBooking,
     updateBooking,
+    deleteBooking,
     addVoucher,
     can,
     canPage,

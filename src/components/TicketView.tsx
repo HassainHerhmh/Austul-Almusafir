@@ -11,12 +11,13 @@ type Props = {
 }
 
 export function TicketView({ booking, trip, onClose }: Props) {
-  const { getTripLabel, getOffice, getDestination } = useApp()
+  const { getTripLabel, getOffice, getDestination, getVisaType } = useApp()
   const { name } = useBrand()
   const office = getOffice(booking.officeId)
   const ends = tripEndpoints(trip)
   const boardingName = getDestination(booking.boardingDestinationId)?.name
   const arrivalName = getDestination(booking.arrivalDestinationId)?.name
+  const visaName = getVisaType(booking.visaTypeId)?.name
 
   return (
     <div>
@@ -44,6 +45,10 @@ export function TicketView({ booking, trip, onClose }: Props) {
           <div>
             <span>رقم الجواز</span>
             <strong>{booking.passportNumber || '—'}</strong>
+          </div>
+          <div>
+            <span>نوع التأشيرة</span>
+            <strong>{visaName || '—'}</strong>
           </div>
           <div>
             <span>منطقة الانطلاق</span>
@@ -81,7 +86,7 @@ export function TicketView({ booking, trip, onClose }: Props) {
           </div>
           <div>
             <span>السعر</span>
-            <strong>{booking.price.toLocaleString('ar-YE')} ر.ي</strong>
+            <strong>{booking.price.toLocaleString('ar-YE')} ر.س</strong>
           </div>
           <div>
             <span>الحالة</span>

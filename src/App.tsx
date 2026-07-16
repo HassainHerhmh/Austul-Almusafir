@@ -29,6 +29,7 @@ import { AdminReportsPage } from './pages/admin/AdminReportsPage'
 import { AdminJournalReviewPage } from './pages/admin/AdminJournalReviewPage'
 import { BusesPage } from './pages/admin/BusesPage'
 import { DestinationsPage } from './pages/admin/DestinationsPage'
+import { VisaTypesPage } from './pages/admin/VisaTypesPage'
 import { DriversPage } from './pages/admin/DriversPage'
 import { OfficesPage } from './pages/admin/OfficesPage'
 import { TripsPage } from './pages/admin/TripsPage'
@@ -67,6 +68,7 @@ export default function App() {
               <Route path="buses" element={<BusesPage />} />
               <Route path="drivers" element={<DriversPage />} />
               <Route path="destinations" element={<DestinationsPage />} />
+              <Route path="visa-types" element={<VisaTypesPage />} />
               <Route path="trips" element={<TripsPage />} />
               <Route path="bookings" element={<AdminBookingsPage />} />
 

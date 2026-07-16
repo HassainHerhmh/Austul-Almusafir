@@ -6,7 +6,7 @@ import { accountsRouter } from './routes/accounts'
 import { authRouter } from './routes/auth'
 import { bookingsRouter } from './routes/bookings'
 import { customersRouter, vouchersRouter } from './routes/customers'
-import { busesRouter, destinationsRouter, driversRouter } from './routes/fleet'
+import { busesRouter, destinationsRouter, driversRouter, visaTypesRouter } from './routes/fleet'
 import { officesRouter } from './routes/offices'
 import { settingsRouter } from './routes/settings'
 import { tripsRouter } from './routes/trips'
@@ -44,6 +44,7 @@ export function createApp() {
   app.use('/api/offices', officesRouter)
   app.use('/api/users', usersRouter)
   app.use('/api/destinations', destinationsRouter)
+  app.use('/api/visa-types', visaTypesRouter)
   app.use('/api/buses', busesRouter)
   app.use('/api/drivers', driversRouter)
   app.use('/api/trips', tripsRouter)

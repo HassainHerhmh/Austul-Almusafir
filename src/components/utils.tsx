@@ -25,7 +25,7 @@ export function RequireAuth({
 }
 
 export function formatMoney(n: number) {
-  return `${n.toLocaleString('ar-YE')} ر.ي`
+  return `${n.toLocaleString('ar-YE')} ر.س`
 }
 
 /** تحويل HH:mm أو HH:mm:ss إلى عرض عربي مثل «1 مساء» / «8 صباحاً» */

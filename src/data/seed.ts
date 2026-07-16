@@ -8,6 +8,7 @@ export const seedData: AppState = {
   currentUserId: null,
 
   destinations: [],
+  visaTypes: [],
   offices: [],
   users: [
     {
@@ -50,10 +51,12 @@ export function loadState(): AppState {
           ...d,
           ticketPrice: Number(d.ticketPrice) || 0,
         })),
+        visaTypes: parsed.visaTypes ?? [],
         bookings: (parsed.bookings ?? []).map((b) => ({
           ...b,
           ticketNumber: b.ticketNumber ?? '',
           passportNumber: b.passportNumber ?? '',
+          visaTypeId: b.visaTypeId ?? '',
           notes: b.notes ?? '',
           boardingDestinationId: b.boardingDestinationId ?? '',
           arrivalDestinationId: b.arrivalDestinationId ?? '',

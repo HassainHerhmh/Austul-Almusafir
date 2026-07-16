@@ -17,9 +17,20 @@ export function OfficeBookingsPage() {
     getDestination,
     createBooking,
     updateBooking,
+    refreshBookings,
   } = useApp()
   const [params] = useSearchParams()
   const officeId = currentOffice!.id
+
+  // تحديث المقاعد/الحجوزات في الخلفية كل 10 ثوانٍ
+  useEffect(() => {
+    const tick = () => {
+      if (document.visibilityState === 'hidden') return
+      void refreshBookings()
+    }
+    const id = window.setInterval(tick, 10_000)
+    return () => window.clearInterval(id)
+  }, [refreshBookings])
 
   const trips = useMemo(
     () =>
@@ -35,18 +46,19 @@ export function OfficeBookingsPage() {
   const [ticketNumber, setTicketNumber] = useState('')
   const [phone, setPhone] = useState('')
   const [passportNumber, setPassportNumber] = useState('')
+  const [visaTypeId, setVisaTypeId] = useState('')
   const [boardingDestinationId, setBoardingDestinationId] = useState('')
   const [arrivalDestinationId, setArrivalDestinationId] = useState('')
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
   const [notes, setNotes] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [ticketBooking, setTicketBooking] = useState<Booking | null>(null)
-  const [changeSeatId, setChangeSeatId] = useState<string | null>(null)
   const [editBooking, setEditBooking] = useState<Booking | null>(null)
   const [editForm, setEditForm] = useState({
     passengerName: '',
     ticketNumber: '',
     passportNumber: '',
+    visaTypeId: '',
     boardingDestinationId: '',
     arrivalDestinationId: '',
     paymentMethod: 'cash' as PaymentMethod,
@@ -133,6 +145,7 @@ export function OfficeBookingsPage() {
       ticketNumber,
       phone,
       passportNumber,
+      visaTypeId,
       boardingDestinationId,
       arrivalDestinationId,
       seatNumber: seat,
@@ -149,15 +162,10 @@ export function OfficeBookingsPage() {
     setTicketNumber('')
     setPhone('')
     setPassportNumber('')
+    setVisaTypeId('')
     setNotes('')
     setSeat(null)
     setTicketBooking(result)
-  }
-
-  const handleChangeSeat = async (bookingId: string, newSeat: number) => {
-    const err = await updateBooking(bookingId, { seatNumber: newSeat })
-    if (err) alert(err)
-    else setChangeSeatId(null)
   }
 
   const openEdit = (b: Booking) => {
@@ -166,6 +174,7 @@ export function OfficeBookingsPage() {
       passengerName: b.passengerName,
       ticketNumber: b.ticketNumber || '',
       passportNumber: b.passportNumber || '',
+      visaTypeId: b.visaTypeId || '',
       boardingDestinationId: b.boardingDestinationId || '',
       arrivalDestinationId: b.arrivalDestinationId || '',
       paymentMethod: b.paymentMethod,
@@ -217,6 +226,7 @@ export function OfficeBookingsPage() {
       passengerName: editForm.passengerName.trim(),
       ticketNumber: editForm.ticketNumber.trim(),
       passportNumber: editForm.passportNumber.trim(),
+      visaTypeId: editForm.visaTypeId,
       boardingDestinationId: editForm.boardingDestinationId,
       arrivalDestinationId: editForm.arrivalDestinationId,
       paymentMethod: editForm.paymentMethod,
@@ -302,6 +312,21 @@ export function OfficeBookingsPage() {
                   onChange={(e) => setPassportNumber(e.target.value)}
                   placeholder="مثال: P-1234567"
                 />
+              </div>
+              <div className="field">
+                <label>نوع التأشيرة</label>
+                <select
+                  required
+                  value={visaTypeId}
+                  onChange={(e) => setVisaTypeId(e.target.value)}
+                >
+                  <option value="">اختر نوع التأشيرة</option>
+                  {state.visaTypes.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.name}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div className="field">
                 <label>منطقة الانطلاق</label>
@@ -390,6 +415,7 @@ export function OfficeBookingsPage() {
                 <th>الراكب</th>
                 <th>رقم التذكرة</th>
                 <th>رقم الجواز</th>
+                <th>نوع التأشيرة</th>
                 <th>منطقة الانطلاق</th>
                 <th>منطقة الوصول</th>
                 <th>الرحلة</th>
@@ -398,17 +424,22 @@ export function OfficeBookingsPage() {
                 <th>الملاحظات</th>
                 <th>الحالة</th>
                 <th>السعر</th>
+                <th>أضافه</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
               {myBookings.map((b) => {
                 const trip = state.trips.find((t) => t.id === b.tripId)
+                const addedBy = state.users.find((u) => u.id === b.bookedBy)
                 return (
                   <tr key={b.id}>
                     <td>{b.passengerName}</td>
                     <td>{b.ticketNumber || '—'}</td>
                     <td>{b.passportNumber || '—'}</td>
+                    <td>
+                      {state.visaTypes.find((v) => v.id === b.visaTypeId)?.name || '—'}
+                    </td>
                     <td>{getDestination(b.boardingDestinationId)?.name || '—'}</td>
                     <td>{getDestination(b.arrivalDestinationId)?.name || '—'}</td>
                     <td>{trip ? getTripLabel(trip) : '—'}</td>
@@ -423,6 +454,7 @@ export function OfficeBookingsPage() {
                       </span>
                     </td>
                     <td>{formatMoney(b.price)}</td>
+                    <td>{addedBy?.name || '—'}</td>
                     <td>
                       <div className="actions">
                         {can('print_ticket') && b.status === 'confirmed' && trip && (
@@ -441,15 +473,6 @@ export function OfficeBookingsPage() {
                             onClick={() => openEdit(b)}
                           >
                             تعديل
-                          </button>
-                        )}
-                        {can('book') && b.status === 'confirmed' && (
-                          <button
-                            type="button"
-                            className="btn btn-ghost btn-sm"
-                            onClick={() => setChangeSeatId(b.id)}
-                          >
-                            تغيير مقعد
                           </button>
                         )}
                         {can('cancel_booking') && b.status === 'confirmed' && (
@@ -481,30 +504,6 @@ export function OfficeBookingsPage() {
               trip={state.trips.find((t) => t.id === ticketBooking.tripId)!}
               onClose={() => setTicketBooking(null)}
             />
-          </div>
-        </div>
-      )}
-
-      {changeSeatId && (
-        <div className="modal-backdrop" onClick={() => setChangeSeatId(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h2>تغيير المقعد</h2>
-            {(() => {
-              const booking = state.bookings.find((b) => b.id === changeSeatId)!
-              const s = getTripSeats(booking.tripId)
-              const available = s.bookedSeats.filter((n) => n !== booking.seatNumber)
-              return (
-                <SeatMap
-                  total={s.total}
-                  bookedSeats={available}
-                  selected={booking.seatNumber}
-                  onSelect={(n) => handleChangeSeat(changeSeatId, n)}
-                />
-              )
-            })()}
-            <button type="button" className="btn btn-ghost" onClick={() => setChangeSeatId(null)}>
-              إغلاق
-            </button>
           </div>
         </div>
       )}
@@ -542,6 +541,23 @@ export function OfficeBookingsPage() {
                       setEditForm((f) => ({ ...f, passportNumber: e.target.value }))
                     }
                   />
+                </div>
+                <div className="field">
+                  <label>نوع التأشيرة</label>
+                  <select
+                    required
+                    value={editForm.visaTypeId}
+                    onChange={(e) =>
+                      setEditForm((f) => ({ ...f, visaTypeId: e.target.value }))
+                    }
+                  >
+                    <option value="">اختر نوع التأشيرة</option>
+                    {state.visaTypes.map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {v.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div className="field">
                   <label>منطقة الانطلاق</label>

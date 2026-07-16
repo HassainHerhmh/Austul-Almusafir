@@ -67,6 +67,53 @@ destinationsRouter.delete(
   }),
 )
 
+export const visaTypesRouter = Router()
+visaTypesRouter.use(authRequired)
+
+visaTypesRouter.get(
+  '/',
+  asyncHandler(async (_req, res) => {
+    const list = await prisma.visaType.findMany({ orderBy: { name: 'asc' } })
+    return ok(res, { list })
+  }),
+)
+
+visaTypesRouter.post(
+  '/',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const body = z.object({ name: z.string().min(1) }).safeParse(req.body)
+    if (!body.success) return fail(res, 'بيانات غير صالحة')
+    const visaType = await prisma.visaType.create({
+      data: { name: body.data.name.trim() },
+    })
+    return ok(res, { visaType }, 201)
+  }),
+)
+
+visaTypesRouter.put(
+  '/:id',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const body = z.object({ name: z.string().min(1) }).safeParse(req.body)
+    if (!body.success) return fail(res, 'بيانات غير صالحة')
+    const visaType = await prisma.visaType.update({
+      where: { id: paramId(req) },
+      data: { name: body.data.name.trim() },
+    })
+    return ok(res, { visaType })
+  }),
+)
+
+visaTypesRouter.delete(
+  '/:id',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    await prisma.visaType.delete({ where: { id: paramId(req) } })
+    return ok(res, { deleted: true })
+  }),
+)
+
 export const busesRouter = Router()
 busesRouter.use(authRequired)
 

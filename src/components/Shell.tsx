@@ -18,6 +18,7 @@ import {
   ScrollText,
   Calculator,
   Banknote,
+  Stamp,
   type LucideIcon,
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
@@ -34,6 +35,7 @@ const adminLinks: { to: string; end?: boolean; label: string; icon: LucideIcon }
   { to: '/admin/buses', label: 'الباصات', icon: Bus },
   { to: '/admin/drivers', label: 'السائقون', icon: UserCircle2 },
   { to: '/admin/destinations', label: 'الوجهات', icon: MapPin },
+  { to: '/admin/visa-types', label: 'أنواع التأشيرات', icon: Stamp },
   { to: '/admin/trips', label: 'الرحلات', icon: Route },
   { to: '/admin/bookings', label: 'الحجوزات', icon: Ticket },
   { to: '/admin/accounts', label: 'الحسابات', icon: Calculator },

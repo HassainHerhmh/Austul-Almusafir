@@ -113,6 +113,7 @@ export function DestinationsPage() {
                       type="number"
                       min={0}
                       step={1}
+                      className="table-inline-input"
                       disabled={savingId === d.id}
                       value={priceValue(d.id, d.ticketPrice)}
                       placeholder="0"
@@ -126,15 +127,6 @@ export function DestinationsPage() {
                           e.preventDefault()
                           ;(e.target as HTMLInputElement).blur()
                         }
-                      }}
-                      style={{
-                        width: '100%',
-                        maxWidth: 140,
-                        background: '#fff',
-                        border: '1px solid #d1d5db',
-                        borderRadius: 6,
-                        padding: '0.4rem 0.55rem',
-                        fontSize: '0.95rem',
                       }}
                     />
                   </td>

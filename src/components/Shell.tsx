@@ -91,28 +91,29 @@ export function Shell() {
   return (
     <div className={`app-shell${collapsed ? ' sidebar-collapsed' : ''}`}>
       <aside className="sidebar" aria-label="القائمة الجانبية">
-        <button
-          type="button"
-          className="sidebar-toggle"
-          onClick={() => setCollapsed((v) => !v)}
-          title={collapsed ? 'توسيع القائمة' : 'طيّ القائمة'}
-          aria-label={collapsed ? 'توسيع القائمة' : 'طيّ القائمة'}
-          aria-expanded={!collapsed}
-        >
-          {collapsed ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
-        </button>
-
         <div className="brand">
-          <BrandMark
-            sub={
-              collapsed
-                ? undefined
-                : isAdmin
-                  ? 'لوحة مدير النظام'
-                  : currentOffice?.name ?? 'مكتب السفريات'
-            }
-            collapsed={collapsed}
-          />
+          <div className="brand-row">
+            <BrandMark
+              sub={
+                collapsed
+                  ? undefined
+                  : isAdmin
+                    ? 'لوحة مدير النظام'
+                    : currentOffice?.name ?? 'مكتب السفريات'
+              }
+              collapsed={collapsed}
+            />
+            <button
+              type="button"
+              className="sidebar-toggle"
+              onClick={() => setCollapsed((v) => !v)}
+              title={collapsed ? 'توسيع القائمة' : 'طيّ القائمة'}
+              aria-label={collapsed ? 'توسيع القائمة' : 'طيّ القائمة'}
+              aria-expanded={!collapsed}
+            >
+              {collapsed ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
+            </button>
+          </div>
         </div>
 
         {!isAdmin && currentOffice && !collapsed && (

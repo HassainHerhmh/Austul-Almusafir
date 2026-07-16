@@ -427,12 +427,10 @@ h3 {
 }
 
 .sidebar-toggle {
-  position: absolute;
-  top: 1.15rem;
-  inset-inline-start: -0.05rem;
-  z-index: 5;
+  flex-shrink: 0;
   width: 28px;
   height: 28px;
+  margin-top: 0.35rem;
   border-radius: 999px;
   border: 1px solid var(--sidebar-line);
   background: var(--elevated);
@@ -463,6 +461,16 @@ h3 {
   justify-content: center;
 }
 
+.app-shell.sidebar-collapsed .brand-row {
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.app-shell.sidebar-collapsed .sidebar-toggle {
+  margin-top: 0;
+}
+
 .app-shell.sidebar-collapsed .brand-mark-collapsed {
   justify-content: center;
 }
@@ -488,6 +496,13 @@ h3 {
 .brand {
   padding: 0.5rem 0.75rem 1rem;
   border-bottom: 1px solid var(--sidebar-line);
+}
+
+.brand-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
 }
 
 .brand-mark {
@@ -713,6 +728,36 @@ table.data th {
 
 table.data tr:hover td {
   background: var(--hover-tint);
+}
+
+/* Inputs inside tables — never hardcode white bg in dark mode */
+table.data input,
+table.data select,
+table.data textarea,
+.table-inline-input {
+  width: 100%;
+  max-width: 140px;
+  padding: 0.4rem 0.55rem;
+  font-size: 0.95rem;
+  border-radius: 6px;
+  background: var(--input-bg);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  font-variant-numeric: tabular-nums;
+}
+
+table.data input::placeholder,
+.table-inline-input::placeholder {
+  color: color-mix(in srgb, var(--muted) 88%, transparent);
+}
+
+[data-theme='dark'] table.data input,
+[data-theme='dark'] table.data select,
+[data-theme='dark'] table.data textarea,
+[data-theme='dark'] .table-inline-input {
+  background: var(--input-bg) !important;
+  color: var(--ink) !important;
+  border-color: var(--line) !important;
 }
 
 /* ——— Forms ——— */

@@ -146,6 +146,7 @@ const ROLE_PERMS: Record<Role, Permission[]> = {
   ],
   booking_clerk: ['book', 'print_ticket'],
   accountant: ['view_accounts', 'view_reports'],
+  driver: [],
 }
 
 const emptyState = (currentUserId: string | null = null): AppState => ({

@@ -65,6 +65,7 @@ export const ROLE_LABELS: Record<Role, string> = {
   office_manager: 'مدير مكتب',
   booking_clerk: 'موظف حجز',
   accountant: 'محاسب',
+  driver: 'سائق (تتبع)',
 }
 
 export const PAYMENT_LABELS = {

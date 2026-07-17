@@ -24,6 +24,7 @@ import PaymentTypes from './pages/admin/accounts/setup/PaymentTypes'
 import ReceiptTypes from './pages/admin/accounts/setup/ReceiptTypes'
 import TransitAccountsSettings from './pages/admin/accounts/setup/TransitAccountsSettings'
 import { AdminBookingsPage } from './pages/admin/AdminBookingsPage'
+import { AdminTrackingPage } from './pages/admin/AdminTrackingPage'
 import { AdminHome } from './pages/admin/AdminHome'
 import { AdminReportsPage } from './pages/admin/AdminReportsPage'
 import { AdminJournalReviewPage } from './pages/admin/AdminJournalReviewPage'
@@ -71,6 +72,7 @@ export default function App() {
               <Route path="visa-types" element={<VisaTypesPage />} />
               <Route path="trips" element={<TripsPage />} />
               <Route path="bookings" element={<AdminBookingsPage />} />
+              <Route path="tracking" element={<AdminTrackingPage />} />
 
               <Route path="accounts" element={<Accounting />}>
                 <Route index element={<Navigate to="setup/accounts" replace />} />

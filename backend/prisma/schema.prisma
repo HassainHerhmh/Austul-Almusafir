@@ -33,11 +33,16 @@ model User {
   role         String
   officeId     String?
   office       Office?   @relation(fields: [officeId], references: [id])
+  /** ربط حساب تطبيق التتبع بسجل السائق */
+  driverId     String?
+  driver       Driver?   @relation(fields: [driverId], references: [id])
   active       Boolean   @default(true)
   /** صلاحيات الصفحات (عرض/إضافة/تعديل/حذف) — نفس أسلوب منصة الكروت */
   permissions  Json?
   bookings     Booking[] @relation("BookedBy")
   createdAt    DateTime  @default(now())
+
+  @@index([driverId])
 }
 
 model Destination {
@@ -76,6 +81,7 @@ model Driver {
   role          String  @default("primary")
   active        Boolean @default(true)
   trips         Trip[]  @relation("TripDriver")
+  users         User[]
 }
 
 model Trip {
@@ -96,7 +102,21 @@ model Trip {
   status             String     @default("scheduled")
   stops              TripStop[]
   bookings           Booking[]
+  location           TripLocation?
   createdAt          DateTime   @default(now())
+}
+
+/** آخر موقع GPS حي لكل رحلة */
+model TripLocation {
+  tripId    String   @id
+  trip      Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  lat       Float
+  lng       Float
+  accuracy  Float?
+  speed     Float?
+  heading   Float?
+  active    Boolean  @default(true)
+  updatedAt DateTime @updatedAt
 }
 
 model TripStop {

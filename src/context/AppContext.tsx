@@ -543,6 +543,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         phone: user.phone ?? '',
         role: user.role,
         officeId: user.officeId,
+        driverId: user.driverId ?? null,
         active: user.active,
       }
       if (user.password) payload.password = user.password
@@ -556,6 +557,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         phone: user.phone ?? '',
         role: user.role,
         officeId: user.officeId,
+        driverId: user.driverId ?? null,
         active: user.active,
       })
       saved = asUser(res.user)

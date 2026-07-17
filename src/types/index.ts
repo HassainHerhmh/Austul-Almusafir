@@ -1,4 +1,4 @@
-export type Role = 'admin' | 'office_manager' | 'booking_clerk' | 'accountant'
+export type Role = 'admin' | 'office_manager' | 'booking_clerk' | 'accountant' | 'driver'
 
 export type OfficeStatus = 'active' | 'suspended'
 export type SubscriptionStatus = 'active' | 'expired' | 'trial'
@@ -30,6 +30,8 @@ export interface User {
   phone: string
   role: Role
   officeId: string | null
+  /** ربط حساب تطبيق التتبع بسجل السائق */
+  driverId: string | null
   active: boolean
   /** صلاحيات الصفحات المخصصة — null = افتراضي حسب الدور */
   permissions?: Record<string, { view: boolean; add: boolean; edit: boolean; delete: boolean }> | null

@@ -35,6 +35,7 @@ function asUser(u: any): User {
     phone: u.phone ?? '',
     role: u.role,
     officeId: u.officeId ?? null,
+    driverId: u.driverId ?? null,
     active: !!u.active,
     permissions: u.permissions ?? null,
   }
@@ -430,6 +431,72 @@ export const serverApi = {
           body: JSON.stringify(data),
         }),
     },
+  },
+
+  tracking: {
+    myTrips: () =>
+      apiRequest<{
+        list: Array<{
+          id: string
+          date: string
+          departureTime: string
+          status: string
+          price: number
+          busNumber: string
+          plateNumber: string
+          label: string
+          trackingActive: boolean
+          lastLat: number | null
+          lastLng: number | null
+          lastUpdatedAt: string | null
+        }>
+      }>('/api/tracking/my-trips'),
+    ping: (data: {
+      tripId: string
+      lat: number
+      lng: number
+      accuracy?: number | null
+      speed?: number | null
+      heading?: number | null
+    }) =>
+      apiRequest<{
+        location: {
+          tripId: string
+          lat: number
+          lng: number
+          active: boolean
+          updatedAt: string
+        }
+      }>('/api/tracking/ping', { method: 'POST', body: JSON.stringify(data) }),
+    stop: (tripId: string) =>
+      apiRequest<{ location?: { tripId: string; active: boolean; updatedAt: string }; stopped?: boolean }>(
+        '/api/tracking/stop',
+        { method: 'POST', body: JSON.stringify({ tripId }) },
+      ),
+    live: () =>
+      apiRequest<{
+        list: Array<{
+          tripId: string
+          lat: number
+          lng: number
+          accuracy: number | null
+          speed: number | null
+          heading: number | null
+          active: boolean
+          updatedAt: string
+          trip: {
+            id: string
+            date: string
+            departureTime: string
+            status: string
+            label: string
+            busNumber: string
+            plateNumber: string
+            driverName: string
+            driverPhone: string
+          }
+        }>
+      }>('/api/tracking/live'),
   },
 }
 

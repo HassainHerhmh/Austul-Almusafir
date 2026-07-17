@@ -10,6 +10,7 @@ const empty = {
   phone: '',
   role: 'office_manager' as Role,
   officeId: '' as string | null,
+  driverId: '' as string | null,
   active: true,
 }
 
@@ -23,17 +24,29 @@ export function UsersPage() {
     ? state.users
     : state.users.filter((u) => u.officeId === state.users.find((x) => x.id === state.currentUserId)?.officeId)
 
+  const linkedDriverIds = new Set(
+    state.users
+      .filter((u) => u.driverId && u.id !== editId)
+      .map((u) => u.driverId as string),
+  )
+
   const save = (e: React.FormEvent) => {
     e.preventDefault()
+    const isDriver = form.role === 'driver'
     const payload = {
       ...form,
-      officeId: form.role === 'admin' ? null : form.officeId || null,
+      officeId: form.role === 'admin' || isDriver ? null : form.officeId || null,
+      driverId: isDriver ? form.driverId || null : null,
     }
-    if (payload.role !== 'admin' && !payload.officeId) {
+    if (!isDriver && payload.role !== 'admin' && !payload.officeId) {
       alert('يجب اختيار المكتب')
       return
     }
-    upsertUser(editId ? { ...payload, id: editId } : payload)
+    if (isDriver && !payload.driverId) {
+      alert('يجب اختيار السائق المرتبط بحساب التتبع')
+      return
+    }
+    void upsertUser(editId ? { ...payload, id: editId } : payload)
     setOpen(false)
     setForm(empty)
     setEditId(null)
@@ -48,6 +61,7 @@ export function UsersPage() {
       phone: u.phone || '',
       role: u.role,
       officeId: u.officeId,
+      driverId: u.driverId,
       active: u.active,
     })
     setOpen(true)
@@ -58,6 +72,7 @@ export function UsersPage() {
       <header className="page-header">
         <div>
           <h1>إدارة المستخدمين</h1>
+          <p>حسابات السائقين تُستخدم لتطبيق تتبع الباص (APK)</p>
         </div>
         <button
           type="button"
@@ -81,7 +96,7 @@ export function UsersPage() {
                 <th>اسم المستخدم</th>
                 <th>الهاتف</th>
                 <th>الدور</th>
-                <th>المكتب</th>
+                <th>المكتب / السائق</th>
                 <th>الحالة</th>
                 <th></th>
               </tr>
@@ -93,7 +108,13 @@ export function UsersPage() {
                   <td>{u.username}</td>
                   <td>{u.phone || '—'}</td>
                   <td>{ROLE_LABELS[u.role]}</td>
-                  <td>{u.officeId ? state.offices.find((o) => o.id === u.officeId)?.name : '—'}</td>
+                  <td>
+                    {u.role === 'driver'
+                      ? state.drivers.find((d) => d.id === u.driverId)?.name || '—'
+                      : u.officeId
+                        ? state.offices.find((o) => o.id === u.officeId)?.name
+                        : '—'}
+                  </td>
                   <td>
                     <span className={`badge ${u.active ? 'badge-ok' : 'badge-danger'}`}>
                       {u.active ? 'نشط' : 'موقوف'}
@@ -109,7 +130,7 @@ export function UsersPage() {
                           type="button"
                           className="btn btn-danger btn-sm"
                           onClick={() => {
-                            if (confirm('حذف المستخدم؟')) deleteUser(u.id)
+                            if (confirm('حذف المستخدم؟')) void deleteUser(u.id)
                           }}
                         >
                           حذف
@@ -158,24 +179,34 @@ export function UsersPage() {
                 <div className="field">
                   <label>كلمة المرور</label>
                   <input
-                    required
+                    required={!editId}
                     value={form.password}
                     onChange={(e) => setForm({ ...form, password: e.target.value })}
+                    placeholder={editId ? 'اتركها فارغة للإبقاء' : ''}
                   />
                 </div>
                 <div className="field">
                   <label>الدور</label>
                   <select
                     value={form.role}
-                    onChange={(e) => setForm({ ...form, role: e.target.value as Role })}
+                    onChange={(e) => {
+                      const role = e.target.value as Role
+                      setForm({
+                        ...form,
+                        role,
+                        officeId: role === 'admin' || role === 'driver' ? null : form.officeId,
+                        driverId: role === 'driver' ? form.driverId : null,
+                      })
+                    }}
                   >
                     {isAdmin && <option value="admin">مدير النظام</option>}
                     <option value="office_manager">مدير مكتب</option>
                     <option value="booking_clerk">موظف حجز</option>
                     <option value="accountant">محاسب</option>
+                    {isAdmin && <option value="driver">سائق (تتبع)</option>}
                   </select>
                 </div>
-                {form.role !== 'admin' && (
+                {form.role !== 'admin' && form.role !== 'driver' && (
                   <div className="field">
                     <label>المكتب</label>
                     <select
@@ -189,6 +220,30 @@ export function UsersPage() {
                           {o.name}
                         </option>
                       ))}
+                    </select>
+                  </div>
+                )}
+                {form.role === 'driver' && isAdmin && (
+                  <div className="field">
+                    <label>السائق المرتبط</label>
+                    <select
+                      required
+                      value={form.driverId ?? ''}
+                      onChange={(e) => setForm({ ...form, driverId: e.target.value })}
+                    >
+                      <option value="">اختر السائق</option>
+                      {state.drivers
+                        .filter((d) => d.active || d.id === form.driverId)
+                        .map((d) => (
+                          <option
+                            key={d.id}
+                            value={d.id}
+                            disabled={linkedDriverIds.has(d.id)}
+                          >
+                            {d.name}
+                            {linkedDriverIds.has(d.id) ? ' (مربوط مسبقاً)' : ''}
+                          </option>
+                        ))}
                     </select>
                   </div>
                 )}

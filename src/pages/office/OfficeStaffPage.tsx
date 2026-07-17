@@ -95,6 +95,7 @@ export function OfficeStaffPage() {
         password: form.password || '',
         role: form.role,
         officeId,
+        driverId: null,
         active: form.active,
       })
       closeModal()

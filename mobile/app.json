@@ -1,0 +1,54 @@
+{
+  "expo": {
+    "name": "أسطول المسافر - تتبع",
+    "slug": "austul-driver-tracking",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "scheme": "austul-track",
+    "ios": {
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "نحتاج موقعك لإرسال تتبع الباص للمنصة",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "نحتاج الموقع في الخلفية أثناء الرحلة",
+        "UIBackgroundModes": ["location"]
+      },
+      "bundleIdentifier": "com.ostool.almosafer.driver"
+    },
+    "android": {
+      "package": "com.ostool.almosafer.driver",
+      "adaptiveIcon": {
+        "backgroundColor": "#0f3d4c",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION",
+        "POST_NOTIFICATIONS"
+      ],
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "السماح بالوصول للموقع أثناء تتبع الرحلة.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ]
+    ],
+    "extra": {
+      "apiUrl": "https://api.ostool-almosafer.com"
+    }
+  }
+}

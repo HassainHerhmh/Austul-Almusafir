@@ -13,7 +13,7 @@ function toggleDocumentTheme() {
 }
 
 export function LoginPage() {
-  const { login, currentUser, isAdmin, loading } = useApp()
+  const { login, logout, currentUser, isAdmin, loading } = useApp()
   const { name, logoUrl } = useBrand()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -38,6 +38,24 @@ export function LoginPage() {
   }
 
   if (currentUser) {
+    if (currentUser.role === 'driver') {
+      return (
+        <div className="login-page">
+          <section className="login-panel" style={{ width: '100%' }}>
+            <div className="login-card" style={{ margin: 'auto', maxWidth: 420 }}>
+              <h2>حساب سائق</h2>
+              <p style={{ color: 'var(--muted)' }}>
+                هذا الحساب مخصص لتطبيق تتبع الباص على الجوال. استخدم تطبيق السائق (APK) لتسجيل الدخول
+                وإرسال الموقع.
+              </p>
+              <button type="button" className="btn btn-primary" style={{ width: '100%' }} onClick={() => logout()}>
+                تسجيل الخروج
+              </button>
+            </div>
+          </section>
+        </div>
+      )
+    }
     return <Navigate to={isAdmin ? '/admin' : '/office'} replace />
   }
 

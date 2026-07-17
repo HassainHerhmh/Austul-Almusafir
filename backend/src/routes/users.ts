@@ -22,6 +22,7 @@ function publicUser(u: {
   phone?: string | null
   role: string
   officeId: string | null
+  driverId?: string | null
   active: boolean
   permissions?: unknown
 }) {
@@ -32,6 +33,7 @@ function publicUser(u: {
     phone: u.phone ?? '',
     role: u.role,
     officeId: u.officeId,
+    driverId: u.driverId ?? null,
     active: u.active,
     permissions: (u.permissions as Record<string, unknown> | null) ?? null,
   }
@@ -44,7 +46,7 @@ function canManageUser(
   if (actor.role === 'admin') return true
   if (actor.role !== 'office_manager') return false
   if (!actor.officeId || target.officeId !== actor.officeId) return false
-  if (target.role === 'admin') return false
+  if (target.role === 'admin' || target.role === 'driver') return false
   return true
 }
 
@@ -70,8 +72,9 @@ usersRouter.post(
         password: z.string().min(4),
         name: z.string().min(1),
         phone: z.string().optional(),
-        role: z.enum(['admin', 'office_manager', 'booking_clerk', 'accountant']),
+        role: z.enum(['admin', 'office_manager', 'booking_clerk', 'accountant', 'driver']),
         officeId: z.string().nullable().optional(),
+        driverId: z.string().nullable().optional(),
         active: z.boolean().optional(),
       })
       .safeParse(req.body)
@@ -79,9 +82,23 @@ usersRouter.post(
 
     let officeId = body.data.officeId ?? null
     let role = body.data.role
+    let driverId = body.data.driverId ?? null
+
     if (req.user!.role !== 'admin') {
-      if (role === 'admin') return fail(res, 'لا يمكن إنشاء مدير نظام', 403)
+      if (role === 'admin' || role === 'driver') return fail(res, 'لا يمكن إنشاء هذا الدور', 403)
       officeId = req.user!.officeId
+      driverId = null
+    }
+
+    if (role === 'driver') {
+      officeId = null
+      if (!driverId) return fail(res, 'اختر السائق المرتبط بالحساب')
+      const driver = await prisma.driver.findUnique({ where: { id: driverId } })
+      if (!driver) return fail(res, 'السائق غير موجود', 404)
+      const other = await prisma.user.findFirst({ where: { driverId } })
+      if (other) return fail(res, 'هذا السائق مربوط بحساب آخر مسبقاً')
+    } else {
+      driverId = null
     }
 
     const exists = await prisma.user.findUnique({ where: { username: body.data.username } })
@@ -95,6 +112,7 @@ usersRouter.post(
         phone: (body.data.phone ?? '').trim(),
         role,
         officeId,
+        driverId,
         active: body.data.active ?? true,
       },
     })
@@ -118,8 +136,11 @@ usersRouter.put(
         password: z.string().min(4).optional(),
         name: z.string().min(1).optional(),
         phone: z.string().optional(),
-        role: z.enum(['admin', 'office_manager', 'booking_clerk', 'accountant']).optional(),
+        role: z
+          .enum(['admin', 'office_manager', 'booking_clerk', 'accountant', 'driver'])
+          .optional(),
         officeId: z.string().nullable().optional(),
+        driverId: z.string().nullable().optional(),
         active: z.boolean().optional(),
       })
       .safeParse(req.body)
@@ -131,7 +152,27 @@ usersRouter.put(
     if (body.data.phone !== undefined) data.phone = body.data.phone.trim()
     if (req.user!.role !== 'admin') {
       delete data.officeId
-      if (body.data.role === 'admin') return fail(res, 'غير مسموح', 403)
+      delete data.driverId
+      if (body.data.role === 'admin' || body.data.role === 'driver') {
+        return fail(res, 'غير مسموح', 403)
+      }
+    }
+
+    const nextRole = body.data.role ?? existing.role
+    if (nextRole === 'driver') {
+      data.officeId = null
+      const nextDriverId =
+        body.data.driverId !== undefined ? body.data.driverId : existing.driverId
+      if (!nextDriverId) return fail(res, 'اختر السائق المرتبط بالحساب')
+      const driver = await prisma.driver.findUnique({ where: { id: nextDriverId } })
+      if (!driver) return fail(res, 'السائق غير موجود', 404)
+      const other = await prisma.user.findFirst({
+        where: { driverId: nextDriverId, NOT: { id: existing.id } },
+      })
+      if (other) return fail(res, 'هذا السائق مربوط بحساب آخر مسبقاً')
+      data.driverId = nextDriverId
+    } else if (body.data.role !== undefined || body.data.driverId !== undefined) {
+      data.driverId = null
     }
 
     const user = await prisma.user.update({ where: { id: paramId(req) }, data })

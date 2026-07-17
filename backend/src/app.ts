@@ -10,6 +10,7 @@ import { busesRouter, destinationsRouter, driversRouter, visaTypesRouter } from 
 import { officesRouter } from './routes/offices'
 import { settingsRouter } from './routes/settings'
 import { tripsRouter } from './routes/trips'
+import { trackingRouter } from './routes/tracking'
 import { usersRouter } from './routes/users'
 import { logger } from './utils/logger'
 
@@ -53,6 +54,7 @@ export function createApp() {
   app.use('/api/vouchers', vouchersRouter)
   app.use('/api/accounts', accountsRouter)
   app.use('/api/settings', settingsRouter)
+  app.use('/api/tracking', trackingRouter)
 
   app.use(
     (

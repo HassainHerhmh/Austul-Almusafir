@@ -19,6 +19,7 @@ export const seedData: AppState = {
       phone: '',
       role: 'admin',
       officeId: null,
+      driverId: null,
       active: true,
     },
   ],

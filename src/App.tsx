@@ -25,6 +25,7 @@ import ReceiptTypes from './pages/admin/accounts/setup/ReceiptTypes'
 import TransitAccountsSettings from './pages/admin/accounts/setup/TransitAccountsSettings'
 import { AdminBookingsPage } from './pages/admin/AdminBookingsPage'
 import { AdminTrackingPage } from './pages/admin/AdminTrackingPage'
+import { DriverTrackingPage } from './pages/driver/DriverTrackingPage'
 import { AdminHome } from './pages/admin/AdminHome'
 import { AdminReportsPage } from './pages/admin/AdminReportsPage'
 import { AdminJournalReviewPage } from './pages/admin/AdminJournalReviewPage'
@@ -54,6 +55,15 @@ export default function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+
+            <Route
+              path="/driver"
+              element={
+                <RequireAuth roles={['driver']}>
+                  <DriverTrackingPage />
+                </RequireAuth>
+              }
+            />
 
             <Route
               path="/admin"

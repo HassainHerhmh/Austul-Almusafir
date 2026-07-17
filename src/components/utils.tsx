@@ -19,7 +19,9 @@ export function RequireAuth({
   }
   if (!currentUser) return <Navigate to="/login" replace />
   if (roles && !roles.includes(currentUser.role)) {
-    return <Navigate to={currentUser.role === 'admin' ? '/admin' : '/office'} replace />
+    if (currentUser.role === 'admin') return <Navigate to="/admin" replace />
+    if (currentUser.role === 'driver') return <Navigate to="/driver" replace />
+    return <Navigate to="/office" replace />
   }
   return <>{children}</>
 }

@@ -2,6 +2,7 @@ import { StatusBar } from 'expo-status-bar'
 import { useCallback, useEffect, useState } from 'react'
 import {
   ActivityIndicator,
+  AppState,
   FlatList,
   Pressable,
   SafeAreaView,
@@ -14,19 +15,18 @@ import {
   ApiError,
   DriverTrip,
   fetchMyTrips,
+  getActiveTripId,
   getApiUrl,
+  getSavedUserName,
   getToken,
   login,
   setActiveTripId,
   setApiUrl,
+  setSavedUserName,
   setToken,
   stopTracking,
 } from './src/api'
-import {
-  ensureLocationPermissions,
-  startBackgroundTracking,
-  stopBackgroundTracking,
-} from './src/tracking'
+import { startTracking, stopBackgroundTracking } from './src/tracking'
 
 type UserInfo = { name: string }
 
@@ -44,8 +44,18 @@ export default function App() {
   const [status, setStatus] = useState<string | null>(null)
 
   const refreshTrips = useCallback(async () => {
-    const list = await fetchMyTrips()
-    setTrips(list)
+    try {
+      const list = await fetchMyTrips()
+      setTrips(list)
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) {
+        await setToken(null)
+        await setSavedUserName(null)
+        setUser(null)
+        setError('انتهت الجلسة — أعد تسجيل الدخول')
+      }
+      throw e
+    }
   }, [])
 
   useEffect(() => {
@@ -53,9 +63,30 @@ export default function App() {
       try {
         setApiUrlState(await getApiUrl())
         const token = await getToken()
-        if (token) {
-          setUser({ name: 'سائق' })
+        if (!token) return
+
+        const name = await getSavedUserName()
+        setUser({ name })
+
+        try {
           await refreshTrips()
+        } catch {
+          /* الرحلات اختيارية عند الإقلاع */
+        }
+
+        const tripId = await getActiveTripId()
+        if (tripId) {
+          setActive(tripId)
+          try {
+            const mode = await startTracking(tripId)
+            setStatus(
+              mode.background
+                ? 'تم استئناف التتبع (خلفية + أمامي)'
+                : 'تم استئناف التتبع — أبقِ التطبيق مفتوحاً إن أمكن',
+            )
+          } catch {
+            setStatus('تعذر استئناف التتبع تلقائياً — اضغط بدء التتبع')
+          }
         }
       } catch {
         await setToken(null)
@@ -65,6 +96,16 @@ export default function App() {
       }
     })()
   }, [refreshTrips])
+
+  // عند العودة للتطبيق حدّث الرحلات بهدوء
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active' && user) {
+        void refreshTrips().catch(() => undefined)
+      }
+    })
+    return () => sub.remove()
+  }, [user, refreshTrips])
 
   const onLogin = async () => {
     setBusy(true)
@@ -82,19 +123,27 @@ export default function App() {
   }
 
   const onLogout = async () => {
-    if (activeTripId) {
-      try {
-        await stopTracking(activeTripId)
-      } catch {
-        /* ignore */
+    setBusy(true)
+    try {
+      if (activeTripId) {
+        try {
+          await stopTracking(activeTripId)
+        } catch {
+          /* ignore */
+        }
       }
       await stopBackgroundTracking()
       await setActiveTripId(null)
       setActive(null)
+      await setToken(null)
+      await setSavedUserName(null)
+      setUser(null)
+      setTrips([])
+      setStatus(null)
+      setError(null)
+    } finally {
+      setBusy(false)
     }
-    await setToken(null)
-    setUser(null)
-    setTrips([])
   }
 
   const startTrip = async (trip: DriverTrip) => {
@@ -102,20 +151,30 @@ export default function App() {
     setError(null)
     setStatus(null)
     try {
-      await ensureLocationPermissions()
       if (activeTripId && activeTripId !== trip.id) {
-        await stopTracking(activeTripId)
+        try {
+          await stopTracking(activeTripId)
+        } catch {
+          /* ignore */
+        }
         await stopBackgroundTracking()
       }
+
       await setActiveTripId(trip.id)
       setActive(trip.id)
-      await startBackgroundTracking()
-      setStatus(`التتبع يعمل للرحلة: ${trip.label || trip.plateNumber}`)
-      await refreshTrips()
+
+      const mode = await startTracking(trip.id)
+      setStatus(
+        mode.background
+          ? `التتبع يعمل: ${trip.label || trip.plateNumber}`
+          : `التتبع يعمل (بدون خلفية كاملة). أبقِ التطبيق مفتوحاً ولا تضعه في السكون العميق.`,
+      )
+      await refreshTrips().catch(() => undefined)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'تعذر بدء التتبع')
       await setActiveTripId(null)
       setActive(null)
+      await stopBackgroundTracking()
     } finally {
       setBusy(false)
     }
@@ -126,12 +185,16 @@ export default function App() {
     setBusy(true)
     setError(null)
     try {
-      await stopTracking(activeTripId)
+      try {
+        await stopTracking(activeTripId)
+      } catch {
+        /* نوقف محلياً حتى لو فشل السيرفر */
+      }
       await stopBackgroundTracking()
       await setActiveTripId(null)
       setActive(null)
       setStatus('تم إيقاف التتبع')
-      await refreshTrips()
+      await refreshTrips().catch(() => undefined)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'تعذر إيقاف التتبع')
     } finally {
@@ -202,14 +265,18 @@ export default function App() {
     <SafeAreaView style={styles.safe}>
       <StatusBar style="dark" />
       <View style={styles.header}>
-        <View>
+        <View style={{ flex: 1 }}>
           <Text style={styles.title}>مرحباً {user.name}</Text>
           <Text style={styles.sub}>اختر رحلة وابدأ إرسال الموقع</Text>
         </View>
-        <Pressable onPress={() => void onLogout()}>
+        <Pressable onPress={() => void onLogout()} disabled={busy}>
           <Text style={styles.link}>خروج</Text>
         </Pressable>
       </View>
+
+      <Text style={styles.hint}>
+        ملاحظة: لا تضع التطبيق في «السكون العميق» من العناية بالجهاز، وأبقِ إذن الموقع مفعّلاً دائماً.
+      </Text>
 
       {status && <Text style={styles.status}>{status}</Text>}
       {error && <Text style={styles.error}>{error}</Text>}
@@ -219,7 +286,16 @@ export default function App() {
         </Pressable>
       )}
 
-      <Pressable style={styles.refresh} onPress={() => void refreshTrips()} disabled={busy}>
+      <Pressable
+        style={styles.refresh}
+        onPress={() => {
+          setError(null)
+          void refreshTrips().catch((e) =>
+            setError(e instanceof Error ? e.message : 'فشل التحديث'),
+          )
+        }}
+        disabled={busy}
+      >
         <Text style={styles.link}>تحديث الرحلات</Text>
       </Pressable>
 
@@ -271,9 +347,20 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: 12,
+    gap: 12,
   },
   title: { fontSize: 22, fontWeight: '700', color: '#0c1a24', textAlign: 'right' },
   sub: { color: '#5b6b73', marginTop: 4, textAlign: 'right' },
+  hint: {
+    backgroundColor: '#fff7ed',
+    color: '#9a3412',
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 8,
+    textAlign: 'right',
+    fontSize: 13,
+    lineHeight: 20,
+  },
   label: { marginTop: 8, color: '#334155', textAlign: 'right' },
   input: {
     borderWidth: 1,

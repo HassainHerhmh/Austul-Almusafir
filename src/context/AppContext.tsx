@@ -260,8 +260,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return
     }
 
+    const me = await serverApi.me()
+    const meUser = asUser(me.user)
+
+    // حساب السائق: لا تحمّل بيانات الأسطول كاملة (تسبب فشل الجلسة)
+    if (meUser.role === 'driver') {
+      setState({
+        ...emptyState(meUser.id),
+        users: [meUser],
+      })
+      setApiReady(true)
+      setBalances({})
+      return
+    }
+
     const [
-      me,
       offices,
       users,
       destinations,
@@ -273,7 +286,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       customers,
       vouchers,
     ] = await Promise.all([
-      serverApi.me(),
       serverApi.offices.list(),
       serverApi.users.list(),
       serverApi.destinations.list(),
@@ -288,7 +300,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     const officeList = (offices.list ?? []).map(asOffice)
     const userList = (users.list ?? []).map(asUser)
-    const meUser = asUser(me.user)
     if (!userList.find((u) => u.id === meUser.id)) userList.unshift(meUser)
 
     setState({
@@ -315,7 +326,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       vouchers: vouchers.list ?? [],
     })
     setApiReady(true)
-    // الأرصدة في الخلفية — لا تحجب الواجهة
     const balanceScope = meUser.role === 'admin' ? undefined : meUser.officeId
     void refreshBalances(officeList, balanceScope)
   }, [refreshBalances])
@@ -388,9 +398,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setApiReady(false)
   }
 
-  /** مراقبة الحساب الموقوف + الخمول 15 دقيقة */
+  /** مراقبة الحساب الموقوف + الخمول 15 دقيقة (السائق بلا خمول حتى لا ينقطع التتبع) */
   useEffect(() => {
     if (!state.currentUserId || !getToken()) return
+    const role = state.users.find((u) => u.id === state.currentUserId)?.role
+    const isDriver = role === 'driver'
 
     const IDLE_MS = 15 * 60 * 1000
     const CHECK_MS = 30 * 1000
@@ -410,7 +422,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
 
     const resetIdle = () => {
-      if (exiting) return
+      if (exiting || isDriver) return
       if (idleTimer) clearTimeout(idleTimer)
       idleTimer = setTimeout(() => {
         exitSession('تم تسجيل الخروج بسبب الخمول لمدة ربع ساعة')
@@ -453,7 +465,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       'click',
     ]
     activityEvents.forEach((ev) => window.addEventListener(ev, onActivity, { passive: true }))
-    resetIdle()
+    if (!isDriver) resetIdle()
 
     const interval = window.setInterval(() => {
       void checkAccount()
@@ -488,7 +500,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       document.removeEventListener('visibilitychange', onVisibility)
       window.removeEventListener(ACCOUNT_SUSPENDED_EVENT, onSuspended)
     }
-  }, [state.currentUserId])
+  }, [state.currentUserId, state.users])
 
   const resetData = () => {
     alert('البيانات على السيرفر — لا يمكن إعادة التعيين من الواجهة.')

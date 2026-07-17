@@ -16,6 +16,8 @@ L.Icon.Default.mergeOptions({
 })
 
 type LiveItem = Awaited<ReturnType<typeof serverApi.tracking.live>>['list'][number]
+type ShareItem = Awaited<ReturnType<typeof serverApi.tracking.shares.list>>['list'][number]
+type ShareableTrip = Awaited<ReturnType<typeof serverApi.tracking.shareableTrips>>['list'][number]
 type TrackStatus = 'live' | 'interrupted' | 'stopped'
 
 const STALE_MS = 2 * 60 * 1000
@@ -88,10 +90,23 @@ function FitBounds({
   return null
 }
 
+function shareUrl(urlPath: string) {
+  return `${window.location.origin}${urlPath}`
+}
+
 export function AdminTrackingPage() {
   const [list, setList] = useState<LiveItem[]>([])
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+
+  const [shareOpen, setShareOpen] = useState(false)
+  const [shareTrips, setShareTrips] = useState<ShareableTrip[]>([])
+  const [shares, setShares] = useState<ShareItem[]>([])
+  const [selectedTripId, setSelectedTripId] = useState('')
+  const [shareBusy, setShareBusy] = useState(false)
+  const [shareError, setShareError] = useState<string | null>(null)
+  const [lastCreatedUrl, setLastCreatedUrl] = useState<string | null>(null)
+  const [copiedId, setCopiedId] = useState<string | null>(null)
 
   const refresh = useCallback(async () => {
     try {
@@ -110,6 +125,104 @@ export function AdminTrackingPage() {
     const id = window.setInterval(() => void refresh(), 5000)
     return () => window.clearInterval(id)
   }, [refresh])
+
+  const loadShareData = useCallback(async () => {
+    setShareError(null)
+    try {
+      const [tripsRes, sharesRes] = await Promise.all([
+        serverApi.tracking.shareableTrips(),
+        serverApi.tracking.shares.list(),
+      ])
+      setShareTrips(tripsRes.list ?? [])
+      setShares(sharesRes.list ?? [])
+      setSelectedTripId((prev) => prev || tripsRes.list?.[0]?.id || '')
+    } catch (e) {
+      setShareError(e instanceof Error ? e.message : 'فشل تحميل روابط التتبع')
+    }
+  }, [])
+
+  const openShareModal = () => {
+    setShareOpen(true)
+    setLastCreatedUrl(null)
+    void loadShareData()
+  }
+
+  const createShare = async () => {
+    if (!selectedTripId) {
+      setShareError('اختر رحلة أولاً')
+      return
+    }
+    setShareBusy(true)
+    setShareError(null)
+    try {
+      const res = await serverApi.tracking.shares.create({ tripId: selectedTripId })
+      const url = shareUrl(res.share.urlPath)
+      setLastCreatedUrl(url)
+      setShares((prev) => [res.share, ...prev.filter((s) => s.id !== res.share.id)])
+      try {
+        await navigator.clipboard.writeText(url)
+        setCopiedId(res.share.id)
+      } catch {
+        /* ignore */
+      }
+    } catch (e) {
+      setShareError(e instanceof Error ? e.message : 'فشل إنشاء الرابط')
+    } finally {
+      setShareBusy(false)
+    }
+  }
+
+  const copyShare = async (item: ShareItem) => {
+    const url = shareUrl(item.urlPath)
+    try {
+      await navigator.clipboard.writeText(url)
+      setCopiedId(item.id)
+      setLastCreatedUrl(url)
+    } catch {
+      setShareError('تعذر النسخ — انسخ الرابط يدوياً')
+      setLastCreatedUrl(url)
+    }
+  }
+
+  const stopShare = async (id: string) => {
+    setShareBusy(true)
+    setShareError(null)
+    try {
+      await serverApi.tracking.shares.stop(id)
+      setShares((prev) => prev.map((s) => (s.id === id ? { ...s, active: false } : s)))
+    } catch (e) {
+      setShareError(e instanceof Error ? e.message : 'فشل إيقاف الرابط')
+    } finally {
+      setShareBusy(false)
+    }
+  }
+
+  const resumeShare = async (id: string) => {
+    setShareBusy(true)
+    setShareError(null)
+    try {
+      await serverApi.tracking.shares.resume(id)
+      setShares((prev) => prev.map((s) => (s.id === id ? { ...s, active: true } : s)))
+    } catch (e) {
+      setShareError(e instanceof Error ? e.message : 'فشل استئناف الرابط')
+    } finally {
+      setShareBusy(false)
+    }
+  }
+
+  const deleteShare = async (id: string) => {
+    if (!window.confirm('حذف رابط التتبع نهائياً؟ لن يعمل الرابط بعد الحذف.')) return
+    setShareBusy(true)
+    setShareError(null)
+    try {
+      await serverApi.tracking.shares.remove(id)
+      setShares((prev) => prev.filter((s) => s.id !== id))
+    } catch (e) {
+      setShareError(e instanceof Error ? e.message : 'فشل حذف الرابط')
+    } finally {
+      setShareBusy(false)
+    }
+  }
 
   const points = useMemo(
     () => list.map((i) => ({ lat: i.lat, lng: i.lng })),
@@ -151,9 +264,14 @@ export function AdminTrackingPage() {
             {counts.stopped}
           </p>
         </div>
-        <button type="button" className="btn btn-ghost" onClick={() => void refresh()}>
-          تحديث الآن
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <button type="button" className="btn btn-primary" onClick={openShareModal}>
+            رابط التتبع
+          </button>
+          <button type="button" className="btn btn-ghost" onClick={() => void refresh()}>
+            تحديث الآن
+          </button>
+        </div>
       </header>
 
       {error && <p className="error-msg">{error}</p>}
@@ -268,6 +386,169 @@ export function AdminTrackingPage() {
           </table>
         </div>
       </div>
+
+      {shareOpen && (
+        <div className="modal-backdrop" onClick={() => setShareOpen(false)}>
+          <div
+            className="modal modal-wide"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: 720 }}
+          >
+            <h2>رابط تتبع الرحلة</h2>
+            <p style={{ marginTop: 0, opacity: 0.85 }}>
+              أنشئ رابطاً وأرسله لأي شخص لعرض خريطة تتبع باص أسطول المسافر بدون تسجيل دخول.
+            </p>
+
+            {shareError && <p className="error-msg">{shareError}</p>}
+
+            <div className="form-grid" style={{ marginBottom: '1rem' }}>
+              <div className="field" style={{ gridColumn: '1 / -1' }}>
+                <label>اختر الرحلة</label>
+                <select
+                  value={selectedTripId}
+                  onChange={(e) => setSelectedTripId(e.target.value)}
+                  disabled={shareBusy}
+                >
+                  <option value="">— اختر —</option>
+                  {shareTrips.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {[t.busNumber, t.plateNumber].filter(Boolean).join(' — ')} · {t.label} ·{' '}
+                      {t.date} {t.departureTime ? formatTimeAr(t.departureTime) : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={shareBusy || !selectedTripId}
+                onClick={() => void createShare()}
+              >
+                إنشاء رابط تتبع
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                disabled={shareBusy}
+                onClick={() => void loadShareData()}
+              >
+                تحديث القائمة
+              </button>
+              <button type="button" className="btn btn-ghost" onClick={() => setShareOpen(false)}>
+                إغلاق
+              </button>
+            </div>
+
+            {lastCreatedUrl && (
+              <div
+                className="panel"
+                style={{ padding: '0.75rem 1rem', marginBottom: '1rem', background: '#f0fdfa' }}
+              >
+                <div style={{ fontWeight: 700, marginBottom: 6 }}>الرابط</div>
+                <code style={{ wordBreak: 'break-all', fontSize: 13 }}>{lastCreatedUrl}</code>
+                <div style={{ marginTop: 8 }}>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    onClick={() => {
+                      void navigator.clipboard.writeText(lastCreatedUrl).then(() => {
+                        setCopiedId('last')
+                      })
+                    }}
+                  >
+                    {copiedId === 'last' ? 'تم النسخ' : 'نسخ الرابط'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="panel-head" style={{ padding: 0, marginBottom: '0.5rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1rem' }}>الروابط المستخرجة ({shares.length})</h3>
+            </div>
+            <div className="table-wrap">
+              <table className="data">
+                <thead>
+                  <tr>
+                    <th>الرحلة</th>
+                    <th>الحالة</th>
+                    <th>تاريخ الإنشاء</th>
+                    <th>إجراءات</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {shares.map((s) => (
+                    <tr key={s.id}>
+                      <td>
+                        <div>
+                          {[s.trip.busNumber, s.trip.plateNumber].filter(Boolean).join(' — ')}
+                        </div>
+                        <div style={{ fontSize: 12, opacity: 0.8 }}>{s.trip.label}</div>
+                      </td>
+                      <td>
+                        <span className={`badge ${s.active ? 'badge-ok' : 'badge-danger'}`}>
+                          {s.active ? 'نشط' : 'موقوف'}
+                        </span>
+                      </td>
+                      <td style={{ whiteSpace: 'nowrap' }}>
+                        {s.createdAt.slice(0, 19).replace('T', ' ')}
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          <button
+                            type="button"
+                            className="btn btn-ghost"
+                            disabled={shareBusy}
+                            onClick={() => void copyShare(s)}
+                          >
+                            {copiedId === s.id ? 'تم النسخ' : 'نسخ'}
+                          </button>
+                          {s.active ? (
+                            <button
+                              type="button"
+                              className="btn btn-ghost"
+                              disabled={shareBusy}
+                              onClick={() => void stopShare(s.id)}
+                            >
+                              إيقاف
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              className="btn btn-ghost"
+                              disabled={shareBusy}
+                              onClick={() => void resumeShare(s.id)}
+                            >
+                              استئناف
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            className="btn btn-ghost"
+                            disabled={shareBusy}
+                            onClick={() => void deleteShare(s.id)}
+                          >
+                            حذف
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {shares.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="empty">
+                        لا توجد روابط بعد — أنشئ رابطاً من القائمة أعلاه
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

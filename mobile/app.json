@@ -2,7 +2,7 @@
   "expo": {
     "name": "أسطول المسافر - تتبع",
     "slug": "austul-driver-tracking",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -18,7 +18,7 @@
     },
     "android": {
       "package": "com.ostool.almosafer.driver",
-      "versionCode": 2,
+      "versionCode": 3,
       "adaptiveIcon": {
         "backgroundColor": "#0f3d4c",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -31,7 +31,9 @@
         "ACCESS_BACKGROUND_LOCATION",
         "FOREGROUND_SERVICE",
         "FOREGROUND_SERVICE_LOCATION",
-        "POST_NOTIFICATIONS"
+        "POST_NOTIFICATIONS",
+        "REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
+        "WAKE_LOCK"
       ],
       "predictiveBackGestureEnabled": false
     },
@@ -45,6 +47,14 @@
           "locationAlwaysAndWhenInUsePermission": "السماح بالوصول للموقع أثناء تتبع الرحلة.",
           "isAndroidBackgroundLocationEnabled": true,
           "isAndroidForegroundServiceEnabled": true
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#0f766e",
+          "defaultChannel": "austul-tracking"
         }
       ]
     ],

@@ -497,6 +497,102 @@ export const serverApi = {
           }
         }>
       }>('/api/tracking/live'),
+    shareableTrips: () =>
+      apiRequest<{
+        list: Array<{
+          id: string
+          date: string
+          departureTime: string
+          status: string
+          busNumber: string
+          plateNumber: string
+          label: string
+          trackingActive: boolean
+          lastUpdatedAt: string | null
+        }>
+      }>('/api/tracking/shareable-trips'),
+    shares: {
+      list: () =>
+        apiRequest<{
+          list: Array<{
+            id: string
+            token: string
+            tripId: string
+            active: boolean
+            label: string
+            urlPath: string
+            createdAt: string
+            updatedAt: string
+            trip: {
+              id: string
+              date: string
+              departureTime: string
+              status: string
+              label: string
+              busNumber: string
+              plateNumber: string
+            }
+          }>
+        }>('/api/tracking/shares'),
+      create: (data: { tripId: string; label?: string }) =>
+        apiRequest<{
+          share: {
+            id: string
+            token: string
+            tripId: string
+            active: boolean
+            label: string
+            urlPath: string
+            createdAt: string
+            updatedAt: string
+            trip: {
+              id: string
+              date: string
+              departureTime: string
+              status: string
+              label: string
+              busNumber: string
+              plateNumber: string
+            }
+          }
+        }>('/api/tracking/shares', {
+          method: 'POST',
+          body: JSON.stringify(data),
+        }),
+      stop: (id: string) =>
+        apiRequest<{ share: { id: string; active: boolean } }>(
+          `/api/tracking/shares/${id}/stop`,
+          { method: 'POST' },
+        ),
+      resume: (id: string) =>
+        apiRequest<{ share: { id: string; active: boolean } }>(
+          `/api/tracking/shares/${id}/resume`,
+          { method: 'POST' },
+        ),
+      remove: (id: string) =>
+        apiRequest<{ deleted: boolean }>(`/api/tracking/shares/${id}`, {
+          method: 'DELETE',
+        }),
+    },
+    publicByToken: (token: string) =>
+      apiRequest<{
+        status: 'live' | 'no_signal' | 'stopped'
+        message: string | null
+        token: string
+        tripId: string
+        label: string
+        busNumber: string
+        plateNumber: string
+        date: string
+        departureTime: string
+        lat: number | null
+        lng: number | null
+        updatedAt: string | null
+        trackingActive: boolean
+        accuracy?: number | null
+        speed?: number | null
+        heading?: number | null
+      }>(`/api/tracking/public/${encodeURIComponent(token)}`),
   },
 }
 

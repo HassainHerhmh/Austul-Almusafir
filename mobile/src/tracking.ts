@@ -1,6 +1,9 @@
 import * as Location from 'expo-location'
 import * as TaskManager from 'expo-task-manager'
+import * as IntentLauncher from 'expo-intent-launcher'
+import Constants from 'expo-constants'
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake'
+import { Linking, Platform } from 'react-native'
 import { getActiveTripId, pingLocation } from './api'
 
 export const LOCATION_TASK = 'austul-bus-tracking'
@@ -28,7 +31,7 @@ if (!TaskManager.isTaskDefined(LOCATION_TASK)) {
         heading: loc.coords.heading,
       })
     } catch {
-      // لا نرمي أبداً من مهمة الخلفية — يمنع تعطل التطبيق
+      // لا نرمي أبداً من مهمة الخلفية
     }
   })
 }
@@ -41,7 +44,6 @@ async function sendPingFromCoords(
   coords: Location.LocationObjectCoords,
 ) {
   const now = Date.now()
-  // حد أدنى 8 ثوانٍ بين الإرسالات لتفادي الضغط على السيرفر والجهاز
   if (now - lastPingAt < 8000) return
   lastPingAt = now
   await pingLocation({
@@ -76,23 +78,75 @@ export async function ensureLocationPermissions(): Promise<{ background: boolean
   return { background }
 }
 
+/** يطلب استثناء توفير البطارية حتى لا يقتل النظام التتبع */
+export async function requestBatteryUnrestricted() {
+  if (Platform.OS !== 'android') return
+  const pkg = Constants.expoConfig?.android?.package || 'com.ostool.almosafer.driver'
+  try {
+    await IntentLauncher.startActivityAsync(
+      'android.settings.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS',
+      { data: `package:${pkg}` },
+    )
+  } catch {
+    try {
+      await Linking.openSettings()
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
 export async function startTracking(tripId: string): Promise<{ background: boolean }> {
   await stopTrackingLocalOnly()
 
   const perms = await ensureLocationPermissions()
+  if (!perms.background) {
+    throw new Error(
+      'للتتبع بعد إغلاق الشاشة: اسمح بالموقع «دائماً / أثناء استخدام التطبيق وفي الخلفية»',
+    )
+  }
 
-  // تتبّع أمامي مستقر (أساسي) — يعمل والشاشة مفتوحة
-  watchSub = await Location.watchPositionAsync(
-    {
-      accuracy: Location.Accuracy.Balanced,
-      timeInterval: 12000,
-      distanceInterval: 25,
-      mayShowUserSettingsDialog: true,
-    },
-    (loc) => {
-      void sendPingFromCoords(tripId, loc.coords).catch(() => undefined)
-    },
-  )
+  // خدمة أمامية + إشعار مستمر — يستمر بعد مغادرة التطبيق
+  try {
+    const started = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK)
+    if (!started) {
+      await Location.startLocationUpdatesAsync(LOCATION_TASK, {
+        accuracy: Location.Accuracy.Balanced,
+        timeInterval: 12000,
+        distanceInterval: 25,
+        deferredUpdatesInterval: 12000,
+        showsBackgroundLocationIndicator: true,
+        foregroundService: {
+          notificationTitle: 'تتبع الرحلة شغال',
+          notificationBody: 'جاري إرسال الموقع للمنصة — يمكنك الإيقاف من الإشعار أو من التطبيق',
+          notificationColor: '#0f766e',
+        },
+      })
+    }
+  } catch (e) {
+    throw new Error(
+      e instanceof Error
+        ? `تعذر تشغيل التتبع في الخلفية: ${e.message}`
+        : 'تعذر تشغيل التتبع في الخلفية',
+    )
+  }
+
+  // تتبّع إضافي والشاشة مفتوحة
+  try {
+    watchSub = await Location.watchPositionAsync(
+      {
+        accuracy: Location.Accuracy.Balanced,
+        timeInterval: 12000,
+        distanceInterval: 25,
+        mayShowUserSettingsDialog: true,
+      },
+      (loc) => {
+        void sendPingFromCoords(tripId, loc.coords).catch(() => undefined)
+      },
+    )
+  } catch {
+    /* الخلفية كافية */
+  }
 
   try {
     await activateKeepAwakeAsync(KEEP_AWAKE_TAG)
@@ -100,30 +154,6 @@ export async function startTracking(tripId: string): Promise<{ background: boole
     /* اختياري */
   }
 
-  // خلفية اختيارية — إن فشلت لا نوقف التتبع الأمامي
-  if (perms.background) {
-    try {
-      const started = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK)
-      if (!started) {
-        await Location.startLocationUpdatesAsync(LOCATION_TASK, {
-          accuracy: Location.Accuracy.Balanced,
-          timeInterval: 15000,
-          distanceInterval: 40,
-          deferredUpdatesInterval: 15000,
-          showsBackgroundLocationIndicator: true,
-          foregroundService: {
-            notificationTitle: 'تتبع الرحلة نشط',
-            notificationBody: 'جاري إرسال موقع الباص — أبقِ التطبيق دون سكون عميق',
-            notificationColor: '#0f766e',
-          },
-        })
-      }
-    } catch {
-      perms.background = false
-    }
-  }
-
-  // إرسال فوري عند البدء
   try {
     const current = await Location.getCurrentPositionAsync({
       accuracy: Location.Accuracy.Balanced,
@@ -133,10 +163,9 @@ export async function startTracking(tripId: string): Promise<{ background: boole
     /* تجاهل */
   }
 
-  return perms
+  return { background: true }
 }
 
-/** إيقاف المستمعين محلياً دون استدعاء API */
 export async function stopTrackingLocalOnly() {
   try {
     if (watchSub) {

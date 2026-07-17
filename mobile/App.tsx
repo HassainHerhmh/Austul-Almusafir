@@ -26,7 +26,12 @@ import {
   setToken,
   stopTracking,
 } from './src/api'
-import { startTracking, stopBackgroundTracking } from './src/tracking'
+import { startTracking, stopBackgroundTracking, requestBatteryUnrestricted } from './src/tracking'
+import {
+  hideTrackingNotification,
+  setupTrackingNotifications,
+  showTrackingNotification,
+} from './src/trackingNotify'
 
 type UserInfo = { name: string }
 
@@ -59,6 +64,14 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    void setupTrackingNotifications(() => {
+      setActive(null)
+      setStatus('تم إيقاف التتبع من الإشعار')
+      void refreshTrips().catch(() => undefined)
+    })
+  }, [refreshTrips])
+
+  useEffect(() => {
     ;(async () => {
       try {
         setApiUrlState(await getApiUrl())
@@ -78,12 +91,11 @@ export default function App() {
         if (tripId) {
           setActive(tripId)
           try {
-            const mode = await startTracking(tripId)
-            setStatus(
-              mode.background
-                ? 'تم استئناف التتبع (خلفية + أمامي)'
-                : 'تم استئناف التتبع — أبقِ التطبيق مفتوحاً إن أمكن',
-            )
+            await startTracking(tripId)
+            const trip = (await fetchMyTrips().catch(() => []))?.find((t) => t.id === tripId)
+            const label = trip?.label || trip?.plateNumber || 'رحلة'
+            await showTrackingNotification(label)
+            setStatus('تم استئناف التتبع — يظهر إشعار مستمر في الشريط')
           } catch {
             setStatus('تعذر استئناف التتبع تلقائياً — اضغط بدء التتبع')
           }
@@ -133,6 +145,7 @@ export default function App() {
         }
       }
       await stopBackgroundTracking()
+      await hideTrackingNotification()
       await setActiveTripId(null)
       setActive(null)
       await setToken(null)
@@ -158,16 +171,23 @@ export default function App() {
           /* ignore */
         }
         await stopBackgroundTracking()
+        await hideTrackingNotification()
       }
 
       await setActiveTripId(trip.id)
       setActive(trip.id)
 
-      const mode = await startTracking(trip.id)
+      await setupTrackingNotifications(() => {
+        setActive(null)
+        setStatus('تم إيقاف التتبع من الإشعار')
+      })
+      await startTracking(trip.id)
+      await showTrackingNotification(trip.label || trip.plateNumber || 'رحلة')
+      // طلب استثناء البطارية مرة عند أول تشغيل تتبع
+      void requestBatteryUnrestricted()
+
       setStatus(
-        mode.background
-          ? `التتبع يعمل: ${trip.label || trip.plateNumber}`
-          : `التتبع يعمل (بدون خلفية كاملة). أبقِ التطبيق مفتوحاً ولا تضعه في السكون العميق.`,
+        `التتبع يعمل في الخلفية مع إشعار مستمر. يمكنك قفل الشاشة أو مغادرة التطبيق — وللإيقاف استخدم زر «إيقاف التتبع» في الإشعار.`,
       )
       await refreshTrips().catch(() => undefined)
     } catch (e) {
@@ -175,6 +195,7 @@ export default function App() {
       await setActiveTripId(null)
       setActive(null)
       await stopBackgroundTracking()
+      await hideTrackingNotification()
     } finally {
       setBusy(false)
     }
@@ -191,6 +212,7 @@ export default function App() {
         /* نوقف محلياً حتى لو فشل السيرفر */
       }
       await stopBackgroundTracking()
+      await hideTrackingNotification()
       await setActiveTripId(null)
       setActive(null)
       setStatus('تم إيقاف التتبع')
@@ -275,7 +297,8 @@ export default function App() {
       </View>
 
       <Text style={styles.hint}>
-        ملاحظة: لا تضع التطبيق في «السكون العميق» من العناية بالجهاز، وأبقِ إذن الموقع مفعّلاً دائماً.
+        التتبع يستمر مع إشعار في الشريط حتى بعد قفل الشاشة. اسمح بالموقع «دائماً»، ولا تضع التطبيق في السكون
+        العميق، واضغط «سماح» لاستثناء البطارية عند الطلب. للإيقاف: زر في التطبيق أو «إيقاف التتبع» من الإشعار.
       </Text>
 
       {status && <Text style={styles.status}>{status}</Text>}

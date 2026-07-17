@@ -26,6 +26,7 @@ import TransitAccountsSettings from './pages/admin/accounts/setup/TransitAccount
 import { AdminBookingsPage } from './pages/admin/AdminBookingsPage'
 import { AdminTrackingPage } from './pages/admin/AdminTrackingPage'
 import { DriverTrackingPage } from './pages/driver/DriverTrackingPage'
+import { PublicTripTrackPage } from './pages/public/PublicTripTrackPage'
 import { AdminHome } from './pages/admin/AdminHome'
 import { AdminReportsPage } from './pages/admin/AdminReportsPage'
 import { AdminJournalReviewPage } from './pages/admin/AdminJournalReviewPage'
@@ -55,6 +56,7 @@ export default function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/track/:token" element={<PublicTripTrackPage />} />
 
             <Route
               path="/driver"

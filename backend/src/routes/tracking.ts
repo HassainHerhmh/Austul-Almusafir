@@ -159,8 +159,10 @@ trackingRouter.get(
   '/live',
   requireRoles('admin'),
   asyncHandler(async (_req, res) => {
+    // كل المواقع خلال 24 ساعة (نشطة أو متوقفة/منقطعة) لعرض أكثر من رحلة وحالة الانقطاع
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000)
     const list = await prisma.tripLocation.findMany({
-      where: { active: true },
+      where: { updatedAt: { gte: since } },
       include: {
         trip: {
           include: {

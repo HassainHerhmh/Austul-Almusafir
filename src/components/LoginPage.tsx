@@ -14,11 +14,12 @@ function toggleDocumentTheme() {
 
 export function LoginPage() {
   const { login, logout, currentUser, isAdmin, loading } = useApp()
-  const { name, logoUrl } = useBrand()
+  const { name, logoUrl, brandReady } = useBrand()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [logoBroken, setLogoBroken] = useState(false)
   const [theme, setTheme] = useState<'light' | 'dark'>(() =>
     document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light',
   )
@@ -27,15 +28,11 @@ export function LoginPage() {
     setTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light')
   }, [])
 
-  if (loading) {
-    return (
-      <div className="login-page">
-        <div className="login-card" style={{ margin: 'auto' }}>
-          جاري الاتصال بالسيرفر…
-        </div>
-      </div>
-    )
-  }
+  useEffect(() => {
+    setLogoBroken(false)
+  }, [logoUrl])
+
+  const showLogo = Boolean(logoUrl) && !logoBroken
 
   if (currentUser) {
     if (currentUser.role === 'driver') {
@@ -48,7 +45,12 @@ export function LoginPage() {
                 هذا الحساب مخصص لتطبيق تتبع الباص على الجوال. استخدم تطبيق السائق (APK) لتسجيل الدخول
                 وإرسال الموقع.
               </p>
-              <button type="button" className="btn btn-primary" style={{ width: '100%' }} onClick={() => logout()}>
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{ width: '100%' }}
+                onClick={() => logout()}
+              >
                 تسجيل الخروج
               </button>
             </div>
@@ -83,9 +85,20 @@ export function LoginPage() {
       </button>
 
       <section className="login-visual">
-        <div className="login-brand">
-          <div className={`brand-icon login-brand-icon${logoUrl ? ' has-logo' : ''}`}>
-            {logoUrl ? <img src={logoUrl} alt="" /> : <span aria-hidden>🚌</span>}
+        <div className={`login-brand${brandReady ? ' is-ready' : ''}`}>
+          <div
+            className={`brand-icon login-brand-icon${showLogo ? ' has-logo' : ''}`}
+            aria-hidden={!showLogo}
+          >
+            {showLogo ? (
+              <img
+                src={logoUrl!}
+                alt=""
+                onError={() => setLogoBroken(true)}
+              />
+            ) : (
+              <span aria-hidden>🚌</span>
+            )}
           </div>
           <h1>{name}</h1>
         </div>
@@ -93,44 +106,51 @@ export function LoginPage() {
 
       <section className="login-panel">
         <div className="login-card">
-          <h2>تسجيل الدخول</h2>
-
-          <form onSubmit={(e) => void submit(e)}>
-            <div className="form-grid" style={{ gridTemplateColumns: '1fr' }}>
-              <div className="field">
-                <label htmlFor="username">اسم المستخدم</label>
-                <input
-                  id="username"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  autoComplete="username"
-                  required
-                />
-              </div>
-              <div className="field">
-                <label htmlFor="password">كلمة المرور</label>
-                <input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  autoComplete="current-password"
-                  required
-                />
-              </div>
+          {loading ? (
+            <div className="empty" style={{ padding: '2rem 0' }}>
+              جاري الاتصال بالسيرفر…
             </div>
-            {error && <p className="error-msg">{error}</p>}
-            <div className="actions" style={{ marginTop: '1rem' }}>
-              <button
-                type="submit"
-                className="btn btn-primary"
-                style={{ width: '100%' }}
-                disabled={busy}
-              >
-                {busy ? 'جاري الدخول…' : 'دخول'}
-              </button>
-            </div>
-          </form>
+          ) : (
+            <>
+              <h2>تسجيل الدخول</h2>
+              <form onSubmit={(e) => void submit(e)}>
+                <div className="form-grid" style={{ gridTemplateColumns: '1fr' }}>
+                  <div className="field">
+                    <label htmlFor="username">اسم المستخدم</label>
+                    <input
+                      id="username"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      autoComplete="username"
+                      required
+                    />
+                  </div>
+                  <div className="field">
+                    <label htmlFor="password">كلمة المرور</label>
+                    <input
+                      id="password"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      autoComplete="current-password"
+                      required
+                    />
+                  </div>
+                </div>
+                {error && <p className="error-msg">{error}</p>}
+                <div className="actions" style={{ marginTop: '1rem' }}>
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    style={{ width: '100%' }}
+                    disabled={busy}
+                  >
+                    {busy ? 'جاري الدخول…' : 'دخول'}
+                  </button>
+                </div>
+              </form>
+            </>
+          )}
         </div>
       </section>
     </div>

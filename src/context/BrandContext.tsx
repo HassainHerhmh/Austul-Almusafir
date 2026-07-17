@@ -39,6 +39,16 @@ function normalizeBrand(raw: Partial<BrandSettings> | null | undefined): BrandSe
   }
 }
 
+function readLocalCache(): BrandSettings {
+  try {
+    const raw = localStorage.getItem(LOCAL_BRAND_KEY)
+    if (!raw) return { name: DEFAULT_BRAND_NAME, logoUrl: null, phones: '' }
+    return normalizeBrand(JSON.parse(raw) as Partial<BrandSettings>)
+  } catch {
+    return { name: DEFAULT_BRAND_NAME, logoUrl: null, phones: '' }
+  }
+}
+
 /** قراءة قديمة من الجهاز للترحيل لمرة واحدة إن السيرفر فارغ */
 function readLocalLegacy(): BrandSettings | null {
   try {
@@ -69,11 +79,7 @@ function writeLocalCache(settings: BrandSettings) {
 const BrandContext = createContext<BrandContextValue | null>(null)
 
 export function BrandProvider({ children }: { children: ReactNode }) {
-  const [settings, setSettings] = useState<BrandSettings>(() => ({
-    name: DEFAULT_BRAND_NAME,
-    logoUrl: null,
-    phones: '',
-  }))
+  const [settings, setSettings] = useState<BrandSettings>(() => readLocalCache())
   const [brandReady, setBrandReady] = useState(false)
 
   useEffect(() => {

@@ -5,9 +5,86 @@ import { authRequired, requireAdmin } from '../middleware/auth'
 import { asyncHandler, fail, ok } from '../utils/http'
 
 export const settingsRouter = Router()
-settingsRouter.use(authRequired)
 
 const TRANSIT_KEY = 'transit_accounts'
+const PRICING_KEY = 'trip_pricing'
+const BRAND_KEY = 'platform_brand'
+
+type BrandValue = {
+  name: string
+  logoUrl: string | null
+  phones: string
+}
+
+const DEFAULT_BRAND: BrandValue = {
+  name: 'أسطول المسافر',
+  logoUrl: null,
+  phones: '',
+}
+
+async function readBrand(): Promise<BrandValue> {
+  const row = await prisma.appSetting.findUnique({ where: { key: BRAND_KEY } })
+  const raw = (row?.value as Partial<BrandValue> | null) ?? null
+  return {
+    name:
+      typeof raw?.name === 'string' && raw.name.trim()
+        ? raw.name.trim()
+        : DEFAULT_BRAND.name,
+    logoUrl:
+      typeof raw?.logoUrl === 'string' && raw.logoUrl.trim() ? raw.logoUrl.trim() : null,
+    phones: typeof raw?.phones === 'string' ? raw.phones.trim() : '',
+  }
+}
+
+/** عام — صفحة الدخول قبل تسجيل الدخول */
+settingsRouter.get(
+  '/brand',
+  asyncHandler(async (_req, res) => {
+    return ok(res, { data: await readBrand() })
+  }),
+)
+
+settingsRouter.use(authRequired)
+
+settingsRouter.post(
+  '/brand',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const body = z
+      .object({
+        name: z.string().min(1).max(120),
+        logoUrl: z.string().nullable().optional(),
+        phones: z.string().max(500).optional(),
+      })
+      .safeParse(req.body)
+    if (!body.success) return fail(res, 'بيانات غير صالحة')
+
+    const logoUrl =
+      body.data.logoUrl === undefined
+        ? (await readBrand()).logoUrl
+        : body.data.logoUrl && body.data.logoUrl.trim()
+          ? body.data.logoUrl.trim()
+          : null
+
+    if (logoUrl && logoUrl.length > 1_200_000) {
+      return fail(res, 'حجم الشعار كبير جداً')
+    }
+
+    const value: BrandValue = {
+      name: body.data.name.trim() || DEFAULT_BRAND.name,
+      logoUrl,
+      phones: (body.data.phones ?? '').trim(),
+    }
+
+    await prisma.appSetting.upsert({
+      where: { key: BRAND_KEY },
+      create: { key: BRAND_KEY, value },
+      update: { value },
+    })
+
+    return ok(res, { data: value })
+  }),
+)
 
 type TransitValue = {
   office_commissions_account: number | null
@@ -115,7 +192,6 @@ settingsRouter.post(
   }),
 )
 
-const PRICING_KEY = 'trip_pricing'
 export type PricingMode = 'trip' | 'boarding'
 
 settingsRouter.get(

@@ -417,6 +417,19 @@ export const serverApi = {
           body: JSON.stringify(data),
         }),
     },
+    brand: {
+      get: () =>
+        apiRequest<{
+          data: { name: string; logoUrl: string | null; phones: string }
+        }>('/api/settings/brand'),
+      save: (data: { name: string; logoUrl: string | null; phones: string }) =>
+        apiRequest<{
+          data: { name: string; logoUrl: string | null; phones: string }
+        }>('/api/settings/brand', {
+          method: 'POST',
+          body: JSON.stringify(data),
+        }),
+    },
   },
 }
 

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { DEFAULT_BRAND_NAME, useBrand } from '../../context/BrandContext'
 
 const MAX_BYTES = 900_000
@@ -13,13 +13,21 @@ function readAsDataUrl(file: File): Promise<string> {
 }
 
 export function SettingsPage() {
-  const { name, logoUrl, phones, saveBrand, resetBrand } = useBrand()
+  const { name, logoUrl, phones, saveBrand, resetBrand, brandReady } = useBrand()
   const [draftName, setDraftName] = useState(name)
   const [draftLogo, setDraftLogo] = useState<string | null>(logoUrl)
   const [draftPhones, setDraftPhones] = useState(phones)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (!brandReady) return
+    setDraftName(name)
+    setDraftLogo(logoUrl)
+    setDraftPhones(phones)
+  }, [brandReady, name, logoUrl, phones])
 
   const onPickLogo = async (file: File | null) => {
     setError(null)
@@ -41,20 +49,37 @@ export function SettingsPage() {
     }
   }
 
-  const save = (e: React.FormEvent) => {
+  const save = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
-    saveBrand({ name: draftName, logoUrl: draftLogo, phones: draftPhones })
-    setMessage('تم حفظ إعدادات المنصة')
+    setMessage(null)
+    setBusy(true)
+    const err = await saveBrand({
+      name: draftName,
+      logoUrl: draftLogo,
+      phones: draftPhones,
+    })
+    setBusy(false)
+    if (err) {
+      setError(err)
+      return
+    }
+    setMessage('تم حفظ إعدادات الهوية على السيرفر — تظهر على كل الأجهزة')
   }
 
-  const restore = () => {
-    resetBrand()
+  const restore = async () => {
+    setBusy(true)
+    setError(null)
+    const err = await resetBrand()
+    setBusy(false)
+    if (err) {
+      setError(err)
+      return
+    }
     setDraftName(DEFAULT_BRAND_NAME)
     setDraftLogo(null)
     setDraftPhones('')
-    setMessage('تمت استعادة الاسم والشعار الافتراضي')
-    setError(null)
+    setMessage('تمت استعادة الاسم والشعار الافتراضي على السيرفر')
     if (fileRef.current) fileRef.current.value = ''
   }
 
@@ -68,12 +93,12 @@ export function SettingsPage() {
       <header className="page-header">
         <div>
           <h1>إعدادات المنصة</h1>
-          <p>الشعار واسم الشركة وأرقام التواصل تظهر في كليشة الطباعة</p>
+          <p>الشعار واسم الشركة وأرقام التواصل تُحفظ على السيرفر وتظهر في الدخول والطباعة لكل الأجهزة</p>
         </div>
       </header>
 
       <div className="panel settings-panel">
-        <form onSubmit={save} className="form-grid" style={{ gridTemplateColumns: '1fr' }}>
+        <form onSubmit={(e) => void save(e)} className="form-grid" style={{ gridTemplateColumns: '1fr' }}>
           <div className="field">
             <label htmlFor="platform-name">اسم الشركة / المنصة</label>
             <input
@@ -136,13 +161,14 @@ export function SettingsPage() {
           {message && <p className="success-msg">{message}</p>}
 
           <div className="actions">
-            <button type="submit" className="btn btn-primary">
-              حفظ
+            <button type="submit" className="btn btn-primary" disabled={busy || !brandReady}>
+              {busy ? 'جاري الحفظ…' : 'حفظ على السيرفر'}
             </button>
             {draftLogo && (
               <button
                 type="button"
                 className="btn btn-ghost"
+                disabled={busy}
                 onClick={() => {
                   setDraftLogo(null)
                   if (fileRef.current) fileRef.current.value = ''
@@ -151,7 +177,12 @@ export function SettingsPage() {
                 إزالة الشعار
               </button>
             )}
-            <button type="button" className="btn btn-ghost" onClick={restore}>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              disabled={busy}
+              onClick={() => void restore()}
+            >
               استعادة الافتراضي
             </button>
           </div>

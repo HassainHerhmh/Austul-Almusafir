@@ -265,9 +265,18 @@ bookingsRouter.patch(
         status: z.enum(['confirmed', 'cancelled', 'refunded']).optional(),
         paymentMethod: z.enum(['cash', 'transfer', 'credit']).optional(),
         notes: z.string().optional(),
+        /** تعديل السعر — للإدارة فقط */
+        price: z.number().min(0).optional(),
       })
       .safeParse(req.body)
     if (!body.success) return fail(res, 'بيانات غير صالحة')
+
+    if (body.data.price !== undefined && req.user!.role !== 'admin') {
+      return fail(res, 'تعديل سعر التذكرة متاح للإدارة فقط', 403)
+    }
+    if (body.data.price !== undefined && !Number.isFinite(body.data.price)) {
+      return fail(res, 'سعر التذكرة غير صالح')
+    }
 
     if (body.data.seatNumber && body.data.seatNumber !== booking.seatNumber) {
       const taken = await prisma.booking.findFirst({
@@ -310,11 +319,50 @@ bookingsRouter.patch(
     if (body.data.visaTypeId !== undefined) {
       data.visaTypeId = body.data.visaTypeId.trim()
     }
+    if (body.data.price !== undefined) {
+      data.price = Math.round(body.data.price * 100) / 100
+    }
+
+    const priceChanged =
+      body.data.price !== undefined &&
+      Math.round(body.data.price * 100) / 100 !== booking.price
 
     const updated = await prisma.booking.update({
       where: { id: booking.id },
       data,
     })
+
+    if (priceChanged && updated.status === 'confirmed') {
+      await reverseBookingCharge(booking.id)
+
+      await prisma.voucher.updateMany({
+        where: { relatedBookingId: booking.id, type: 'receipt' },
+        data: { amount: updated.price },
+      })
+
+      const office = await prisma.office.findUnique({ where: { id: booking.officeId } })
+      let ledgerAccountId = office?.ledgerAccountId ?? null
+      if (!ledgerAccountId && office) {
+        ledgerAccountId = await findOfficeLedgerAccount(office.name)
+      }
+      if (ledgerAccountId) {
+        await postBookingCharge({
+          bookingId: updated.id,
+          ledgerAccountId,
+          amount: updated.price,
+          passengerName: updated.passengerName,
+          seatNumber: updated.seatNumber,
+        })
+        await postBookingCommission({
+          bookingId: updated.id,
+          ledgerAccountId,
+          commissionPercent: office?.commissionPercent ?? 0,
+          ticketPrice: updated.price,
+          passengerName: updated.passengerName,
+          seatNumber: updated.seatNumber,
+        })
+      }
+    }
 
     if (body.data.status === 'cancelled' && booking.status === 'confirmed') {
       await prisma.voucher.create({

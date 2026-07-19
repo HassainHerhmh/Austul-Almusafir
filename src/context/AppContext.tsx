@@ -104,6 +104,7 @@ interface AppContextValue {
         | 'status'
         | 'paymentMethod'
         | 'notes'
+        | 'price'
       >
     >,
   ) => Promise<string | null>
@@ -779,10 +780,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const updateBooking: AppContextValue['updateBooking'] = async (id, patch) => {
     try {
+      const existing = state.bookings.find((b) => b.id === id)
       const res = await serverApi.bookings.patch(id, patch)
       const booking = asBooking(res.booking)
       setState((s) => ({ ...s, bookings: upsertById(s.bookings, booking) }))
-      if (patch.status === 'cancelled') {
+      if (
+        patch.status === 'cancelled' ||
+        (patch.price !== undefined && existing && patch.price !== existing.price)
+      ) {
         void refreshBalances(state.offices, booking.officeId)
       }
       return null

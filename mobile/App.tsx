@@ -31,6 +31,8 @@ import {
   hideTrackingNotification,
   setupTrackingNotifications,
   showTrackingNotification,
+  startNotificationGuard,
+  stopNotificationGuard,
 } from './src/trackingNotify'
 
 type UserInfo = { name: string }
@@ -95,6 +97,7 @@ export default function App() {
             const trip = (await fetchMyTrips().catch(() => []))?.find((t) => t.id === tripId)
             const label = trip?.label || trip?.plateNumber || 'رحلة'
             await showTrackingNotification(label)
+            startNotificationGuard(label)
             setStatus('تم استئناف التتبع — يظهر إشعار مستمر في الشريط')
           } catch {
             setStatus('تعذر استئناف التتبع تلقائياً — اضغط بدء التتبع')
@@ -145,6 +148,7 @@ export default function App() {
         }
       }
       await stopBackgroundTracking()
+      stopNotificationGuard()
       await hideTrackingNotification()
       await setActiveTripId(null)
       setActive(null)
@@ -171,6 +175,7 @@ export default function App() {
           /* ignore */
         }
         await stopBackgroundTracking()
+        stopNotificationGuard()
         await hideTrackingNotification()
       }
 
@@ -183,11 +188,12 @@ export default function App() {
       })
       await startTracking(trip.id)
       await showTrackingNotification(trip.label || trip.plateNumber || 'رحلة')
+      startNotificationGuard(trip.label || trip.plateNumber || 'رحلة')
       // طلب استثناء البطارية مرة عند أول تشغيل تتبع
       void requestBatteryUnrestricted()
 
       setStatus(
-        `التتبع يعمل في الخلفية مع إشعار مستمر. يمكنك قفل الشاشة أو مغادرة التطبيق — وللإيقاف استخدم زر «إيقاف التتبع» في الإشعار.`,
+        `التتبع يعمل في الخلفية مع إشعار ثابت. لا تمسح الإشعار — للإيقاف استخدم زر «إيقاف التتبع» فقط.`,
       )
       await refreshTrips().catch(() => undefined)
     } catch (e) {
@@ -195,6 +201,7 @@ export default function App() {
       await setActiveTripId(null)
       setActive(null)
       await stopBackgroundTracking()
+      stopNotificationGuard()
       await hideTrackingNotification()
     } finally {
       setBusy(false)
@@ -212,6 +219,7 @@ export default function App() {
         /* نوقف محلياً حتى لو فشل السيرفر */
       }
       await stopBackgroundTracking()
+      stopNotificationGuard()
       await hideTrackingNotification()
       await setActiveTripId(null)
       setActive(null)

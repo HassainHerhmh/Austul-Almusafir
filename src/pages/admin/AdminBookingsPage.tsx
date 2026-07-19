@@ -51,6 +51,7 @@ export function AdminBookingsPage() {
     seatNumber: 1,
     paymentMethod: 'cash' as PaymentMethod,
     notes: '',
+    price: 0,
   })
   const [editError, setEditError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -93,6 +94,7 @@ export function AdminBookingsPage() {
       seatNumber: b.seatNumber,
       paymentMethod: b.paymentMethod,
       notes: b.notes || '',
+      price: b.price,
     })
     setEditError(null)
   }
@@ -102,6 +104,10 @@ export function AdminBookingsPage() {
     if (!editBooking) return
     if (!editForm.passengerName.trim()) {
       setEditError('اسم الراكب مطلوب')
+      return
+    }
+    if (!Number.isFinite(editForm.price) || editForm.price < 0) {
+      setEditError('سعر التذكرة غير صالح')
       return
     }
     setBusy(true)
@@ -116,6 +122,7 @@ export function AdminBookingsPage() {
       seatNumber: editForm.seatNumber,
       paymentMethod: editForm.paymentMethod,
       notes: editForm.notes.trim(),
+      price: editForm.price,
     })
     setBusy(false)
     if (err) {
@@ -428,6 +435,22 @@ export function AdminBookingsPage() {
                       setEditForm((f) => ({
                         ...f,
                         seatNumber: Math.max(1, Number(e.target.value) || 1),
+                      }))
+                    }
+                  />
+                </div>
+                <div className="field">
+                  <label>سعر التذكرة (ر.س)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    required
+                    value={editForm.price}
+                    onChange={(e) =>
+                      setEditForm((f) => ({
+                        ...f,
+                        price: Math.max(0, Number(e.target.value) || 0),
                       }))
                     }
                   />

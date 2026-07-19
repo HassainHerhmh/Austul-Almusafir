@@ -8,6 +8,9 @@ import { getActiveTripId, pingLocation } from './api'
 
 export const LOCATION_TASK = 'austul-bus-tracking'
 const KEEP_AWAKE_TAG = 'austul-tracking'
+/** نبضة إرسال للمنصة حتى لو الباص متوقف (بدون حركة GPS) */
+const HEARTBEAT_MS = 25000
+const MIN_PING_GAP_MS = 5000
 
 /** يجب استدعاء التعريف مبكراً (من index.ts) قبل أي شاشة */
 if (!TaskManager.isTaskDefined(LOCATION_TASK)) {
@@ -22,14 +25,7 @@ if (!TaskManager.isTaskDefined(LOCATION_TASK)) {
       const loc = locations?.[0]
       if (!loc?.coords) return
 
-      await pingLocation({
-        tripId,
-        lat: loc.coords.latitude,
-        lng: loc.coords.longitude,
-        accuracy: loc.coords.accuracy,
-        speed: loc.coords.speed,
-        heading: loc.coords.heading,
-      })
+      await sendPingFromCoords(tripId, loc.coords, true)
     } catch {
       // لا نرمي أبداً من مهمة الخلفية
     }
@@ -37,15 +33,20 @@ if (!TaskManager.isTaskDefined(LOCATION_TASK)) {
 }
 
 let watchSub: Location.LocationSubscription | null = null
+let heartbeatTimer: ReturnType<typeof setInterval> | null = null
 let lastPingAt = 0
+let lastCoords: Location.LocationObjectCoords | null = null
+let heartbeatTripId: string | null = null
 
 async function sendPingFromCoords(
   tripId: string,
   coords: Location.LocationObjectCoords,
+  force = false,
 ) {
   const now = Date.now()
-  if (now - lastPingAt < 8000) return
+  if (!force && now - lastPingAt < MIN_PING_GAP_MS) return
   lastPingAt = now
+  lastCoords = coords
   await pingLocation({
     tripId,
     lat: coords.latitude,
@@ -54,6 +55,48 @@ async function sendPingFromCoords(
     speed: coords.speed,
     heading: coords.heading,
   })
+}
+
+/** يقرأ موقعاً جديداً أو يعيد آخر إحداثيات معروفة ويرسلها للسيرفر */
+export async function heartbeatPing(tripId?: string | null) {
+  const id = tripId || heartbeatTripId || (await getActiveTripId())
+  if (!id) return false
+
+  try {
+    const current = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.Balanced,
+      mayShowUserSettingsDialog: false,
+    })
+    await sendPingFromCoords(id, current.coords, true)
+    return true
+  } catch {
+    if (lastCoords) {
+      try {
+        await sendPingFromCoords(id, lastCoords, true)
+        return true
+      } catch {
+        return false
+      }
+    }
+    return false
+  }
+}
+
+function startHeartbeat(tripId: string) {
+  heartbeatTripId = tripId
+  stopHeartbeat(false)
+  void heartbeatPing(tripId)
+  heartbeatTimer = setInterval(() => {
+    void heartbeatPing(heartbeatTripId)
+  }, HEARTBEAT_MS)
+}
+
+function stopHeartbeat(clearTrip = true) {
+  if (heartbeatTimer) {
+    clearInterval(heartbeatTimer)
+    heartbeatTimer = null
+  }
+  if (clearTrip) heartbeatTripId = null
 }
 
 export async function ensureLocationPermissions(): Promise<{ background: boolean }> {
@@ -96,6 +139,79 @@ export async function requestBatteryUnrestricted() {
   }
 }
 
+async function startBackgroundLocationTask() {
+  const started = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK)
+  if (started) {
+    // أعد التشغيل بإعدادات أحدث إن كانت الخدمة قديمة بدون نبضات زمنية
+    try {
+      await Location.stopLocationUpdatesAsync(LOCATION_TASK)
+    } catch {
+      /* continue */
+    }
+  }
+
+  await Location.startLocationUpdatesAsync(LOCATION_TASK, {
+    accuracy: Location.Accuracy.High,
+    // Android: تحديثات زمنية حتى مع توقف الحركة (distanceInterval: 0)
+    timeInterval: 15000,
+    distanceInterval: 0,
+    deferredUpdatesInterval: 0,
+    showsBackgroundLocationIndicator: true,
+    pausesUpdatesAutomatically: false,
+    foregroundService: {
+      notificationTitle: 'تتبع الرحلة شغال',
+      notificationBody:
+        'جاري إرسال الموقع للمنصة — للإيقاف استخدم زر «إيقاف التتبع» أو من داخل التطبيق',
+      notificationColor: '#0f766e',
+      killServiceOnDestroy: false,
+    },
+  })
+}
+
+export async function isBackgroundTrackingRunning() {
+  try {
+    return await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK)
+  } catch {
+    return false
+  }
+}
+
+/** يعيد تشغيل خدمة التتبع إن توقفت بينما الرحلة ما زالت نشطة */
+export async function ensureTrackingRunning(tripId: string) {
+  const perms = await ensureLocationPermissions()
+  if (!perms.background) {
+    throw new Error('صلاحية الموقع في الخلفية غير ممنوحة')
+  }
+  await startBackgroundLocationTask()
+  startHeartbeat(tripId)
+
+  if (!watchSub) {
+    try {
+      watchSub = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.Balanced,
+          timeInterval: 15000,
+          distanceInterval: 0,
+          mayShowUserSettingsDialog: false,
+        },
+        (loc) => {
+          void sendPingFromCoords(tripId, loc.coords).catch(() => undefined)
+        },
+      )
+    } catch {
+      /* الخلفية + النبضة كافيان */
+    }
+  }
+
+  try {
+    await activateKeepAwakeAsync(KEEP_AWAKE_TAG)
+  } catch {
+    /* اختياري */
+  }
+
+  await heartbeatPing(tripId)
+}
+
 export async function startTracking(tripId: string): Promise<{ background: boolean }> {
   await stopTrackingLocalOnly()
 
@@ -106,23 +222,8 @@ export async function startTracking(tripId: string): Promise<{ background: boole
     )
   }
 
-  // خدمة أمامية + إشعار مستمر — يستمر بعد مغادرة التطبيق
   try {
-    const started = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK)
-    if (!started) {
-      await Location.startLocationUpdatesAsync(LOCATION_TASK, {
-        accuracy: Location.Accuracy.Balanced,
-        timeInterval: 12000,
-        distanceInterval: 25,
-        deferredUpdatesInterval: 12000,
-        showsBackgroundLocationIndicator: true,
-        foregroundService: {
-          notificationTitle: 'تتبع الرحلة شغال',
-          notificationBody: 'جاري إرسال الموقع للمنصة — يمكنك الإيقاف من الإشعار أو من التطبيق',
-          notificationColor: '#0f766e',
-        },
-      })
-    }
+    await startBackgroundLocationTask()
   } catch (e) {
     throw new Error(
       e instanceof Error
@@ -131,13 +232,14 @@ export async function startTracking(tripId: string): Promise<{ background: boole
     )
   }
 
-  // تتبّع إضافي والشاشة مفتوحة
+  startHeartbeat(tripId)
+
   try {
     watchSub = await Location.watchPositionAsync(
       {
         accuracy: Location.Accuracy.Balanced,
-        timeInterval: 12000,
-        distanceInterval: 25,
+        timeInterval: 15000,
+        distanceInterval: 0,
         mayShowUserSettingsDialog: true,
       },
       (loc) => {
@@ -145,7 +247,7 @@ export async function startTracking(tripId: string): Promise<{ background: boole
       },
     )
   } catch {
-    /* الخلفية كافية */
+    /* الخلفية + النبضة كافيان */
   }
 
   try {
@@ -154,19 +256,14 @@ export async function startTracking(tripId: string): Promise<{ background: boole
     /* اختياري */
   }
 
-  try {
-    const current = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.Balanced,
-    })
-    await sendPingFromCoords(tripId, current.coords)
-  } catch {
-    /* تجاهل */
-  }
+  await heartbeatPing(tripId)
 
   return { background: true }
 }
 
 export async function stopTrackingLocalOnly() {
+  stopHeartbeat(true)
+
   try {
     if (watchSub) {
       watchSub.remove()

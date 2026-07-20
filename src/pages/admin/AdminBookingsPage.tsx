@@ -181,7 +181,7 @@ export function AdminBookingsPage() {
       case 'status':
         return b.status === 'confirmed' ? 'مؤكد' : 'ملغى'
       case 'price':
-        return formatMoney(b.price)
+        return trip?.tripKind === 'campaign' ? 'حملة' : formatMoney(b.price)
       case 'notes':
         return b.notes?.trim() ? b.notes : '—'
       default:
@@ -263,7 +263,9 @@ export function AdminBookingsPage() {
                           {b.status === 'confirmed' ? 'مؤكد' : 'ملغى'}
                         </span>
                       </td>
-                      <td>{formatMoney(b.price)}</td>
+                      <td>
+                        {trip?.tripKind === 'campaign' ? 'حملة' : formatMoney(b.price)}
+                      </td>
                       <td>{b.notes?.trim() ? b.notes : '—'}</td>
                       <td>
                         <div className="actions">

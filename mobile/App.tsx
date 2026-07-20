@@ -2,8 +2,10 @@ import { StatusBar } from 'expo-status-bar'
 import { useCallback, useEffect, useState } from 'react'
 import {
   ActivityIndicator,
+  Alert,
   AppState,
   FlatList,
+  Linking,
   Pressable,
   SafeAreaView,
   StyleSheet,
@@ -26,7 +28,7 @@ import {
   setToken,
   stopTracking,
 } from './src/api'
-import { startTracking, stopBackgroundTracking, requestBatteryUnrestricted } from './src/tracking'
+import { startTracking, stopBackgroundTracking, requestBatteryUnrestricted, PermissionNeededError } from './src/tracking'
 import {
   hideTrackingNotification,
   setupTrackingNotifications,
@@ -197,12 +199,30 @@ export default function App() {
       )
       await refreshTrips().catch(() => undefined)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'تعذر بدء التتبع')
+      const msg = e instanceof Error ? e.message : 'تعذر بدء التتبع'
+      setError(msg)
       await setActiveTripId(null)
       setActive(null)
       await stopBackgroundTracking()
       stopNotificationGuard()
       await hideTrackingNotification()
+
+      const needSettings = e instanceof PermissionNeededError && e.openSettings
+      Alert.alert(
+        'يلزم السماح للمتابعة',
+        msg,
+        needSettings
+          ? [
+              { text: 'لاحقاً', style: 'cancel' },
+              {
+                text: 'فتح الإعدادات',
+                onPress: () => {
+                  void Linking.openSettings()
+                },
+              },
+            ]
+          : [{ text: 'حسناً' }],
+      )
     } finally {
       setBusy(false)
     }

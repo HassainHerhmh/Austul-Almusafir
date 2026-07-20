@@ -99,23 +99,66 @@ function stopHeartbeat(clearTrip = true) {
   if (clearTrip) heartbeatTripId = null
 }
 
+export class PermissionNeededError extends Error {
+  openSettings: boolean
+  constructor(message: string, openSettings = false) {
+    super(message)
+    this.name = 'PermissionNeededError'
+    this.openSettings = openSettings
+  }
+}
+
+export async function openAppPermissionSettings() {
+  try {
+    await Linking.openSettings()
+  } catch {
+    /* ignore */
+  }
+}
+
 export async function ensureLocationPermissions(): Promise<{ background: boolean }> {
   const services = await Location.hasServicesEnabledAsync()
   if (!services) {
-    throw new Error('فعّل خدمة الموقع (GPS) من إعدادات الجوال')
+    throw new PermissionNeededError(
+      'خدمة الموقع (GPS) مغلقة — فعّلها من الإعدادات ثم اضغط بدء التتبع مرة أخرى',
+      true,
+    )
   }
 
+  // دائماً نطلب عند كل ضغطة «بدء تتبع» — إن رُفض سابقاً يُعاد الطلب إن أمكن
   const fg = await Location.requestForegroundPermissionsAsync()
   if (fg.status !== 'granted') {
-    throw new Error('يجب السماح بالوصول للموقع')
+    const needSettings = fg.canAskAgain === false
+    if (needSettings) await openAppPermissionSettings()
+    throw new PermissionNeededError(
+      needSettings
+        ? 'تم رفض الموقع سابقاً — فعّل إذن الموقع للتطبيق من الإعدادات ثم اضغط بدء التتبع مرة أخرى'
+        : 'يجب السماح بالوصول للموقع لبدء التتبع — اضغط بدء التتبع مرة أخرى واختر «سماح»',
+      needSettings,
+    )
   }
 
+  // خلفية: مطلوب لبقاء التتبع بعد قفل الشاشة
   let background = false
   try {
     const bg = await Location.requestBackgroundPermissionsAsync()
     background = bg.status === 'granted'
-  } catch {
-    background = false
+    if (!background) {
+      const needSettings = bg.canAskAgain === false
+      if (needSettings) await openAppPermissionSettings()
+      throw new PermissionNeededError(
+        needSettings
+          ? 'فعّل الموقع «دائماً / في الخلفية» من إعدادات التطبيق ثم اضغط بدء التتبع مرة أخرى'
+          : 'للتتبع بعد إغلاق الشاشة: اختر السماح بالموقع «أثناء استخدام التطبيق وفي الخلفية / دائماً» ثم اضغط بدء التتبع مرة أخرى',
+        needSettings,
+      )
+    }
+  } catch (e) {
+    if (e instanceof PermissionNeededError) throw e
+    throw new PermissionNeededError(
+      'تعذر طلب إذن الموقع في الخلفية — افتح إعدادات التطبيق وفعّل الموقع دائماً ثم أعد المحاولة',
+      true,
+    )
   }
 
   return { background }

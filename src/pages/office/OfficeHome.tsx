@@ -100,9 +100,11 @@ export function OfficeHome() {
                     <span>{trip.date}</span>
                     <span>{formatTimeAr(trip.departureTime)}</span>
                     <span>
-                      {trip.pricingMode === 'boarding'
-                        ? 'حسب الصعود'
-                        : formatMoney(trip.price)}
+                      {trip.tripKind === 'campaign'
+                        ? 'حملة'
+                        : trip.pricingMode === 'boarding'
+                          ? 'حسب الصعود'
+                          : formatMoney(trip.price)}
                     </span>
                     <span>
                       {trip.stops.map((s) => s.point).filter(Boolean).join(' ← ')}
@@ -153,7 +155,7 @@ export function OfficeHome() {
                     <td>{b.passengerName}</td>
                     <td>{trip ? getTripLabel(trip) : '—'}</td>
                     <td>{b.seatNumber}</td>
-                    <td>{formatMoney(b.price)}</td>
+                    <td>{trip?.tripKind === 'campaign' ? 'حملة' : formatMoney(b.price)}</td>
                   </tr>
                 )
               })}

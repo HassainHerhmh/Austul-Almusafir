@@ -1,10 +1,11 @@
 import * as Notifications from 'expo-notifications'
-import { AppState, Platform } from 'react-native'
+import { AppState, Linking, Platform } from 'react-native'
 import { getActiveTripId, setActiveTripId, stopTracking } from './api'
 import {
   ensureTrackingRunning,
   heartbeatPing,
   isBackgroundTrackingRunning,
+  PermissionNeededError,
   stopBackgroundTracking,
 } from './tracking'
 
@@ -84,9 +85,23 @@ export async function setupTrackingNotifications(onStopped?: () => void) {
   }
 
   if (Platform.OS === 'android') {
-    const { status } = await Notifications.requestPermissionsAsync()
-    if (status !== 'granted') {
-      throw new Error('يجب السماح بالإشعارات لإظهار حالة التتبع في الشريط')
+    // يُطلب في كل بدء تتبع — إن رُفض يُعاد الطلب أو تُفتح الإعدادات
+    const perm = await Notifications.requestPermissionsAsync()
+    if (perm.status !== 'granted') {
+      const needSettings = perm.canAskAgain === false
+      if (needSettings) {
+        try {
+          await Linking.openSettings()
+        } catch {
+          /* ignore */
+        }
+      }
+      throw new PermissionNeededError(
+        needSettings
+          ? 'فعّل الإشعارات للتطبيق من الإعدادات ثم اضغط بدء التتبع مرة أخرى'
+          : 'يجب السماح بالإشعارات — اضغط بدء التتبع مرة أخرى واختر «سماح»',
+        needSettings,
+      )
     }
   }
 }

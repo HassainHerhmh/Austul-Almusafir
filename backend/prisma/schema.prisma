@@ -22,6 +22,7 @@ model Office {
   customers       Customer[]
   bookings        Booking[]
   vouchers        Voucher[]
+  campaignTrips   Trip[]    @relation("CampaignOffice")
 }
 
 model User {
@@ -94,10 +95,16 @@ model Trip {
   assistantName      String     @default("")
   /** جوال السائق المعاون (إدخال مباشر، اختياري) */
   assistantPhone     String     @default("")
-  /** trip = سعر الرحلة · boarding = سعر منطقة الصعود */
+  /** passenger = ركاب · campaign = حملة */
+  tripKind           String     @default("passenger")
+  /** مكتب/وكيل الحملة — يُقيَّد عليه إجمالي السعر عند فتح الرحلة */
+  campaignOfficeId   String?
+  campaignOffice     Office?    @relation("CampaignOffice", fields: [campaignOfficeId], references: [id])
+  /** trip = سعر الرحلة · boarding = سعر منطقة الصعود (لرحلات الركاب) */
   pricingMode        String     @default("trip")
   date               String
   departureTime      String
+  /** سعر التذكرة (ركاب) أو إجمالي سعر الحملة */
   price              Float
   status             String     @default("scheduled")
   stops              TripStop[]
@@ -105,6 +112,8 @@ model Trip {
   location           TripLocation?
   trackingShares     TripTrackingShare[]
   createdAt          DateTime   @default(now())
+
+  @@index([campaignOfficeId])
 }
 
 /** رابط تتبع عام لرحلة — يُشارك بدون تسجيل دخول */

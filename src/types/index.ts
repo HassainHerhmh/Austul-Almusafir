@@ -50,6 +50,8 @@ export interface VisaType {
 }
 
 export type PricingMode = 'trip' | 'boarding'
+/** ركاب = تسعيرة تذاكر · حملة = سعر إجمالي بدون سعر عند الوكيل */
+export type TripKind = 'passenger' | 'campaign'
 
 export interface Bus {
   id: string
@@ -90,10 +92,15 @@ export interface Trip {
   assistantName: string
   /** جوال السائق المعاون */
   assistantPhone: string
-  /** تسعيرة هذه الرحلة: سعر الرحلة أو سعر منطقة الصعود */
+  /** ركاب أو حملة */
+  tripKind: TripKind
+  /** مكتب وكيل الحملة (للحملة فقط) */
+  campaignOfficeId: string | null
+  /** تسعيرة هذه الرحلة: سعر الرحلة أو سعر منطقة الصعود (للركاب) */
   pricingMode: PricingMode
   date: string
   departureTime: string
+  /** سعر التذكرة أو إجمالي الحملة */
   price: number
   status: TripStatus
   /** محطات متسلسلة: عدن ← عتق ← شرورة ← مكة */

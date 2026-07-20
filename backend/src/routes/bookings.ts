@@ -69,40 +69,6 @@ bookingsRouter.post(
     let office = await prisma.office.findUnique({ where: { id: officeId } })
     if (!office) return fail(res, 'المكتب غير موجود', 404)
 
-    let ledgerAccountId = office.ledgerAccountId
-    if (!ledgerAccountId) {
-      ledgerAccountId = await findOfficeLedgerAccount(office.name)
-      if (ledgerAccountId) {
-        office = await prisma.office.update({
-          where: { id: office.id },
-          data: { ledgerAccountId },
-        })
-      }
-    }
-    if (!ledgerAccountId) {
-      return fail(
-        res,
-        `المكتب غير مربوط بحساب ذمة — أنشئ حساب «${office.name}» تحت ذمم مكاتب السفريات واربطه من إدارة المكاتب`,
-      )
-    }
-
-    const ticketTransit = await resolveTicketRevenueTransitAccount()
-    if (!ticketTransit) {
-      return fail(
-        res,
-        'حساب وسيط إيراد التذاكر غير موجود — أضفه يدوياً واضبطه من الحسابات الوسيطة',
-      )
-    }
-    if ((office.commissionPercent || 0) > 0) {
-      const commissionAcc = await resolveCommissionsTransitAccount()
-      if (!commissionAcc) {
-        return fail(
-          res,
-          'حساب عمولات المكاتب غير موجود — أضفه يدوياً واضبطه من الحسابات الوسيطة',
-        )
-      }
-    }
-
     const trip = await prisma.trip.findUnique({
       where: { id: body.data.tripId },
       include: { bus: true, stops: { orderBy: { sortOrder: 'asc' } } },
@@ -110,6 +76,44 @@ bookingsRouter.post(
     if (!trip || trip.status !== 'open') return fail(res, 'الرحلة غير متاحة للحجز')
     if (body.data.seatNumber < 1 || body.data.seatNumber > trip.bus.seats) {
       return fail(res, 'رقم المقعد غير صالح')
+    }
+
+    const isCampaign = trip.tripKind === 'campaign'
+
+    let ledgerAccountId = office.ledgerAccountId
+    if (!isCampaign) {
+      if (!ledgerAccountId) {
+        ledgerAccountId = await findOfficeLedgerAccount(office.name)
+        if (ledgerAccountId) {
+          office = await prisma.office.update({
+            where: { id: office.id },
+            data: { ledgerAccountId },
+          })
+        }
+      }
+      if (!ledgerAccountId) {
+        return fail(
+          res,
+          `المكتب غير مربوط بحساب ذمة — أنشئ حساب «${office.name}» تحت ذمم مكاتب السفريات واربطه من إدارة المكاتب`,
+        )
+      }
+
+      const ticketTransit = await resolveTicketRevenueTransitAccount()
+      if (!ticketTransit) {
+        return fail(
+          res,
+          'حساب وسيط إيراد التذاكر غير موجود — أضفه يدوياً واضبطه من الحسابات الوسيطة',
+        )
+      }
+      if ((office.commissionPercent || 0) > 0) {
+        const commissionAcc = await resolveCommissionsTransitAccount()
+        if (!commissionAcc) {
+          return fail(
+            res,
+            'حساب عمولات المكاتب غير موجود — أضفه يدوياً واضبطه من الحسابات الوسيطة',
+          )
+        }
+      }
     }
 
     const routeIds = trip.stops.map((s) => s.destinationId)
@@ -136,14 +140,18 @@ bookingsRouter.post(
 
     const pricingMode = trip.pricingMode === 'boarding' ? 'boarding' : 'trip'
 
-    let ticketPrice = trip.price
-    if (pricingMode === 'boarding') {
-      const boarding = await prisma.destination.findUnique({
-        where: { id: body.data.boardingDestinationId },
-      })
-      ticketPrice = Number(boarding?.ticketPrice) || 0
-      if (ticketPrice <= 0) {
-        return fail(res, 'لم يُحدَّد سعر تذكرة لمنطقة الانطلاق — راجع إدارة الوجهات')
+    // رحلة حملة: لا يُحسب سعر تذكرة على الوكيل — السعر الإجمالي على الرحلة فقط
+    let ticketPrice = 0
+    if (!isCampaign) {
+      ticketPrice = trip.price
+      if (pricingMode === 'boarding') {
+        const boarding = await prisma.destination.findUnique({
+          where: { id: body.data.boardingDestinationId },
+        })
+        ticketPrice = Number(boarding?.ticketPrice) || 0
+        if (ticketPrice <= 0) {
+          return fail(res, 'لم يُحدَّد سعر تذكرة لمنطقة الانطلاق — راجع إدارة الوجهات')
+        }
       }
     }
 
@@ -202,32 +210,34 @@ bookingsRouter.post(
       },
     })
 
-    await prisma.voucher.create({
-      data: {
-        officeId,
-        type: 'receipt',
-        amount: ticketPrice,
-        description: `حجز ${body.data.passengerName} — مقعد ${body.data.seatNumber}`,
-        date: new Date().toISOString().slice(0, 10),
-        relatedBookingId: booking.id,
-      },
-    })
+    if (ticketPrice > 0 && ledgerAccountId) {
+      await prisma.voucher.create({
+        data: {
+          officeId,
+          type: 'receipt',
+          amount: ticketPrice,
+          description: `حجز ${body.data.passengerName} — مقعد ${body.data.seatNumber}`,
+          date: new Date().toISOString().slice(0, 10),
+          relatedBookingId: booking.id,
+        },
+      })
 
-    await postBookingCharge({
-      bookingId: booking.id,
-      ledgerAccountId,
-      amount: booking.price,
-      passengerName: booking.passengerName,
-      seatNumber: booking.seatNumber,
-    })
-    await postBookingCommission({
-      bookingId: booking.id,
-      ledgerAccountId,
-      commissionPercent: office.commissionPercent,
-      ticketPrice: booking.price,
-      passengerName: booking.passengerName,
-      seatNumber: booking.seatNumber,
-    })
+      await postBookingCharge({
+        bookingId: booking.id,
+        ledgerAccountId,
+        amount: booking.price,
+        passengerName: booking.passengerName,
+        seatNumber: booking.seatNumber,
+      })
+      await postBookingCommission({
+        bookingId: booking.id,
+        ledgerAccountId,
+        commissionPercent: office.commissionPercent,
+        ticketPrice: booking.price,
+        passengerName: booking.passengerName,
+        seatNumber: booking.seatNumber,
+      })
+    }
 
     return ok(
       res,

@@ -638,7 +638,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
       driverId: trip.driverId,
       assistantName: trip.assistantName ?? '',
       assistantPhone: trip.assistantPhone ?? '',
-      pricingMode: trip.pricingMode === 'boarding' ? 'boarding' : 'trip',
+      tripKind: trip.tripKind === 'campaign' ? 'campaign' : 'passenger',
+      campaignOfficeId:
+        trip.tripKind === 'campaign' && trip.campaignOfficeId
+          ? trip.campaignOfficeId
+          : null,
+      pricingMode:
+        trip.tripKind === 'campaign'
+          ? 'trip'
+          : trip.pricingMode === 'boarding'
+            ? 'boarding'
+            : 'trip',
       date: trip.date,
       departureTime: trip.departureTime,
       price: trip.price,

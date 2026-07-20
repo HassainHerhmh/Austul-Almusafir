@@ -8,6 +8,8 @@ type LegacyTrip = Trip & {
   assistantDriverId?: string | null
   assistantName?: string
   assistantPhone?: string
+  tripKind?: 'passenger' | 'campaign'
+  campaignOfficeId?: string | null
   pricingMode?: 'trip' | 'boarding'
   legs?: Array<{
     fromId: string
@@ -56,6 +58,8 @@ export function normalizeTrip(trip: LegacyTrip): Trip {
     driverId: trip.driverId,
     assistantName: trip.assistantName ?? '',
     assistantPhone: trip.assistantPhone ?? '',
+    tripKind: trip.tripKind === 'campaign' ? 'campaign' : 'passenger',
+    campaignOfficeId: trip.campaignOfficeId?.trim() ? trip.campaignOfficeId : null,
     pricingMode: trip.pricingMode === 'boarding' ? 'boarding' : 'trip',
     date: trip.date,
     departureTime: trip.departureTime,

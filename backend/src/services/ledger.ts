@@ -161,6 +161,67 @@ export async function postBookingCharge(input: {
 }
 
 /**
+ * قيد حملة: مدين ذمة الوكيل · دائن وسيط إيراد التذاكر (بإجمالي سعر الحملة عند فتح الرحلة)
+ */
+export async function postCampaignCharge(input: {
+  tripId: string
+  ledgerAccountId: number
+  amount: number
+  officeName: string
+  tripDate: string
+}) {
+  const revenueTransitId = await resolveTicketRevenueTransitAccount()
+  if (!revenueTransitId) {
+    throw new Error(
+      'حساب وسيط إيراد التذاكر غير موجود — أضفه يدوياً واضبطه من الحسابات الوسيطة',
+    )
+  }
+  if (input.amount <= 0) return
+
+  const ref = bookingRefId(`campaign:${input.tripId}`)
+  const exists = await prisma.journalLine.findFirst({
+    where: { referenceType: 'campaign', referenceId: ref },
+  })
+  if (exists) return
+
+  const journalDate = new Date().toISOString().slice(0, 10)
+  const notes = `حملة ${input.officeName} — رحلة ${input.tripDate}`
+
+  await prisma.journalLine.createMany({
+    data: [
+      {
+        referenceId: ref,
+        referenceType: 'campaign',
+        journalDate,
+        accountId: input.ledgerAccountId,
+        debit: input.amount,
+        credit: 0,
+        notes,
+      },
+      {
+        referenceId: ref,
+        referenceType: 'campaign',
+        journalDate,
+        accountId: revenueTransitId,
+        debit: 0,
+        credit: input.amount,
+        notes,
+      },
+    ],
+  })
+}
+
+export async function reverseCampaignCharge(tripId: string) {
+  const ref = bookingRefId(`campaign:${tripId}`)
+  await prisma.journalLine.deleteMany({
+    where: {
+      referenceId: ref,
+      referenceType: 'campaign',
+    },
+  })
+}
+
+/**
  * قيد العمولة: من حـ/ مصروف عمولات المكاتب (مدين) إلى حـ/ ذمة المكتب (دائن)
  * فيظهر في أرباح وخسائر ويخفّض ما على المكتب بمقدار عمولته.
  */
@@ -305,6 +366,8 @@ function entryLabel(referenceType: string): string {
       return 'تذكرة'
     case 'booking_commission':
       return 'عمولة'
+    case 'campaign':
+      return 'حملة'
     case 'admin_settlement':
       return 'تسديد (أدمن)'
     case 'manual_journal':
@@ -318,7 +381,7 @@ function entryLabel(referenceType: string): string {
   }
 }
 
-const STATEMENT_TYPES = ['booking', 'booking_commission', 'admin_settlement'] as const
+const STATEMENT_TYPES = ['booking', 'booking_commission', 'admin_settlement', 'campaign'] as const
 
 /** كشف حساب ذمة المكتب: تذاكر + عمولات + تسديدات الأدمن فقط */
 export async function getOfficeLedgerStatement(input: {

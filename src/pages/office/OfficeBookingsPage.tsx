@@ -179,7 +179,7 @@ export function OfficeBookingsPage() {
       case 'status':
         return b.status === 'confirmed' ? 'مؤكد' : 'ملغى'
       case 'price':
-        return formatMoney(b.price)
+        return trip?.tripKind === 'campaign' ? 'حملة' : formatMoney(b.price)
       case 'addedBy':
         return state.users.find((u) => u.id === b.bookedBy)?.name || '—'
       default:
@@ -557,7 +557,9 @@ export function OfficeBookingsPage() {
                         {b.status === 'confirmed' ? 'مؤكد' : 'ملغى'}
                       </span>
                     </td>
-                    <td>{formatMoney(b.price)}</td>
+                    <td>
+                      {trip?.tripKind === 'campaign' ? 'حملة' : formatMoney(b.price)}
+                    </td>
                     <td>{addedBy?.name || '—'}</td>
                     <td>
                       <div className="actions">

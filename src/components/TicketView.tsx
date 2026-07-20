@@ -86,7 +86,11 @@ export function TicketView({ booking, trip, onClose }: Props) {
           </div>
           <div>
             <span>السعر</span>
-            <strong>{booking.price.toLocaleString('ar-YE')} ر.س</strong>
+            <strong>
+              {trip.tripKind === 'campaign'
+                ? 'حملة'
+                : `${booking.price.toLocaleString('ar-YE')} ر.س`}
+            </strong>
           </div>
           <div>
             <span>الحالة</span>

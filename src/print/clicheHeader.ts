@@ -120,6 +120,8 @@ export function clicheHeaderCss(s: PrintSettings = DEFAULT_PRINT_SETTINGS) {
       align-items: flex-end;
       justify-content: center;
       padding-bottom: 2px;
+      border-radius: 22px;
+      overflow: hidden;
     }
     .cliche-center img {
       width: 100%;
@@ -128,17 +130,20 @@ export function clicheHeaderCss(s: PrintSettings = DEFAULT_PRINT_SETTINGS) {
       max-height: 96px;
       object-fit: contain;
       display: block;
+      border-radius: 22px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
     }
     .cliche-center .logo-fallback {
       width: 72px;
       height: 72px;
-      border-radius: 12px;
+      border-radius: 22px;
       background: #2a2a2a;
       color: var(--cliche-gold);
       display: grid;
       place-items: center;
       font-size: 18px;
       font-weight: 800;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
     }
     /*
      * اللوحة اليسرى (عنوان + هواتف):

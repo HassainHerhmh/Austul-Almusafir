@@ -110,12 +110,13 @@ export function buildVoucherDocumentHtml(opts: {
       color-adjust: exact !important;
     }
     @page {
-      size: A4 portrait;
-      margin: 8mm;
+      /* ثابت بالعرض — يظهر الاتجاه أفقياً مباشرة عند فتح الطباعة */
+      size: A5 landscape;
+      margin: 6mm;
     }
-    body { padding: 8px; }
+    body { padding: 6px; }
     .sheet {
-      max-width: 190mm;
+      max-width: 198mm;
       margin: 0 auto;
     }
     ${clicheHeaderCss(s)}
@@ -230,11 +231,12 @@ export function buildVoucherDocumentHtml(opts: {
         color-adjust: exact !important;
       }
     }
-    @media print and (max-height: 160mm) {
-      /* A5 تقريباً — ضغط إضافي */
+    @media print {
       .cliche-row { min-height: 78px; }
-      .cliche-center img { max-height: 68px; }
+      .cliche-center img { max-height: 72px; max-width: 80px; }
       .cell { padding: 4px 6px; font-size: 10.5px; }
+      .desc-body { min-height: 28px; max-height: 48px; }
+      .footer { margin-top: 6px; }
     }
   </style>
 </head>

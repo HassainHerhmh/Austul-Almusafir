@@ -65,19 +65,28 @@ export function clicheHeaderCss(s: PrintSettings = DEFAULT_PRINT_SETTINGS) {
       color: var(--cliche-gold);
       margin-top: 3px;
     }
+    .cliche-identity .slogan {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--cliche-gold);
+      margin-top: 4px;
+    }
     .cliche-bar-mgmt {
       background: var(--cliche-gold);
       color: var(--cliche-ink);
-      /* الحافة باتجاه الشعار (يسار العنصر في RTL نحو الوسط) */
+      /* الحافة باتجاه الشعار (يسار العنصر نحو الوسط) */
       border-radius: 42px 0 0 0;
-      padding: 8px 14px 8px 22px;
+      padding: 8px 16px 8px 28px;
       font-size: 12px;
       font-weight: 800;
       text-align: right;
+      direction: rtl;
       min-height: 34px;
       display: flex;
       align-items: center;
-      justify-content: flex-end;
+      /* في RTL: flex-start = يمين الصفحة */
+      justify-content: flex-start;
+      width: 100%;
     }
 
     /* —— وسط: الشعار فقط كفاصل أبيض بين طرفي الإطار —— */
@@ -201,6 +210,7 @@ export function buildClicheHeaderHtml(opts: {
         <div class="cliche-identity">
           <div class="ar-name">${escapeHtml(brandName)}</div>
           ${s.nameEn ? `<div class="en-name">${escapeHtml(s.nameEn)}</div>` : ''}
+          ${s.slogan ? `<div class="slogan">${escapeHtml(s.slogan)}</div>` : ''}
         </div>
         <div class="cliche-bar-mgmt">${
           mgmt ? `الإدارة : ${escapeHtml(mgmt)}` : '&nbsp;'

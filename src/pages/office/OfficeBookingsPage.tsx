@@ -6,7 +6,7 @@ import { PAYMENT_LABELS, formatMoney, formatTimeAr, todayStr } from '../../compo
 import { useApp } from '../../context/AppContext'
 import { useBrand } from '../../context/BrandContext'
 import type { Booking, PaymentMethod } from '../../types'
-import { printTableReport, downloadExcel } from '../../utils/importExport'
+import { printTableReport, downloadExcelReport } from '../../utils/importExport'
 
 const PRINT_COLUMNS = [
   { key: 'passenger', label: 'الراكب' },
@@ -39,6 +39,7 @@ export function OfficeBookingsPage() {
     getTripLabel,
     getTripSeats,
     getDestination,
+    getDriver,
     createBooking,
     updateBooking,
     refreshBookings,
@@ -218,19 +219,37 @@ export function OfficeBookingsPage() {
     const headersWithNum = ['#', ...headers]
     const rowsWithNum = dataRows.map((row, i) => [String(i + 1), ...row])
 
+    const tripIds = [...new Set(myBookings.map((b) => b.tripId))]
+    const tripMeta = tripIds.map((id) => {
+      const trip = state.trips.find((t) => t.id === id)
+      const bus = trip ? state.buses.find((b) => b.id === trip.busId) : undefined
+      const driver = trip ? getDriver(trip.driverId) : undefined
+      return {
+        route: trip ? getTripLabel(trip) : '—',
+        driver: driver?.name || '—',
+        assistant: trip?.assistantName?.trim() || '—',
+        busNumber: bus?.busNumber || '—',
+        plateNumber: bus?.plateNumber || '—',
+      }
+    })
+
     if (printFormat === 'excel') {
-      downloadExcel(
-        `حجوزات_${currentOffice?.name ?? 'المكتب'}_${filterDate || todayStr()}.xlsx`,
-        rowsWithNum.map((row) =>
-          Object.fromEntries(headersWithNum.map((h, i) => [h, row[i] ?? ''])),
-        ),
-      )
+      downloadExcelReport({
+        filename: `حجوزات_${currentOffice?.name ?? 'المكتب'}_${filterDate || todayStr()}.xlsx`,
+        title,
+        companyName,
+        phones,
+        tripMeta,
+        headers: headersWithNum,
+        rows: rowsWithNum,
+      })
     } else {
       printTableReport({
         title,
         companyName,
         logoUrl,
         phones,
+        tripMeta,
         headers: headersWithNum,
         rows: rowsWithNum,
       })

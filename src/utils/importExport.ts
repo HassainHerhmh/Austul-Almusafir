@@ -11,6 +11,108 @@ export function downloadExcel(filename: string, rows: Record<string, string | nu
   XLSX.writeFile(wb, filename.endsWith('.xlsx') ? filename : `${filename}.xlsx`)
 }
 
+export type TripMetaRow = {
+  driver: string
+  assistant: string
+  busNumber: string
+  plateNumber: string
+  /** اختياري عند وجود أكثر من رحلة */
+  route?: string
+}
+
+/** تصدير Excel بكليشة + جدول السائق/المعاون/الباص ثم جدول البيانات */
+export function downloadExcelReport(opts: {
+  filename: string
+  title: string
+  companyName?: string
+  phones?: string
+  tripMeta?: TripMetaRow[]
+  headers: string[]
+  rows: (string | number)[][]
+}) {
+  const {
+    filename,
+    title,
+    companyName = '',
+    phones = '',
+    tripMeta = [],
+    headers,
+    rows,
+  } = opts
+
+  const phoneLine = phones
+    .split(/[\n,،]+/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .join(' · ')
+
+  const colCount = Math.max(headers.length, 4, 1)
+  const aoa: (string | number)[][] = []
+
+  // كليشة
+  if (companyName) {
+    aoa.push([companyName, ...Array(Math.max(0, colCount - 1)).fill('')])
+  }
+  if (phoneLine) {
+    aoa.push([phoneLine, ...Array(Math.max(0, colCount - 1)).fill('')])
+  }
+  aoa.push([title, ...Array(Math.max(0, colCount - 1)).fill('')])
+  aoa.push([])
+
+  // جدول السائق / المعاون / الباص / اللوحة
+  const multiTrip = tripMeta.length > 1
+  if (tripMeta.length > 0) {
+    const metaHeaders = multiTrip
+      ? ['الرحلة', 'السائق', 'المعاون', 'رقم الباص', 'اللوحة']
+      : ['السائق', 'المعاون', 'رقم الباص', 'اللوحة']
+    aoa.push(metaHeaders)
+    for (const m of tripMeta) {
+      aoa.push(
+        multiTrip
+          ? [
+              m.route || '—',
+              m.driver || '—',
+              m.assistant || '—',
+              m.busNumber || '—',
+              m.plateNumber || '—',
+            ]
+          : [m.driver || '—', m.assistant || '—', m.busNumber || '—', m.plateNumber || '—'],
+      )
+    }
+    aoa.push([])
+  }
+
+  // جدول الحجوزات
+  aoa.push(headers)
+  for (const row of rows) {
+    aoa.push(row.map((c) => (c == null ? '' : c)))
+  }
+
+  const ws = XLSX.utils.aoa_to_sheet(aoa)
+  ws['!views'] = [{ rightToLeft: true }]
+
+  const merges: XLSX.Range[] = []
+  let r = 0
+  if (companyName) {
+    merges.push({ s: { r, c: 0 }, e: { r, c: colCount - 1 } })
+    r += 1
+  }
+  if (phoneLine) {
+    merges.push({ s: { r, c: 0 }, e: { r, c: colCount - 1 } })
+    r += 1
+  }
+  merges.push({ s: { r, c: 0 }, e: { r, c: colCount - 1 } })
+  if (merges.length) ws['!merges'] = merges
+
+  ws['!cols'] = Array.from({ length: colCount }, () => ({ wch: 16 }))
+
+  const wb = XLSX.utils.book_new()
+  wb.Workbook = wb.Workbook || {}
+  wb.Workbook.Views = [{ RTL: true }]
+  XLSX.utils.book_append_sheet(wb, ws, 'بيانات')
+  XLSX.writeFile(wb, filename.endsWith('.xlsx') ? filename : `${filename}.xlsx`)
+}
+
 export async function readExcelRows(file: File): Promise<Record<string, unknown>[]> {
   const buf = await file.arrayBuffer()
   const wb = XLSX.read(buf, { type: 'array' })
@@ -68,6 +170,7 @@ export function printTableReport(opts: {
   companyName?: string
   logoUrl?: string | null
   phones?: string
+  tripMeta?: TripMetaRow[]
 }) {
   const {
     title,
@@ -76,6 +179,7 @@ export function printTableReport(opts: {
     companyName = '',
     logoUrl = null,
     phones = '',
+    tripMeta = [],
   } = opts
 
   const phoneLines = phones
@@ -99,6 +203,38 @@ export function printTableReport(opts: {
         }
       </div>
     </div>`
+
+  const multiTrip = tripMeta.length > 1
+  const metaTable =
+    tripMeta.length > 0
+      ? `<table class="meta-table">
+    <thead><tr>${
+      multiTrip
+        ? '<th>الرحلة</th><th>السائق</th><th>المعاون</th><th>رقم الباص</th><th>اللوحة</th>'
+        : '<th>السائق</th><th>المعاون</th><th>رقم الباص</th><th>اللوحة</th>'
+    }</tr></thead>
+    <tbody>
+      ${tripMeta
+        .map((m) =>
+          multiTrip
+            ? `<tr>
+                <td>${escapeHtml(m.route || '—')}</td>
+                <td>${escapeHtml(m.driver || '—')}</td>
+                <td>${escapeHtml(m.assistant || '—')}</td>
+                <td>${escapeHtml(m.busNumber || '—')}</td>
+                <td>${escapeHtml(m.plateNumber || '—')}</td>
+              </tr>`
+            : `<tr>
+                <td>${escapeHtml(m.driver || '—')}</td>
+                <td>${escapeHtml(m.assistant || '—')}</td>
+                <td>${escapeHtml(m.busNumber || '—')}</td>
+                <td>${escapeHtml(m.plateNumber || '—')}</td>
+              </tr>`,
+        )
+        .join('')}
+    </tbody>
+  </table>`
+      : ''
 
   const html = `<!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -125,9 +261,10 @@ export function printTableReport(opts: {
     .phones { margin-top: 6px; font-size: 13px; color: #444; direction: ltr; text-align: right; }
     h1 { font-size: 16px; margin: 0 0 12px; color: #333; }
     .meta { font-size: 12px; color: #666; margin-bottom: 14px; }
-    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 14px; }
     th, td { border: 1px solid #ccc; padding: 7px 8px; text-align: right; }
     th { background: #f3f4f6; font-weight: 700; }
+    .meta-table th { background: #e8eef5; }
     @media print {
       body { padding: 0; }
       .cliche { break-inside: avoid; }
@@ -137,6 +274,8 @@ export function printTableReport(opts: {
 </head>
 <body>
   ${cliche}
+  ${metaTable}
+  <h1>${escapeHtml(title)}</h1>
   <table>
     <thead><tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join('')}</tr></thead>
     <tbody>
@@ -161,4 +300,3 @@ export function printTableReport(opts: {
   win.document.write(html)
   win.document.close()
 }
-

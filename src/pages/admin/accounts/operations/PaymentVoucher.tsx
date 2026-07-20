@@ -549,6 +549,11 @@ const PaymentVoucher: React.FC = () => {
     }
     const v = list.find((x) => x.id === selectedId);
     if (!v) return;
+    const acc =
+      (v.accountId != null
+        ? accounts.find((a) => a.id === v.accountId)
+        : null) || accounts.find((a) => a.name_ar === v.account);
+    const accountNo = acc?.code?.trim() || (v.accountId != null ? String(v.accountId) : "—");
     await printStyledVoucher(
       { name: brandName, logoUrl, phones },
       {
@@ -557,8 +562,8 @@ const PaymentVoucher: React.FC = () => {
         date: (v.date || "").slice(0, 10).split("-").reverse().join("/") || v.date,
         partyLabel: "المستفيد",
         partyName: v.account || "—",
-        accountLabel: "الحساب",
-        accountValue: v.account || "—",
+        accountLabel: "رقم الحساب",
+        accountValue: accountNo,
         amount: Number(v.amount) || 0,
         currency: v.currency || "ريال سعودي",
         description:

@@ -102,6 +102,7 @@ export function buildVoucherDocumentHtml(opts: {
     html, body {
       margin: 0;
       padding: 0;
+      height: 100%;
       font-family: Tahoma, "Segoe UI", Arial, sans-serif;
       color: #1a1a1a;
       background: #fff;
@@ -110,14 +111,23 @@ export function buildVoucherDocumentHtml(opts: {
       color-adjust: exact !important;
     }
     @page {
-      /* ثابت بالعرض — يظهر الاتجاه أفقياً مباشرة عند فتح الطباعة */
       size: A5 landscape;
-      margin: 6mm;
+      margin: 5mm;
     }
-    body { padding: 6px; }
+    body {
+      padding: 0;
+      min-height: 100vh;
+    }
     .sheet {
-      max-width: 198mm;
+      width: 100%;
+      max-width: 200mm;
       margin: 0 auto;
+      padding: 4px 2px;
+      /* يملأ ارتفاع الصفحة فلا يظهر فراغ تحت */
+      min-height: calc(148mm - 10mm);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
     }
     ${clicheHeaderCss(s)}
     .title-row {
@@ -125,16 +135,17 @@ export function buildVoucherDocumentHtml(opts: {
       grid-template-columns: 1fr auto 1fr;
       gap: 6px;
       align-items: center;
-      margin: 8px 0 8px;
+      margin: 6px 0 8px;
+      flex-shrink: 0;
     }
     .meta-box, .title-box {
       border: 1.3px solid ${s.frameColor};
       border-radius: 5px;
-      padding: 5px 10px;
+      padding: 6px 10px;
       font-size: 12px;
       font-weight: 700;
       text-align: center;
-      min-height: 30px;
+      min-height: 32px;
       display: grid;
       place-items: center;
     }
@@ -145,7 +156,7 @@ export function buildVoucherDocumentHtml(opts: {
       border-color: ${titleBg};
       min-width: 140px;
       font-size: 14px;
-      padding: 6px 16px;
+      padding: 7px 16px;
     }
     .title-box .title-svg {
       position: absolute;
@@ -162,18 +173,27 @@ export function buildVoucherDocumentHtml(opts: {
       border: 1.3px solid ${s.frameColor};
       border-radius: 4px;
       overflow: hidden;
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
     }
     .row {
       display: grid;
       border-bottom: 1px solid ${s.frameColor};
-      min-height: 28px;
+      min-height: 30px;
+      flex-shrink: 0;
     }
     .row:last-child { border-bottom: none; }
+    .row-grow {
+      flex: 1 1 auto;
+      min-height: 56px;
+    }
     .row-2 { grid-template-columns: 1fr 1fr; }
     .row-1 { grid-template-columns: 1fr; }
     .cell {
-      padding: 5px 8px;
-      font-size: 11.5px;
+      padding: 6px 10px;
+      font-size: 12px;
       display: flex;
       align-items: center;
       gap: 5px;
@@ -193,22 +213,27 @@ export function buildVoucherDocumentHtml(opts: {
       background: #eef2f7;
       font-weight: 800;
       justify-content: center;
-      min-height: 26px;
+      min-height: 28px;
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
     }
     .desc-body {
-      min-height: 36px;
-      max-height: 72px;
-      overflow: hidden;
       align-items: flex-start;
+      min-height: 56px;
+      height: 100%;
+      max-height: none;
+    }
+    .row-grow .desc-body {
+      min-height: 100%;
     }
     .note { color: #b91c1c; font-weight: 700; }
     .footer {
-      margin-top: 8px;
+      margin-top: auto;
+      padding-top: 8px;
       text-align: center;
       font-size: 10.5px;
       color: #444;
+      flex-shrink: 0;
     }
     .footer .line {
       border-top: 1px solid #bbb;
@@ -223,20 +248,23 @@ export function buildVoucherDocumentHtml(opts: {
       direction: ltr;
     }
     @media print {
+      html, body {
+        height: 100%;
+        min-height: 100%;
+      }
       body { padding: 0 !important; }
-      .sheet { max-width: none; }
+      .sheet {
+        max-width: none;
+        width: 100%;
+        min-height: 100%;
+        height: 100%;
+        padding: 0;
+      }
       .cliche-v2, .title-box, .head-cell, .desc-head, .gold-svg, .title-svg {
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
         color-adjust: exact !important;
       }
-    }
-    @media print {
-      .cliche-row { min-height: 78px; }
-      .cliche-center img { max-height: 72px; max-width: 80px; }
-      .cell { padding: 4px 6px; font-size: 10.5px; }
-      .desc-body { min-height: 28px; max-height: 48px; }
-      .footer { margin-top: 6px; }
     }
   </style>
 </head>
@@ -283,7 +311,7 @@ export function buildVoucherDocumentHtml(opts: {
       <div class="row row-1">
         <div class="cell desc-head">البيان</div>
       </div>
-      <div class="row row-1">
+      <div class="row row-1 row-grow">
         <div class="cell desc-body">${escapeHtml(opts.voucher.description || '—')}</div>
       </div>
       <div class="row row-1">

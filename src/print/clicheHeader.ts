@@ -17,7 +17,8 @@ function splitLines(text: string): string[] {
 }
 
 /**
- * كليشة رقم 2 — ألوان ذهبية عبر SVG لتظهر حتى لو أُلغيت «رسومات الخلفية» في الطباعة.
+ * كليشة رقم 2 — لوحة ذهبية بحافة منحنية نحو الشعار (مثل المرجع)،
+ * والذهب عبر SVG مستطيل + border-radius حتى يطبع بدون «رسومات الخلفية».
  */
 export function clicheHeaderCss(s: PrintSettings = DEFAULT_PRINT_SETTINGS) {
   const gold = s.accentColor
@@ -35,10 +36,11 @@ export function clicheHeaderCss(s: PrintSettings = DEFAULT_PRINT_SETTINGS) {
     }
     .cliche-row {
       display: grid;
-      grid-template-columns: minmax(0, 1.28fr) 78px minmax(0, 1.55fr);
+      /* يمين: هوية | وسط: شعار | يسار: عنوان وهواتف */
+      grid-template-columns: minmax(0, 1.35fr) 100px minmax(0, 1.55fr);
       align-items: stretch;
       gap: 0;
-      min-height: 96px;
+      min-height: 100px;
     }
     .cliche-right {
       display: flex;
@@ -46,10 +48,11 @@ export function clicheHeaderCss(s: PrintSettings = DEFAULT_PRINT_SETTINGS) {
       justify-content: space-between;
       min-width: 0;
       z-index: 2;
+      padding-inline-end: 4px;
     }
     .cliche-identity {
       text-align: right;
-      padding: 2px 4px 6px;
+      padding: 2px 4px 8px;
     }
     .cliche-identity .ar-name {
       font-size: 15px;
@@ -70,11 +73,11 @@ export function clicheHeaderCss(s: PrintSettings = DEFAULT_PRINT_SETTINGS) {
       color: var(--cliche-gold);
       margin-top: 2px;
     }
+    /* شريط الإدارة — حافة دائرية نحو الشعار (يسار الشريط) */
     .cliche-bar-mgmt {
       position: relative;
       color: var(--cliche-ink);
-      margin-left: -22px;
-      padding: 7px 12px 7px 28px;
+      padding: 7px 14px 7px 22px;
       font-size: 11px;
       font-weight: 800;
       text-align: right;
@@ -83,11 +86,10 @@ export function clicheHeaderCss(s: PrintSettings = DEFAULT_PRINT_SETTINGS) {
       display: flex;
       align-items: center;
       justify-content: flex-start;
-      width: calc(100% + 22px);
       box-sizing: border-box;
       z-index: 2;
       overflow: hidden;
-      border-radius: 40px 0 0 0;
+      border-radius: 36px 0 0 0;
     }
     .cliche-bar-mgmt .gold-svg {
       position: absolute;
@@ -95,55 +97,41 @@ export function clicheHeaderCss(s: PrintSettings = DEFAULT_PRINT_SETTINGS) {
       width: 100%;
       height: 100%;
       z-index: 0;
+      display: block;
     }
     .cliche-bar-mgmt .bar-text {
       position: relative;
       z-index: 1;
     }
+    /* الشعار فاصل أبيض نظيف — بدون تداخل فوق الذهب */
     .cliche-center {
       display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-end;
+      align-items: flex-end;
+      justify-content: center;
       position: relative;
-      z-index: 5;
-      background: transparent;
-      padding: 0;
-    }
-    .cliche-center .logo-cradle {
-      width: 100%;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-end;
-      flex: 1;
+      z-index: 3;
       background: #fff;
-      border-radius: 40px 40px 0 0;
-      padding: 2px 1px 0;
-      min-height: 100%;
+      padding: 0 2px;
     }
     .cliche-center .logo-wrap {
       width: 100%;
-      max-width: 76px;
+      max-width: 96px;
       display: flex;
       align-items: flex-end;
       justify-content: center;
       padding-bottom: 2px;
-      border-radius: 14px;
-      overflow: hidden;
     }
     .cliche-center img {
       width: 100%;
-      max-width: 76px;
+      max-width: 96px;
       height: auto;
-      max-height: 86px;
+      max-height: 96px;
       object-fit: contain;
       display: block;
-      border-radius: 12px;
     }
     .cliche-center .logo-fallback {
-      width: 64px;
-      height: 64px;
+      width: 72px;
+      height: 72px;
       border-radius: 12px;
       background: #2a2a2a;
       color: var(--cliche-gold);
@@ -152,21 +140,25 @@ export function clicheHeaderCss(s: PrintSettings = DEFAULT_PRINT_SETTINGS) {
       font-size: 18px;
       font-weight: 800;
     }
+    /*
+     * اللوحة اليسرى (عنوان + هواتف):
+     * يسار الصفحة = زوايا مستديرة عادية
+     * نحو الشعار (يمين اللوحة) = انحناء كبير مثل المرجع
+     */
     .cliche-panel {
       position: relative;
       color: var(--cliche-ink);
-      margin-right: -22px;
-      width: calc(100% + 22px);
       box-sizing: border-box;
-      padding: 8px 28px 8px 10px;
-      min-height: 96px;
+      padding: 10px 14px 10px 12px;
+      min-height: 100px;
       display: flex;
       flex-direction: column;
       justify-content: center;
-      gap: 5px;
+      gap: 6px;
       z-index: 2;
       overflow: hidden;
-      border-radius: 14px 80px 36px 12px;
+      /* top-left | top-right(نحو الشعار) | bottom-right | bottom-left */
+      border-radius: 14px 72px 14px 14px;
     }
     .cliche-panel .gold-svg {
       position: absolute;
@@ -174,16 +166,17 @@ export function clicheHeaderCss(s: PrintSettings = DEFAULT_PRINT_SETTINGS) {
       width: 100%;
       height: 100%;
       z-index: 0;
+      display: block;
     }
     .cliche-panel .panel-inner {
       position: relative;
       z-index: 1;
       display: flex;
       flex-direction: column;
-      gap: 5px;
+      gap: 6px;
     }
     .cliche-panel .addr {
-      font-size: 10.5px;
+      font-size: 11px;
       font-weight: 800;
       display: flex;
       align-items: flex-start;
@@ -191,18 +184,35 @@ export function clicheHeaderCss(s: PrintSettings = DEFAULT_PRINT_SETTINGS) {
       line-height: 1.35;
     }
     .cliche-panel .pill {
-      border: 1.4px solid #fff;
+      border: 1.5px solid #fff;
       border-radius: 999px;
-      padding: 3px 10px;
-      font-size: 10px;
+      padding: 4px 12px;
+      font-size: 10.5px;
       font-weight: 700;
       color: var(--cliche-ink);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      align-self: flex-start;
+      max-width: 100%;
+    }
+    /* خط ذهبي رفيع تحت الكليشة يربط الطرفين مثل المرجع */
+    .cliche-baseline {
+      height: 2.5px;
+      margin-top: 0;
+      border-radius: 2px;
+      overflow: hidden;
+      position: relative;
+    }
+    .cliche-baseline .gold-svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
     }
     @media print {
-      .cliche-v2, .cliche-panel, .cliche-bar-mgmt, .gold-svg {
+      .cliche-v2, .cliche-panel, .cliche-bar-mgmt, .cliche-baseline, .gold-svg {
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
         color-adjust: exact !important;
@@ -211,7 +221,7 @@ export function clicheHeaderCss(s: PrintSettings = DEFAULT_PRINT_SETTINGS) {
   `
 }
 
-/** HTML كليشة مع ذهب SVG يطبع دائماً */
+/** HTML كليشة — مستطيل SVG + قصّ بالـ border-radius (شكل نظيف يطبع) */
 export function buildClicheHeaderHtml(opts: {
   brandName: string
   logoUrl?: string | null
@@ -244,12 +254,9 @@ export function buildClicheHeaderHtml(opts: {
     .map((line) => `<div class="pill">${escapeHtml(line)}</div>`)
     .join('')
 
-  const panelSvg = `<svg class="gold-svg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 400 140" aria-hidden="true">
-    <path fill="${escapeHtml(gold)}" d="M18,0 H270 C340,0 400,28 400,70 C400,112 340,140 270,140 H18 C8,140 0,132 0,122 V18 C0,8 8,0 18,0 Z"/>
-  </svg>`
-
-  const barSvg = `<svg class="gold-svg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 400 40" aria-hidden="true">
-    <path fill="${escapeHtml(gold)}" d="M48,0 H400 V40 H0 C28,40 48,22 48,0 Z"/>
+  /** مستطيل كامل — الشكل من CSS border-radius + overflow */
+  const solidGoldSvg = `<svg class="gold-svg" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 10 10" aria-hidden="true">
+    <rect width="10" height="10" fill="${escapeHtml(gold)}"/>
   </svg>`
 
   return `
@@ -262,23 +269,21 @@ export function buildClicheHeaderHtml(opts: {
           ${s.slogan ? `<div class="slogan">${escapeHtml(s.slogan)}</div>` : ''}
         </div>
         <div class="cliche-bar-mgmt">
-          ${barSvg}
+          ${solidGoldSvg}
           <span class="bar-text">${mgmt ? `الإدارة : ${escapeHtml(mgmt)}` : '&nbsp;'}</span>
         </div>
       </div>
       <div class="cliche-center">
-        <div class="logo-cradle">
-          <div class="logo-wrap">
-            ${
-              logoUrl
-                ? `<img src="${logoUrl}" alt="" />`
-                : `<div class="logo-fallback">أس</div>`
-            }
-          </div>
+        <div class="logo-wrap">
+          ${
+            logoUrl
+              ? `<img src="${logoUrl}" alt="" />`
+              : `<div class="logo-fallback">أس</div>`
+          }
         </div>
       </div>
       <div class="cliche-panel">
-        ${panelSvg}
+        ${solidGoldSvg}
         <div class="panel-inner">
           ${
             address
@@ -292,5 +297,6 @@ export function buildClicheHeaderHtml(opts: {
         </div>
       </div>
     </div>
+    <div class="cliche-baseline">${solidGoldSvg}</div>
   </div>`
 }

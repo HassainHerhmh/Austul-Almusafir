@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { serverApi } from '../../api/serverApi'
 import { useBrand } from '../../context/BrandContext'
 import {
@@ -8,13 +8,18 @@ import {
 } from '../../print/printSettings'
 import { voucherPreviewHtml, type VoucherPrintKind } from '../../print/voucherDocument'
 
+const MAX_LOGO_BYTES = 900_000
+
 const PREVIEW_KINDS: { id: VoucherPrintKind; label: string }[] = [
   { id: 'receipt', label: 'سند قبض' },
   { id: 'payment', label: 'سند صرف' },
   { id: 'credit_note', label: 'إشعار دائن' },
 ]
 
-const COLOR_FIELDS: { key: keyof PrintSettings; label: string }[] = [
+const COLOR_FIELDS: {
+  key: 'primaryColor' | 'accentColor' | 'titleBgColor' | 'titleTextColor' | 'frameColor'
+  label: string
+}[] = [
   { key: 'primaryColor', label: 'اللون الأساسي (الاسم)' },
   { key: 'accentColor', label: 'الذهبي / اللوحة الجانبية' },
   { key: 'titleBgColor', label: 'خلفية عنوان السند' },
@@ -22,14 +27,24 @@ const COLOR_FIELDS: { key: keyof PrintSettings; label: string }[] = [
   { key: 'frameColor', label: 'لون الإطار' },
 ]
 
+function readAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result))
+    reader.onerror = () => reject(new Error('تعذر قراءة الملف'))
+    reader.readAsDataURL(file)
+  })
+}
+
 export function PrintSettingsPage() {
-  const { name, logoUrl, phones, brandReady } = useBrand()
+  const { name, logoUrl: platformLogo, phones, brandReady } = useBrand()
   const [draft, setDraft] = useState<PrintSettings>(DEFAULT_PRINT_SETTINGS)
   const [previewKind, setPreviewKind] = useState<VoucherPrintKind>('receipt')
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [ready, setReady] = useState(false)
+  const logoFileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -52,11 +67,13 @@ export function PrintSettingsPage() {
     }
   }, [])
 
+  const previewLogo = draft.printLogoUrl || platformLogo
+
   const previewHtml = useMemo(() => {
     if (!brandReady || !ready) return ''
     return voucherPreviewHtml({
       brandName: name,
-      logoUrl,
+      logoUrl: previewLogo,
       phones,
       settings: draft,
       voucher: {
@@ -73,10 +90,30 @@ export function PrintSettingsPage() {
         note: '',
       },
     })
-  }, [brandReady, ready, name, logoUrl, phones, draft, previewKind])
+  }, [brandReady, ready, name, previewLogo, phones, draft, previewKind])
 
   const setField = <K extends keyof PrintSettings>(key: K, value: PrintSettings[K]) => {
     setDraft((prev) => ({ ...prev, [key]: value }))
+  }
+
+  const onPickPrintLogo = async (file: File | null) => {
+    setError(null)
+    setMessage(null)
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      setError('الرجاء اختيار ملف صورة')
+      return
+    }
+    if (file.size > MAX_LOGO_BYTES) {
+      setError('حجم الشعار كبير جداً — اختر صورة أصغر من 900 كيلوبايت')
+      return
+    }
+    try {
+      const dataUrl = await readAsDataUrl(file)
+      setField('printLogoUrl', dataUrl)
+    } catch {
+      setError('تعذر تحميل شعار الطباعة')
+    }
   }
 
   const save = async (e: React.FormEvent) => {
@@ -97,7 +134,8 @@ export function PrintSettingsPage() {
 
   const restore = () => {
     setDraft(DEFAULT_PRINT_SETTINGS)
-    setMessage('تمت استعادة الألوان الذهبية الافتراضية — احفظ لتثبيتها على السيرفر')
+    if (logoFileRef.current) logoFileRef.current.value = ''
+    setMessage('تمت استعادة الافتراضي (بما فيه إزالة شعار الطباعة) — احفظ لتثبيتها على السيرفر')
   }
 
   return (
@@ -106,8 +144,7 @@ export function PrintSettingsPage() {
         <div>
           <h1>إعدادات الطباعة</h1>
           <p>
-            كليشة السندات بنسق الإشعار — عدّل الألوان والعنوان والشعار الذهبي يظهر من إعدادات
-            المنصة
+            كليشة السندات بنسق الإشعار — شعار خاص بالطباعة (منفصل عن المنصة) مع ألوان وحواف ناعمة
           </p>
         </div>
       </header>
@@ -163,7 +200,7 @@ export function PrintSettingsPage() {
 
         <form className="panel" onSubmit={(e) => void save(e)}>
           <div className="panel-head">
-            <h2>نسق الألوان والنصوص</h2>
+            <h2>شعار الطباعة والألوان</h2>
           </div>
 
           {error && <p className="error-msg">{error}</p>}
@@ -172,6 +209,64 @@ export function PrintSettingsPage() {
           )}
 
           <div className="form-grid" style={{ gridTemplateColumns: '1fr' }}>
+            <div className="field">
+              <label>شعار الطباعة (منفصل عن شعار المنصة)</label>
+              <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                {draft.printLogoUrl ? (
+                  <img
+                    src={draft.printLogoUrl}
+                    alt=""
+                    style={{
+                      width: 72,
+                      height: 72,
+                      objectFit: 'contain',
+                      borderRadius: 16,
+                      boxShadow: '0 3px 12px rgba(0,0,0,.12)',
+                      background: '#fff',
+                    }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      width: 72,
+                      height: 72,
+                      borderRadius: 16,
+                      background: '#f3f4f6',
+                      display: 'grid',
+                      placeItems: 'center',
+                      fontSize: 12,
+                      color: '#888',
+                    }}
+                  >
+                    بلا شعار
+                  </div>
+                )}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <input
+                    ref={logoFileRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => void onPickPrintLogo(e.target.files?.[0] ?? null)}
+                  />
+                  {draft.printLogoUrl && (
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => {
+                        setField('printLogoUrl', null)
+                        if (logoFileRef.current) logoFileRef.current.value = ''
+                      }}
+                    >
+                      إزالة شعار الطباعة
+                    </button>
+                  )}
+                </div>
+              </div>
+              <p style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--muted)' }}>
+                إن لم ترفع شعاراً هنا يُستخدم شعار المنصة كاحتياطي. الحواف ناعمة تلقائياً في الطباعة.
+              </p>
+            </div>
+
             {COLOR_FIELDS.map((f) => (
               <div className="field" key={f.key}>
                 <label>{f.label}</label>
@@ -243,10 +338,6 @@ export function PrintSettingsPage() {
               />
             </div>
           </div>
-
-          <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: '0.75rem' }}>
-            الشعار الذهبي يُؤخذ من <strong>إعدادات المنصة</strong> — ارفع شعار الشركة الذهبي هناك.
-          </p>
 
           <div className="actions" style={{ marginTop: '1rem', flexWrap: 'wrap' }}>
             <button type="submit" className="btn btn-primary" disabled={busy}>

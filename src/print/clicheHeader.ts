@@ -97,6 +97,8 @@ export function clicheHeaderCss(s: PrintSettings = DEFAULT_PRINT_SETTINGS) {
       align-items: flex-end;
       justify-content: center;
       padding-bottom: 2px;
+      border-radius: 20px;
+      overflow: hidden;
     }
     .cliche-center img {
       width: 100%;
@@ -105,17 +107,20 @@ export function clicheHeaderCss(s: PrintSettings = DEFAULT_PRINT_SETTINGS) {
       max-height: 112px;
       object-fit: contain;
       display: block;
+      border-radius: 18px;
+      box-shadow: 0 3px 14px rgba(0, 0, 0, 0.14);
     }
     .cliche-center .logo-fallback {
       width: 88px;
       height: 88px;
-      border-radius: 14px;
+      border-radius: 18px;
       background: #2a2a2a;
       color: var(--cliche-gold);
       display: grid;
       place-items: center;
       font-size: 22px;
       font-weight: 800;
+      box-shadow: 0 3px 14px rgba(0, 0, 0, 0.14);
     }
 
     /* —— يسار: لوحة ذهبية كاملة الارتفاع، حافة منحنية نحو الشعار —— */
@@ -165,7 +170,8 @@ export function buildClicheHeaderHtml(opts: {
 }) {
   const s = opts.settings ?? DEFAULT_PRINT_SETTINGS
   const brandName = opts.brandName || 'أسطول المسافر'
-  const logoUrl = opts.logoUrl || null
+  // شعار الطباعة أولاً، ثم شعار المنصة كاحتياطي
+  const logoUrl = s.printLogoUrl || opts.logoUrl || null
   const brandPhoneLines = splitLines(
     (opts.phones || '').replace(/,/g, '\n').replace(/،/g, '\n'),
   )

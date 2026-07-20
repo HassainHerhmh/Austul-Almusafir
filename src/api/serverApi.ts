@@ -436,6 +436,7 @@ export const serverApi = {
       get: () =>
         apiRequest<{
           data: {
+            printLogoUrl: string | null
             primaryColor: string
             accentColor: string
             titleBgColor: string
@@ -449,9 +450,23 @@ export const serverApi = {
             footerNote: string
           }
         }>('/api/settings/print'),
-      save: (data: Record<string, string>) =>
+      save: (data: {
+        printLogoUrl?: string | null
+        primaryColor?: string
+        accentColor?: string
+        titleBgColor?: string
+        titleTextColor?: string
+        frameColor?: string
+        nameEn?: string
+        slogan?: string
+        address?: string
+        managementPhones?: string
+        servicePhones?: string
+        footerNote?: string
+      }) =>
         apiRequest<{
           data: {
+            printLogoUrl: string | null
             primaryColor: string
             accentColor: string
             titleBgColor: string

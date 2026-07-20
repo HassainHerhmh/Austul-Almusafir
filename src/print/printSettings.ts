@@ -1,6 +1,8 @@
 /** إعدادات طباعة السندات والكليشة — ألوان ذهبية افتراضية لأسطول المسافر */
 
 export type PrintSettings = {
+  /** شعار الطباعة (منفصل عن شعار المنصة) */
+  printLogoUrl: string | null
   primaryColor: string
   accentColor: string
   titleBgColor: string
@@ -15,6 +17,7 @@ export type PrintSettings = {
 }
 
 export const DEFAULT_PRINT_SETTINGS: PrintSettings = {
+  printLogoUrl: null,
   primaryColor: '#1e3a5f',
   accentColor: '#c9a227',
   titleBgColor: '#1d2b44',
@@ -30,7 +33,12 @@ export const DEFAULT_PRINT_SETTINGS: PrintSettings = {
 
 export function normalizePrintSettings(raw: Partial<PrintSettings> | null | undefined): PrintSettings {
   const d = DEFAULT_PRINT_SETTINGS
+  const logo =
+    typeof raw?.printLogoUrl === 'string' && raw.printLogoUrl.trim()
+      ? raw.printLogoUrl.trim()
+      : null
   return {
+    printLogoUrl: logo,
     primaryColor: str(raw?.primaryColor, d.primaryColor),
     accentColor: str(raw?.accentColor, d.accentColor),
     titleBgColor: str(raw?.titleBgColor, d.titleBgColor),

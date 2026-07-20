@@ -15,7 +15,7 @@ export async function printStyledVoucher(
   }
   printVoucherDocument({
     brandName: brand.name,
-    logoUrl: brand.logoUrl,
+    logoUrl: settings.printLogoUrl || brand.logoUrl,
     phones: brand.phones,
     settings,
     voucher,

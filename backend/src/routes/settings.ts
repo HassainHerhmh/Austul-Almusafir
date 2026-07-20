@@ -24,6 +24,7 @@ const DEFAULT_BRAND: BrandValue = {
 }
 
 type PrintValue = {
+  printLogoUrl: string | null
   primaryColor: string
   accentColor: string
   titleBgColor: string
@@ -38,6 +39,7 @@ type PrintValue = {
 }
 
 const DEFAULT_PRINT: PrintValue = {
+  printLogoUrl: null,
   primaryColor: '#1e3a5f',
   accentColor: '#c9a227',
   titleBgColor: '#1d2b44',
@@ -54,7 +56,12 @@ const DEFAULT_PRINT: PrintValue = {
 function readPrintValue(raw: Partial<PrintValue> | null): PrintValue {
   const pick = (v: unknown, fallback: string) =>
     typeof v === 'string' && v.trim() ? v.trim() : fallback
+  const logo =
+    typeof raw?.printLogoUrl === 'string' && raw.printLogoUrl.trim()
+      ? raw.printLogoUrl.trim()
+      : null
   return {
+    printLogoUrl: logo,
     primaryColor: pick(raw?.primaryColor, DEFAULT_PRINT.primaryColor),
     accentColor: pick(raw?.accentColor, DEFAULT_PRINT.accentColor),
     titleBgColor: pick(raw?.titleBgColor, DEFAULT_PRINT.titleBgColor),
@@ -149,6 +156,7 @@ settingsRouter.post(
   asyncHandler(async (req, res) => {
     const body = z
       .object({
+        printLogoUrl: z.string().nullable().optional(),
         primaryColor: z.string().min(3).max(32).optional(),
         accentColor: z.string().min(3).max(32).optional(),
         titleBgColor: z.string().min(3).max(32).optional(),
@@ -158,7 +166,7 @@ settingsRouter.post(
         slogan: z.string().max(120).optional(),
         address: z.string().max(300).optional(),
         managementPhones: z.string().max(200).optional(),
-        servicePhones: z.string().max(200).optional(),
+        servicePhones: z.string().max(500).optional(),
         footerNote: z.string().max(300).optional(),
       })
       .safeParse(req.body)
@@ -166,7 +174,19 @@ settingsRouter.post(
 
     const existing = await prisma.appSetting.findUnique({ where: { key: PRINT_KEY } })
     const prev = readPrintValue((existing?.value as Partial<PrintValue> | null) ?? null)
-    const value = readPrintValue({ ...prev, ...body.data })
+
+    let printLogoUrl = prev.printLogoUrl
+    if (body.data.printLogoUrl !== undefined) {
+      printLogoUrl =
+        body.data.printLogoUrl && body.data.printLogoUrl.trim()
+          ? body.data.printLogoUrl.trim()
+          : null
+    }
+    if (printLogoUrl && printLogoUrl.length > 1_200_000) {
+      return fail(res, 'حجم شعار الطباعة كبير جداً')
+    }
+
+    const value = readPrintValue({ ...prev, ...body.data, printLogoUrl })
 
     await prisma.appSetting.upsert({
       where: { key: PRINT_KEY },

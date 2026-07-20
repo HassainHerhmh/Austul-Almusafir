@@ -17,8 +17,7 @@ function splitLines(text: string): string[] {
 }
 
 /**
- * كليشة: إطار أصفر متصل ينقطع في الوسط بالشعار (فاصل)،
- * مع انحناءات من الجهتين — بدون نص إضافي تحت الشعار.
+ * كليشة رقم 2 — ألوان ذهبية عبر SVG لتظهر حتى لو أُلغيت «رسومات الخلفية» في الطباعة.
  */
 export function clicheHeaderCss(s: PrintSettings = DEFAULT_PRINT_SETTINGS) {
   const gold = s.accentColor
@@ -26,151 +25,193 @@ export function clicheHeaderCss(s: PrintSettings = DEFAULT_PRINT_SETTINGS) {
   return `
     .cliche-v2 {
       position: relative;
-      margin: 0 0 18px;
+      margin: 0 0 10px;
       font-family: Tahoma, "Segoe UI", Arial, sans-serif;
       --cliche-gold: ${gold};
       --cliche-ink: ${ink};
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      color-adjust: exact !important;
     }
     .cliche-row {
       display: grid;
-      /* RTL: العمود 1 = يمين الصفحة */
-      grid-template-columns: minmax(0, 1.35fr) 110px minmax(0, 1.45fr);
+      grid-template-columns: minmax(0, 1.28fr) 78px minmax(0, 1.55fr);
       align-items: stretch;
       gap: 0;
-      min-height: 118px;
+      min-height: 96px;
     }
-
-    /* —— يمين: الاسم فوق + شريط الإدارة أسفل (حافة منحنية نحو الشعار) —— */
     .cliche-right {
       display: flex;
       flex-direction: column;
       justify-content: space-between;
       min-width: 0;
-      padding-inline-end: 2px;
+      z-index: 2;
     }
     .cliche-identity {
       text-align: right;
-      padding: 4px 6px 10px;
+      padding: 2px 4px 6px;
     }
     .cliche-identity .ar-name {
-      font-size: 19px;
+      font-size: 15px;
       font-weight: 800;
       color: var(--cliche-ink);
-      line-height: 1.35;
+      line-height: 1.3;
       margin: 0;
     }
     .cliche-identity .en-name {
-      font-size: 12.5px;
+      font-size: 11px;
       font-weight: 700;
       color: var(--cliche-gold);
-      margin-top: 3px;
+      margin-top: 2px;
     }
     .cliche-identity .slogan {
-      font-size: 12px;
+      font-size: 10.5px;
       font-weight: 700;
       color: var(--cliche-gold);
-      margin-top: 4px;
+      margin-top: 2px;
     }
     .cliche-bar-mgmt {
-      background: var(--cliche-gold);
+      position: relative;
       color: var(--cliche-ink);
-      /* الحافة باتجاه الشعار (يسار العنصر نحو الوسط) */
-      border-radius: 42px 0 0 0;
-      padding: 8px 16px 8px 28px;
-      font-size: 12px;
+      margin-left: -22px;
+      padding: 7px 12px 7px 28px;
+      font-size: 11px;
       font-weight: 800;
       text-align: right;
       direction: rtl;
-      min-height: 34px;
+      min-height: 28px;
       display: flex;
       align-items: center;
-      /* في RTL: flex-start = يمين الصفحة */
       justify-content: flex-start;
-      width: 100%;
+      width: calc(100% + 22px);
+      box-sizing: border-box;
+      z-index: 2;
+      overflow: hidden;
+      border-radius: 40px 0 0 0;
     }
-
-    /* —— وسط: الشعار فقط كفاصل أبيض بين طرفي الإطار —— */
+    .cliche-bar-mgmt .gold-svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+    }
+    .cliche-bar-mgmt .bar-text {
+      position: relative;
+      z-index: 1;
+    }
     .cliche-center {
       display: flex;
-      align-items: flex-end;
-      justify-content: center;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
       position: relative;
-      z-index: 4;
-      padding: 0 2px 0;
+      z-index: 5;
+      background: transparent;
+      padding: 0;
+    }
+    .cliche-center .logo-cradle {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      flex: 1;
       background: #fff;
+      border-radius: 40px 40px 0 0;
+      padding: 2px 1px 0;
+      min-height: 100%;
     }
     .cliche-center .logo-wrap {
       width: 100%;
-      max-width: 108px;
+      max-width: 76px;
       display: flex;
       align-items: flex-end;
       justify-content: center;
       padding-bottom: 2px;
-      border-radius: 20px;
+      border-radius: 14px;
       overflow: hidden;
     }
     .cliche-center img {
       width: 100%;
-      max-width: 104px;
+      max-width: 76px;
       height: auto;
-      max-height: 112px;
+      max-height: 86px;
       object-fit: contain;
       display: block;
-      border-radius: 18px;
-      box-shadow: 0 3px 14px rgba(0, 0, 0, 0.14);
+      border-radius: 12px;
     }
     .cliche-center .logo-fallback {
-      width: 88px;
-      height: 88px;
-      border-radius: 18px;
+      width: 64px;
+      height: 64px;
+      border-radius: 12px;
       background: #2a2a2a;
       color: var(--cliche-gold);
       display: grid;
       place-items: center;
-      font-size: 22px;
+      font-size: 18px;
       font-weight: 800;
-      box-shadow: 0 3px 14px rgba(0, 0, 0, 0.14);
     }
-
-    /* —— يسار: لوحة ذهبية كاملة الارتفاع، حافة منحنية نحو الشعار —— */
     .cliche-panel {
-      background: var(--cliche-gold);
+      position: relative;
       color: var(--cliche-ink);
-      /* انحناء داخلي باتجاه الشعار (الحافة اليمنى للوحة نحو الوسط) */
-      border-radius: 16px 70px 70px 16px;
-      padding: 12px 22px 12px 14px;
-      min-height: 118px;
+      margin-right: -22px;
+      width: calc(100% + 22px);
+      box-sizing: border-box;
+      padding: 8px 28px 8px 10px;
+      min-height: 96px;
       display: flex;
       flex-direction: column;
       justify-content: center;
-      gap: 7px;
-      position: relative;
+      gap: 5px;
       z-index: 2;
+      overflow: hidden;
+      border-radius: 14px 80px 36px 12px;
+    }
+    .cliche-panel .gold-svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+    }
+    .cliche-panel .panel-inner {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
     }
     .cliche-panel .addr {
-      font-size: 12px;
+      font-size: 10.5px;
       font-weight: 800;
       display: flex;
       align-items: flex-start;
-      gap: 5px;
-      line-height: 1.4;
+      gap: 4px;
+      line-height: 1.35;
     }
     .cliche-panel .pill {
-      border: 1.6px solid #fff;
+      border: 1.4px solid #fff;
       border-radius: 999px;
-      padding: 5px 12px;
-      font-size: 11px;
+      padding: 3px 10px;
+      font-size: 10px;
       font-weight: 700;
       color: var(--cliche-ink);
-      background: rgba(255,255,255,.12);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
+    @media print {
+      .cliche-v2, .cliche-panel, .cliche-bar-mgmt, .gold-svg {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+      }
+    }
   `
 }
 
-/** HTML كليشة — الشعار فاصل بلا نص إضافي تحته */
+/** HTML كليشة مع ذهب SVG يطبع دائماً */
 export function buildClicheHeaderHtml(opts: {
   brandName: string
   logoUrl?: string | null
@@ -179,12 +220,12 @@ export function buildClicheHeaderHtml(opts: {
 }) {
   const s = opts.settings ?? DEFAULT_PRINT_SETTINGS
   const brandName = opts.brandName || 'أسطول المسافر'
-  // شعار الطباعة أولاً، ثم شعار المنصة كاحتياطي
   const logoUrl = s.printLogoUrl || opts.logoUrl || null
   const brandPhoneLines = splitLines(
     (opts.phones || '').replace(/,/g, '\n').replace(/،/g, '\n'),
   )
   const brandPhonesJoined = brandPhoneLines.join(' - ')
+  const gold = s.accentColor
 
   const mgmt = s.managementPhones || brandPhonesJoined
   const address = s.address || ''
@@ -203,6 +244,14 @@ export function buildClicheHeaderHtml(opts: {
     .map((line) => `<div class="pill">${escapeHtml(line)}</div>`)
     .join('')
 
+  const panelSvg = `<svg class="gold-svg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 400 140" aria-hidden="true">
+    <path fill="${escapeHtml(gold)}" d="M18,0 H270 C340,0 400,28 400,70 C400,112 340,140 270,140 H18 C8,140 0,132 0,122 V18 C0,8 8,0 18,0 Z"/>
+  </svg>`
+
+  const barSvg = `<svg class="gold-svg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 400 40" aria-hidden="true">
+    <path fill="${escapeHtml(gold)}" d="M48,0 H400 V40 H0 C28,40 48,22 48,0 Z"/>
+  </svg>`
+
   return `
   <div class="cliche-v2">
     <div class="cliche-row">
@@ -212,29 +261,35 @@ export function buildClicheHeaderHtml(opts: {
           ${s.nameEn ? `<div class="en-name">${escapeHtml(s.nameEn)}</div>` : ''}
           ${s.slogan ? `<div class="slogan">${escapeHtml(s.slogan)}</div>` : ''}
         </div>
-        <div class="cliche-bar-mgmt">${
-          mgmt ? `الإدارة : ${escapeHtml(mgmt)}` : '&nbsp;'
-        }</div>
+        <div class="cliche-bar-mgmt">
+          ${barSvg}
+          <span class="bar-text">${mgmt ? `الإدارة : ${escapeHtml(mgmt)}` : '&nbsp;'}</span>
+        </div>
       </div>
       <div class="cliche-center">
-        <div class="logo-wrap">
-          ${
-            logoUrl
-              ? `<img src="${logoUrl}" alt="" />`
-              : `<div class="logo-fallback">أس</div>`
-          }
+        <div class="logo-cradle">
+          <div class="logo-wrap">
+            ${
+              logoUrl
+                ? `<img src="${logoUrl}" alt="" />`
+                : `<div class="logo-fallback">أس</div>`
+            }
+          </div>
         </div>
       </div>
       <div class="cliche-panel">
-        ${
-          address
-            ? `<div class="addr"><span aria-hidden="true">📍</span><span>${escapeHtml(address)}</span></div>`
-            : ''
-        }
-        ${
-          pillHtml ||
-          `<div class="pill">خدمة العملاء : ${escapeHtml(brandPhonesJoined || '—')}</div>`
-        }
+        ${panelSvg}
+        <div class="panel-inner">
+          ${
+            address
+              ? `<div class="addr"><span aria-hidden="true">📍</span><span>${escapeHtml(address)}</span></div>`
+              : ''
+          }
+          ${
+            pillHtml ||
+            `<div class="pill">خدمة العملاء : ${escapeHtml(brandPhonesJoined || '—')}</div>`
+          }
+        </div>
       </div>
     </div>
   </div>`

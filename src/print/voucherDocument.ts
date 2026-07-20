@@ -66,7 +66,7 @@ function formatStamp() {
   })
 }
 
-/** بناء HTML كليشة + سند بنسق الإشعار */
+/** بناء HTML كليشة + سند — صفحة واحدةحدة A4/A5 مع ألوان طباعة ثابتة */
 export function buildVoucherDocumentHtml(opts: {
   brandName: string
   logoUrl?: string | null
@@ -89,6 +89,8 @@ export function buildVoucherDocumentHtml(opts: {
     phones: opts.phones,
     settings: s,
   })
+  const titleBg = s.titleBgColor
+  const titleFg = s.titleTextColor
 
   return `<!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -97,60 +99,83 @@ export function buildVoucherDocumentHtml(opts: {
   <title>${escapeHtml(title)} ${escapeHtml(opts.voucher.number)}</title>
   <style>
     * { box-sizing: border-box; }
-    body {
+    html, body {
       margin: 0;
-      padding: 18px;
+      padding: 0;
       font-family: Tahoma, "Segoe UI", Arial, sans-serif;
       color: #1a1a1a;
       background: #fff;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      color-adjust: exact !important;
     }
-    .sheet { max-width: 820px; margin: 0 auto; }
+    @page {
+      size: A4 portrait;
+      margin: 8mm;
+    }
+    body { padding: 8px; }
+    .sheet {
+      max-width: 190mm;
+      margin: 0 auto;
+    }
     ${clicheHeaderCss(s)}
     .title-row {
       display: grid;
       grid-template-columns: 1fr auto 1fr;
-      gap: 8px;
+      gap: 6px;
       align-items: center;
-      margin: 14px 0 12px;
+      margin: 8px 0 8px;
     }
     .meta-box, .title-box {
-      border: 1.5px solid ${s.frameColor};
-      border-radius: 6px;
-      padding: 8px 12px;
-      font-size: 13px;
+      border: 1.3px solid ${s.frameColor};
+      border-radius: 5px;
+      padding: 5px 10px;
+      font-size: 12px;
       font-weight: 700;
       text-align: center;
-      min-height: 40px;
+      min-height: 30px;
       display: grid;
       place-items: center;
     }
     .title-box {
-      background: ${s.titleBgColor};
-      color: ${s.titleTextColor};
-      border-color: ${s.titleBgColor};
-      min-width: 180px;
-      font-size: 16px;
-      padding: 10px 22px;
+      position: relative;
+      overflow: hidden;
+      color: ${titleFg};
+      border-color: ${titleBg};
+      min-width: 140px;
+      font-size: 14px;
+      padding: 6px 16px;
+    }
+    .title-box .title-svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+    }
+    .title-box .title-label {
+      position: relative;
+      z-index: 1;
     }
     .grid {
-      border: 1.5px solid ${s.frameColor};
+      border: 1.3px solid ${s.frameColor};
       border-radius: 4px;
       overflow: hidden;
     }
     .row {
       display: grid;
       border-bottom: 1px solid ${s.frameColor};
-      min-height: 38px;
+      min-height: 28px;
     }
     .row:last-child { border-bottom: none; }
     .row-2 { grid-template-columns: 1fr 1fr; }
     .row-1 { grid-template-columns: 1fr; }
     .cell {
-      padding: 8px 12px;
-      font-size: 13px;
+      padding: 5px 8px;
+      font-size: 11.5px;
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 5px;
     }
     .row-2 .cell + .cell { border-inline-start: 1px solid ${s.frameColor}; }
     .label { color: #555; font-weight: 700; white-space: nowrap; }
@@ -160,37 +185,56 @@ export function buildVoucherDocumentHtml(opts: {
       background: #f3f5f8;
       font-weight: 800;
       justify-content: center;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
     }
     .desc-head {
       background: #eef2f7;
       font-weight: 800;
       justify-content: center;
-      min-height: 34px;
+      min-height: 26px;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
     }
-    .desc-body { min-height: 56px; align-items: flex-start; }
+    .desc-body {
+      min-height: 36px;
+      max-height: 72px;
+      overflow: hidden;
+      align-items: flex-start;
+    }
     .note { color: #b91c1c; font-weight: 700; }
     .footer {
-      margin-top: 16px;
+      margin-top: 8px;
       text-align: center;
-      font-size: 12px;
+      font-size: 10.5px;
       color: #444;
     }
     .footer .line {
       border-top: 1px solid #bbb;
       width: 70%;
-      margin: 0 auto 8px;
-      position: relative;
+      margin: 0 auto 6px;
     }
     .footer .stamp {
-      margin-top: 10px;
-      font-size: 11px;
+      margin-top: 4px;
+      font-size: 10px;
       color: #666;
       text-align: left;
       direction: ltr;
     }
     @media print {
-      body { padding: 0; }
+      body { padding: 0 !important; }
       .sheet { max-width: none; }
+      .cliche-v2, .title-box, .head-cell, .desc-head, .gold-svg, .title-svg {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+      }
+    }
+    @media print and (max-height: 160mm) {
+      /* A5 تقريباً — ضغط إضافي */
+      .cliche-row { min-height: 78px; }
+      .cliche-center img { max-height: 68px; }
+      .cell { padding: 4px 6px; font-size: 10.5px; }
     }
   </style>
 </head>
@@ -200,7 +244,12 @@ export function buildVoucherDocumentHtml(opts: {
 
     <div class="title-row">
       <div class="meta-box">الرقم: ${escapeHtml(opts.voucher.number || '—')}</div>
-      <div class="title-box">${escapeHtml(title)}</div>
+      <div class="title-box">
+        <svg class="title-svg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 200 40" aria-hidden="true">
+          <rect width="200" height="40" rx="5" fill="${escapeHtml(titleBg)}"/>
+        </svg>
+        <span class="title-label">${escapeHtml(title)}</span>
+      </div>
       <div class="meta-box">التاريخ: ${escapeHtml(opts.voucher.date || '—')}</div>
     </div>
 

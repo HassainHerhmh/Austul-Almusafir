@@ -6,7 +6,7 @@ import { PAYMENT_LABELS, formatMoney, formatTimeAr, todayStr } from '../../compo
 import { useApp } from '../../context/AppContext'
 import { useBrand } from '../../context/BrandContext'
 import type { Booking, PaymentMethod } from '../../types'
-import { printTableReport } from '../../utils/importExport'
+import { printTableReport, downloadExcel } from '../../utils/importExport'
 
 const PRINT_COLUMNS = [
   { key: 'passenger', label: 'الراكب' },
@@ -91,7 +91,9 @@ export function OfficeBookingsPage() {
   const [ticketBooking, setTicketBooking] = useState<Booking | null>(null)
   const [editBooking, setEditBooking] = useState<Booking | null>(null)
   const [filterDate, setFilterDate] = useState(todayStr())
+  const [printMenuOpen, setPrintMenuOpen] = useState(false)
   const [printOpen, setPrintOpen] = useState(false)
+  const [printFormat, setPrintFormat] = useState<'excel' | 'pdf'>('pdf')
   const [printCols, setPrintCols] = useState<Record<PrintColKey, boolean>>(DEFAULT_PRINT_COLS)
   const [editForm, setEditForm] = useState({
     passengerName: '',
@@ -198,20 +200,39 @@ export function OfficeBookingsPage() {
     }
   }
 
+  const openPrintModal = (format: 'excel' | 'pdf') => {
+    setPrintFormat(format)
+    setPrintMenuOpen(false)
+    setPrintOpen(true)
+  }
+
   const doPrint = () => {
     const selected = PRINT_COLUMNS.filter((c) => printCols[c.key])
     if (selected.length === 0) {
       alert('اختر عموداً واحداً على الأقل')
       return
     }
-    printTableReport({
-      title: `حجوزات ${currentOffice?.name ?? ''}`,
-      companyName,
-      logoUrl,
-      phones,
-      headers: selected.map((c) => c.label),
-      rows: myBookings.map((b) => selected.map((c) => printCell(b, c.key))),
-    })
+    const headers = selected.map((c) => c.label)
+    const rows = myBookings.map((b) => selected.map((c) => printCell(b, c.key)))
+    const title = `حجوزات ${currentOffice?.name ?? ''}`
+
+    if (printFormat === 'excel') {
+      downloadExcel(
+        `حجوزات_${currentOffice?.name ?? 'المكتب'}_${filterDate || todayStr()}.xlsx`,
+        rows.map((row) =>
+          Object.fromEntries(headers.map((h, i) => [h, row[i] ?? ''])),
+        ),
+      )
+    } else {
+      printTableReport({
+        title,
+        companyName,
+        logoUrl,
+        phones,
+        headers,
+        rows,
+      })
+    }
     setPrintOpen(false)
   }
 
@@ -520,9 +541,59 @@ export function OfficeBookingsPage() {
             >
               اليوم
             </button>
-            <button type="button" className="btn btn-primary btn-sm" onClick={() => setPrintOpen(true)}>
-              طباعة
-            </button>
+            <div style={{ position: 'relative' }}>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={() => setPrintMenuOpen((v) => !v)}
+                aria-expanded={printMenuOpen}
+              >
+                طباعة
+              </button>
+              {printMenuOpen && (
+                <>
+                  <div
+                    style={{ position: 'fixed', inset: 0, zIndex: 40 }}
+                    onClick={() => setPrintMenuOpen(false)}
+                  />
+                  <div
+                    role="menu"
+                    style={{
+                      position: 'absolute',
+                      bottom: 'calc(100% + 6px)',
+                      left: 0,
+                      zIndex: 50,
+                      minWidth: 140,
+                      background: 'var(--panel, #fff)',
+                      border: '1px solid var(--border, #e5e7eb)',
+                      borderRadius: 10,
+                      boxShadow: '0 8px 24px rgba(0,0,0,.12)',
+                      overflow: 'hidden',
+                      padding: 4,
+                    }}
+                  >
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="btn btn-ghost btn-sm"
+                      style={{ width: '100%', justifyContent: 'flex-start' }}
+                      onClick={() => openPrintModal('excel')}
+                    >
+                      Excel
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="btn btn-ghost btn-sm"
+                      style={{ width: '100%', justifyContent: 'flex-start' }}
+                      onClick={() => openPrintModal('pdf')}
+                    >
+                      PDF
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
         <div className="table-wrap">
@@ -625,9 +696,10 @@ export function OfficeBookingsPage() {
       {printOpen && (
         <div className="modal-backdrop" onClick={() => setPrintOpen(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h2>طباعة الحجوزات</h2>
+            <h2>{printFormat === 'excel' ? 'تصدير Excel' : 'طباعة PDF'}</h2>
             <p style={{ color: 'var(--muted)', marginTop: 0 }}>
-              اختر الأعمدة للطباعة (حسب فلتر التاريخ المحدد).
+              اختر الأعمدة {printFormat === 'excel' ? 'للتصدير' : 'للطباعة'} (حسب فلتر التاريخ
+              المحدد).
             </p>
             <div className="actions" style={{ marginBottom: '0.5rem' }}>
               <button
@@ -673,7 +745,7 @@ export function OfficeBookingsPage() {
             </div>
             <div className="actions">
               <button type="button" className="btn btn-primary" onClick={doPrint}>
-                طباعة
+                {printFormat === 'excel' ? 'تصدير Excel' : 'طباعة PDF'}
               </button>
               <button type="button" className="btn btn-ghost" onClick={() => setPrintOpen(false)}>
                 إغلاق

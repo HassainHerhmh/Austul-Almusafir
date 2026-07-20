@@ -6,6 +6,7 @@ import markerIcon from 'leaflet/dist/images/marker-icon.png'
 import markerShadow from 'leaflet/dist/images/marker-shadow.png'
 import 'leaflet/dist/leaflet.css'
 import { serverApi } from '../../api/serverApi'
+import { useApp } from '../../context/AppContext'
 import { formatTimeAr } from '../../components/utils'
 
 delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl
@@ -18,6 +19,7 @@ L.Icon.Default.mergeOptions({
 type LiveItem = Awaited<ReturnType<typeof serverApi.tracking.live>>['list'][number]
 type ShareItem = Awaited<ReturnType<typeof serverApi.tracking.shares.list>>['list'][number]
 type ShareableTrip = Awaited<ReturnType<typeof serverApi.tracking.shareableTrips>>['list'][number]
+type OfficeAccessItem = Awaited<ReturnType<typeof serverApi.tracking.officeAccess.list>>['list'][number]
 type TrackStatus = 'live' | 'interrupted' | 'stopped'
 
 const STALE_MS = 2 * 60 * 1000
@@ -95,6 +97,7 @@ function shareUrl(urlPath: string) {
 }
 
 export function AdminTrackingPage() {
+  const { state } = useApp()
   const [list, setList] = useState<LiveItem[]>([])
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -107,6 +110,19 @@ export function AdminTrackingPage() {
   const [shareError, setShareError] = useState<string | null>(null)
   const [lastCreatedUrl, setLastCreatedUrl] = useState<string | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
+
+  const [accessOpen, setAccessOpen] = useState(false)
+  const [accessTrips, setAccessTrips] = useState<ShareableTrip[]>([])
+  const [accessList, setAccessList] = useState<OfficeAccessItem[]>([])
+  const [accessTripId, setAccessTripId] = useState('')
+  const [accessOfficeId, setAccessOfficeId] = useState('')
+  const [accessBusy, setAccessBusy] = useState(false)
+  const [accessError, setAccessError] = useState<string | null>(null)
+
+  const offices = useMemo(
+    () => [...state.offices].filter((o) => o.status === 'active').sort((a, b) => a.name.localeCompare(b.name, 'ar')),
+    [state.offices],
+  )
 
   const refresh = useCallback(async () => {
     try {
@@ -224,6 +240,65 @@ export function AdminTrackingPage() {
     }
   }
 
+  const loadAccessData = useCallback(async () => {
+    setAccessError(null)
+    try {
+      const [tripsRes, accessRes] = await Promise.all([
+        serverApi.tracking.shareableTrips(),
+        serverApi.tracking.officeAccess.list(),
+      ])
+      setAccessTrips(tripsRes.list ?? [])
+      setAccessList(accessRes.list ?? [])
+      setAccessTripId((prev) => prev || tripsRes.list?.[0]?.id || '')
+      setAccessOfficeId((prev) => prev || offices[0]?.id || '')
+    } catch (e) {
+      setAccessError(e instanceof Error ? e.message : 'فشل تحميل سماح المكاتب')
+    }
+  }, [offices])
+
+  const openAccessModal = () => {
+    setAccessOpen(true)
+    void loadAccessData()
+  }
+
+  const createAccess = async () => {
+    if (!accessTripId) {
+      setAccessError('اختر الرحلة أولاً')
+      return
+    }
+    if (!accessOfficeId) {
+      setAccessError('اختر المكتب أولاً')
+      return
+    }
+    setAccessBusy(true)
+    setAccessError(null)
+    try {
+      const res = await serverApi.tracking.officeAccess.create({
+        tripId: accessTripId,
+        officeId: accessOfficeId,
+      })
+      setAccessList((prev) => [res.access, ...prev.filter((a) => a.id !== res.access.id)])
+    } catch (e) {
+      setAccessError(e instanceof Error ? e.message : 'فشل إضافة السماح')
+    } finally {
+      setAccessBusy(false)
+    }
+  }
+
+  const deleteAccess = async (id: string) => {
+    if (!window.confirm('إلغاء سماح المكتب بتتبع هذه الرحلة؟')) return
+    setAccessBusy(true)
+    setAccessError(null)
+    try {
+      await serverApi.tracking.officeAccess.remove(id)
+      setAccessList((prev) => prev.filter((a) => a.id !== id))
+    } catch (e) {
+      setAccessError(e instanceof Error ? e.message : 'فشل إلغاء السماح')
+    } finally {
+      setAccessBusy(false)
+    }
+  }
+
   const points = useMemo(
     () => list.map((i) => ({ lat: i.lat, lng: i.lng })),
     [list],
@@ -265,6 +340,9 @@ export function AdminTrackingPage() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <button type="button" className="btn btn-primary" onClick={openAccessModal}>
+            سماح للمكتب
+          </button>
           <button type="button" className="btn btn-primary" onClick={openShareModal}>
             رابط التتبع
           </button>
@@ -540,6 +618,133 @@ export function AdminTrackingPage() {
                     <tr>
                       <td colSpan={4} className="empty">
                         لا توجد روابط بعد — أنشئ رابطاً من القائمة أعلاه
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {accessOpen && (
+        <div className="modal-backdrop" onClick={() => setAccessOpen(false)}>
+          <div
+            className="modal modal-wide"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: 720 }}
+          >
+            <h2>سماح مكتب بتتبع رحلة</h2>
+            <p style={{ marginTop: 0, opacity: 0.85 }}>
+              اختر الرحلة والمكتب المسموح له بمشاهدة خريطة التتبع من صفحة المكتب.
+            </p>
+
+            {accessError && <p className="error-msg">{accessError}</p>}
+
+            <div className="form-grid" style={{ marginBottom: '1rem' }}>
+              <div className="field">
+                <label>الرحلة</label>
+                <select
+                  value={accessTripId}
+                  onChange={(e) => setAccessTripId(e.target.value)}
+                  disabled={accessBusy}
+                >
+                  <option value="">— اختر —</option>
+                  {accessTrips.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {[t.busNumber, t.plateNumber].filter(Boolean).join(' — ')} · {t.label} ·{' '}
+                      {t.date} {t.departureTime ? formatTimeAr(t.departureTime) : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="field">
+                <label>المكتب</label>
+                <select
+                  value={accessOfficeId}
+                  onChange={(e) => setAccessOfficeId(e.target.value)}
+                  disabled={accessBusy}
+                >
+                  <option value="">— اختر —</option>
+                  {offices.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.name} — {o.city}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={accessBusy || !accessTripId || !accessOfficeId}
+                onClick={() => void createAccess()}
+              >
+                إضافة السماح
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                disabled={accessBusy}
+                onClick={() => void loadAccessData()}
+              >
+                تحديث القائمة
+              </button>
+              <button type="button" className="btn btn-ghost" onClick={() => setAccessOpen(false)}>
+                إغلاق
+              </button>
+            </div>
+
+            <div className="panel-head" style={{ padding: 0, marginBottom: '0.5rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1rem' }}>
+                المكاتب المسموح لها ({accessList.length})
+              </h3>
+            </div>
+            <div className="table-wrap">
+              <table className="data">
+                <thead>
+                  <tr>
+                    <th>الرحلة</th>
+                    <th>المكتب</th>
+                    <th>تاريخ السماح</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {accessList.map((a) => (
+                    <tr key={a.id}>
+                      <td>
+                        <div>
+                          {[a.trip.busNumber, a.trip.plateNumber].filter(Boolean).join(' — ')}
+                        </div>
+                        <div style={{ fontSize: 12, opacity: 0.8 }}>{a.trip.label}</div>
+                      </td>
+                      <td>
+                        {a.officeName}
+                        {a.officeCity ? ` — ${a.officeCity}` : ''}
+                      </td>
+                      <td style={{ whiteSpace: 'nowrap' }}>
+                        {a.createdAt.slice(0, 19).replace('T', ' ')}
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="btn btn-ghost"
+                          disabled={accessBusy}
+                          onClick={() => void deleteAccess(a.id)}
+                        >
+                          إلغاء
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {accessList.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="empty">
+                        لا يوجد سماح بعد — أضف رحلة ومكتباً أعلاه
                       </td>
                     </tr>
                   )}

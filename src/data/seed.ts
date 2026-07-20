@@ -43,7 +43,6 @@ export function loadState(): AppState {
           ...o,
           ledgerAccountId: o.ledgerAccountId ?? null,
           commissionPercent: Number(o.commissionPercent) || 0,
-          trackingEnabled: !!o.trackingEnabled,
         })),
         customers: (parsed.customers ?? []).map((c) => ({
           ...c,

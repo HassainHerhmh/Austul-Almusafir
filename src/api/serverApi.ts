@@ -22,7 +22,6 @@ function asOffice(o: any): Office {
     subscription: o.subscription,
     ledgerAccountId: o.ledgerAccountId ?? null,
     commissionPercent: Number(o.commissionPercent) || 0,
-    trackingEnabled: !!o.trackingEnabled,
     createdAt: String(o.createdAt).slice(0, 10),
   }
 }
@@ -500,7 +499,6 @@ export const serverApi = {
       }>('/api/tracking/live'),
     officeLive: () =>
       apiRequest<{
-        enabled: boolean
         list: Array<{
           tripId: string
           lat: number
@@ -523,6 +521,55 @@ export const serverApi = {
           }
         }>
       }>('/api/tracking/office-live'),
+    officeAccess: {
+      list: () =>
+        apiRequest<{
+          list: Array<{
+            id: string
+            tripId: string
+            officeId: string
+            officeName: string
+            officeCity: string
+            createdAt: string
+            trip: {
+              id: string
+              date: string
+              departureTime: string
+              status: string
+              label: string
+              busNumber: string
+              plateNumber: string
+            }
+          }>
+        }>('/api/tracking/office-access'),
+      create: (data: { tripId: string; officeId: string }) =>
+        apiRequest<{
+          access: {
+            id: string
+            tripId: string
+            officeId: string
+            officeName: string
+            officeCity: string
+            createdAt: string
+            trip: {
+              id: string
+              date: string
+              departureTime: string
+              status: string
+              label: string
+              busNumber: string
+              plateNumber: string
+            }
+          }
+        }>('/api/tracking/office-access', {
+          method: 'POST',
+          body: JSON.stringify(data),
+        }),
+      remove: (id: string) =>
+        apiRequest<{ deleted: boolean }>(`/api/tracking/office-access/${id}`, {
+          method: 'DELETE',
+        }),
+    },
     shareableTrips: () =>
       apiRequest<{
         list: Array<{

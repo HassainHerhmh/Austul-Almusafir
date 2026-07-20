@@ -17,14 +17,13 @@ model Office {
   ledgerAccountId Int?
   /** نسبة عمولة المكتب من سعر التذكرة (مثلاً 10 = 10%) */
   commissionPercent Float    @default(0)
-  /** السماح للمكتب بصفحة تتبع الباصات */
-  trackingEnabled Boolean    @default(false)
   createdAt       DateTime   @default(now())
   users           User[]
   customers       Customer[]
   bookings        Booking[]
   vouchers        Voucher[]
   campaignTrips   Trip[]    @relation("CampaignOffice")
+  trackingAccess  TripOfficeTrackingAccess[]
 }
 
 model User {
@@ -113,9 +112,24 @@ model Trip {
   bookings           Booking[]
   location           TripLocation?
   trackingShares     TripTrackingShare[]
+  officeTrackingAccess TripOfficeTrackingAccess[]
   createdAt          DateTime   @default(now())
 
   @@index([campaignOfficeId])
+}
+
+/** سماح أدمن لمكتب معيّن بتتبع رحلة معيّنة */
+model TripOfficeTrackingAccess {
+  id        String   @id @default(cuid())
+  tripId    String
+  trip      Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  officeId  String
+  office    Office   @relation(fields: [officeId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([tripId, officeId])
+  @@index([officeId])
+  @@index([tripId])
 }
 
 /** رابط تتبع عام لرحلة — يُشارك بدون تسجيل دخول */

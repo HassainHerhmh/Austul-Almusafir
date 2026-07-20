@@ -337,7 +337,7 @@ trackingRouter.get(
   }),
 )
 
-/** تتبع الوكيل — فقط إن كان المكتب مفعّلاً، ولرحلاته (حجوزات أو حملة) */
+/** تتبع الوكيل — فقط الرحلات التي سمح بها الأدمن لهذا المكتب */
 trackingRouter.get(
   '/office-live',
   requireRoles('office_manager', 'booking_clerk', 'accountant'),
@@ -345,28 +345,14 @@ trackingRouter.get(
     const officeId = req.user!.officeId
     if (!officeId) return fail(res, 'المكتب غير مرتبط بالحساب', 400)
 
-    const office = await prisma.office.findUnique({ where: { id: officeId } })
-    if (!office) return fail(res, 'المكتب غير موجود', 404)
-
-    if (!office.trackingEnabled) {
-      return ok(res, { enabled: false, list: [] })
-    }
-
-    const booked = await prisma.booking.findMany({
-      where: { officeId, status: 'confirmed' },
+    const access = await prisma.tripOfficeTrackingAccess.findMany({
+      where: { officeId },
       select: { tripId: true },
-      distinct: ['tripId'],
     })
-    const campaigns = await prisma.trip.findMany({
-      where: { campaignOfficeId: officeId },
-      select: { id: true },
-    })
-    const tripIds = [
-      ...new Set([...booked.map((b) => b.tripId), ...campaigns.map((t) => t.id)]),
-    ]
+    const tripIds = access.map((a) => a.tripId)
 
     if (tripIds.length === 0) {
-      return ok(res, { enabled: true, list: [] })
+      return ok(res, { list: [] })
     }
 
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000)
@@ -388,7 +374,6 @@ trackingRouter.get(
     })
 
     return ok(res, {
-      enabled: true,
       list: list.map((loc) => ({
         tripId: loc.tripId,
         lat: loc.lat,
@@ -411,6 +396,118 @@ trackingRouter.get(
         },
       })),
     })
+  }),
+)
+
+function mapOfficeAccessRow(row: {
+  id: string
+  tripId: string
+  officeId: string
+  createdAt: Date
+  office: { id: string; name: string; city: string }
+  trip: {
+    date: string
+    departureTime: string
+    status: string
+    bus: { busNumber: string; plateNumber: string }
+    stops: { destination: { name: string }; sortOrder: number }[]
+  }
+}) {
+  return {
+    id: row.id,
+    tripId: row.tripId,
+    officeId: row.officeId,
+    officeName: row.office.name,
+    officeCity: row.office.city,
+    createdAt: row.createdAt.toISOString(),
+    trip: {
+      id: row.tripId,
+      date: row.trip.date,
+      departureTime: row.trip.departureTime,
+      status: row.trip.status,
+      label: tripLabel(row.trip.stops) || row.tripId,
+      busNumber: row.trip.bus.busNumber,
+      plateNumber: row.trip.bus.plateNumber,
+    },
+  }
+}
+
+const officeAccessInclude = {
+  office: { select: { id: true, name: true, city: true } },
+  trip: {
+    include: {
+      bus: true,
+      stops: { include: { destination: true }, orderBy: { sortOrder: 'asc' as const } },
+    },
+  },
+}
+
+trackingRouter.get(
+  '/office-access',
+  requireAdmin,
+  asyncHandler(async (_req, res) => {
+    const list = await prisma.tripOfficeTrackingAccess.findMany({
+      include: officeAccessInclude,
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+    })
+    return ok(res, { list: list.map(mapOfficeAccessRow) })
+  }),
+)
+
+trackingRouter.post(
+  '/office-access',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const body = z
+      .object({
+        tripId: z.string().min(1),
+        officeId: z.string().min(1),
+      })
+      .safeParse(req.body)
+    if (!body.success) return fail(res, 'بيانات غير صالحة')
+
+    const trip = await prisma.trip.findUnique({ where: { id: body.data.tripId } })
+    if (!trip) return fail(res, 'الرحلة غير موجودة', 404)
+    if (['cancelled', 'completed'].includes(trip.status)) {
+      return fail(res, 'لا يمكن السماح بتتبع رحلة منتهية أو ملغاة', 400)
+    }
+
+    const office = await prisma.office.findUnique({ where: { id: body.data.officeId } })
+    if (!office) return fail(res, 'المكتب غير موجود', 404)
+
+    const existing = await prisma.tripOfficeTrackingAccess.findUnique({
+      where: {
+        tripId_officeId: {
+          tripId: body.data.tripId,
+          officeId: body.data.officeId,
+        },
+      },
+    })
+    if (existing) return fail(res, 'هذا المكتب مسموح له مسبقاً بهذه الرحلة')
+
+    const row = await prisma.tripOfficeTrackingAccess.create({
+      data: {
+        tripId: body.data.tripId,
+        officeId: body.data.officeId,
+      },
+      include: officeAccessInclude,
+    })
+
+    return ok(res, { access: mapOfficeAccessRow(row) }, 201)
+  }),
+)
+
+trackingRouter.delete(
+  '/office-access/:id',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const id = String(req.params.id || '')
+    const existing = await prisma.tripOfficeTrackingAccess.findUnique({ where: { id } })
+    if (!existing) return fail(res, 'السماح غير موجود', 404)
+
+    await prisma.tripOfficeTrackingAccess.delete({ where: { id } })
+    return ok(res, { deleted: true })
   }),
 )
 

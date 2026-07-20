@@ -92,14 +92,12 @@ function FitBounds({
 
 export function OfficeTrackingPage() {
   const [list, setList] = useState<LiveItem[]>([])
-  const [enabled, setEnabled] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   const refresh = useCallback(async () => {
     try {
       const res = await serverApi.tracking.officeLive()
-      setEnabled(res.enabled !== false)
       setList(res.list ?? [])
       setError(null)
     } catch (e) {
@@ -128,7 +126,7 @@ export function OfficeTrackingPage() {
     [list],
   )
 
-  const showEmpty = !loading && (!enabled || list.length === 0)
+  const showEmpty = !loading && list.length === 0
   const center: [number, number] = points[0]
     ? [points[0].lat, points[0].lng]
     : [15.3694, 44.191]

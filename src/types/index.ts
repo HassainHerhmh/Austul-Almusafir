@@ -20,8 +20,6 @@ export interface Office {
   ledgerAccountId: number | null
   /** نسبة عمولة المكتب من سعر التذكرة */
   commissionPercent: number
-  /** السماح للمكتب بتتبع الباصات */
-  trackingEnabled: boolean
 }
 
 export interface User {

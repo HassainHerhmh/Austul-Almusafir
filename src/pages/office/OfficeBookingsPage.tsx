@@ -213,14 +213,16 @@ export function OfficeBookingsPage() {
       return
     }
     const headers = selected.map((c) => c.label)
-    const rows = myBookings.map((b) => selected.map((c) => printCell(b, c.key)))
+    const dataRows = myBookings.map((b) => selected.map((c) => printCell(b, c.key)))
     const title = `حجوزات ${currentOffice?.name ?? ''}`
+    const headersWithNum = ['#', ...headers]
+    const rowsWithNum = dataRows.map((row, i) => [String(i + 1), ...row])
 
     if (printFormat === 'excel') {
       downloadExcel(
         `حجوزات_${currentOffice?.name ?? 'المكتب'}_${filterDate || todayStr()}.xlsx`,
-        rows.map((row) =>
-          Object.fromEntries(headers.map((h, i) => [h, row[i] ?? ''])),
+        rowsWithNum.map((row) =>
+          Object.fromEntries(headersWithNum.map((h, i) => [h, row[i] ?? ''])),
         ),
       )
     } else {
@@ -229,8 +231,8 @@ export function OfficeBookingsPage() {
         companyName,
         logoUrl,
         phones,
-        headers,
-        rows,
+        headers: headersWithNum,
+        rows: rowsWithNum,
       })
     }
     setPrintOpen(false)

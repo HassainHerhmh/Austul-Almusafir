@@ -2,7 +2,11 @@ import * as XLSX from 'xlsx'
 
 export function downloadExcel(filename: string, rows: Record<string, string | number>[]) {
   const ws = XLSX.utils.json_to_sheet(rows)
+  // اتجاه الورقة من اليمين لليسار (عربي)
+  ws['!views'] = [{ rightToLeft: true }]
   const wb = XLSX.utils.book_new()
+  wb.Workbook = wb.Workbook || {}
+  wb.Workbook.Views = [{ RTL: true }]
   XLSX.utils.book_append_sheet(wb, ws, 'بيانات')
   XLSX.writeFile(wb, filename.endsWith('.xlsx') ? filename : `${filename}.xlsx`)
 }

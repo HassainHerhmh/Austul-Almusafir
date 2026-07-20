@@ -227,10 +227,12 @@ export function PrintSettingsPage() {
               />
             </div>
             <div className="field">
-              <label>أرقام خدمة العملاء</label>
-              <input
+              <label>أرقام خدمة العملاء (كل سطر = كبسولة في اللوحة الذهبية)</label>
+              <textarea
+                rows={3}
                 value={draft.servicePhones}
                 onChange={(e) => setField('servicePhones', e.target.value)}
+                placeholder={'خدمة عملاء توصيل : 77...\nخدمة عملاء المتجر : 77...'}
               />
             </div>
             <div className="field">

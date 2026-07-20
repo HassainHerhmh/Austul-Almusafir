@@ -1,6 +1,7 @@
 import * as XLSX from 'xlsx'
 import type { PrintSettings } from '../print/printSettings'
 import { DEFAULT_PRINT_SETTINGS } from '../print/printSettings'
+import { buildClicheHeaderHtml, clicheHeaderCss } from '../print/clicheHeader'
 
 export function downloadExcel(filename: string, rows: Record<string, string | number>[]) {
   const ws = XLSX.utils.json_to_sheet(rows)
@@ -187,33 +188,12 @@ export function printTableReport(opts: {
   } = opts
 
   const theme = printSettings ?? DEFAULT_PRINT_SETTINGS
-  const phoneLines = phones
-    .split(/[\n,،]+/)
-    .map((p) => p.trim())
-    .filter(Boolean)
-  const mgmt = theme.managementPhones || phoneLines.join(' - ')
-  const service = theme.servicePhones || phoneLines.join(' - ')
-
-  const cliche = `
-    <div class="cliche">
-      <div class="brand-side">
-        <div class="company">${escapeHtml(companyName)}</div>
-        ${theme.nameEn ? `<div class="company-en">${escapeHtml(theme.nameEn)}</div>` : ''}
-        ${mgmt ? `<div class="phones">الإدارة : ${escapeHtml(mgmt)}</div>` : ''}
-      </div>
-      <div class="logo-wrap">
-        ${
-          logoUrl
-            ? `<img class="logo" src="${logoUrl}" alt="" />`
-            : `<div class="logo-fallback">🚌</div>`
-        }
-        ${theme.slogan ? `<div class="slogan">${escapeHtml(theme.slogan)}</div>` : ''}
-      </div>
-      <div class="accent-panel">
-        ${theme.address ? `<div>📍 ${escapeHtml(theme.address)}</div>` : ''}
-        ${service ? `<div>خدمة العملاء : ${escapeHtml(service)}</div>` : ''}
-      </div>
-    </div>`
+  const cliche = buildClicheHeaderHtml({
+    brandName: companyName,
+    logoUrl,
+    phones,
+    settings: theme,
+  })
 
   const multiTrip = tripMeta.length > 1
   const metaTable =
@@ -255,36 +235,7 @@ export function printTableReport(opts: {
   <style>
     * { box-sizing: border-box; }
     body { font-family: Tahoma, Arial, sans-serif; padding: 20px; color: #111; margin: 0; }
-    .cliche {
-      display: grid;
-      grid-template-columns: 1.1fr 0.85fr 1.15fr;
-      gap: 10px;
-      align-items: stretch;
-      border-bottom: 3px solid ${theme.accentColor};
-      padding-bottom: 12px;
-      margin-bottom: 14px;
-    }
-    .brand-side { text-align: right; padding: 4px; }
-    .company { font-size: 20px; font-weight: 800; color: ${theme.primaryColor}; }
-    .company-en { font-size: 12px; font-weight: 700; color: ${theme.primaryColor}; margin-top: 2px; }
-    .phones { margin-top: 8px; font-size: 12px; color: #444; direction: ltr; text-align: right; }
-    .logo-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
-    .logo { width: 72px; height: 72px; object-fit: contain; }
-    .logo-fallback {
-      width: 72px; height: 72px; display: grid; place-items: center;
-      font-size: 36px; background: ${theme.accentColor}; border-radius: 50%; color: #fff;
-    }
-    .slogan { margin-top: 4px; font-size: 11px; font-weight: 700; color: ${theme.accentColor}; }
-    .accent-panel {
-      background: linear-gradient(135deg, ${theme.accentColor}, #a8841a);
-      color: #1a1408;
-      border-radius: 0 16px 0 0;
-      padding: 12px;
-      font-size: 12px;
-      font-weight: 600;
-      line-height: 1.5;
-      clip-path: polygon(8% 0, 100% 0, 100% 100%, 0 100%);
-    }
+    ${clicheHeaderCss(theme)}
     h1 {
       font-size: 15px; margin: 0 0 12px; color: #fff; background: ${theme.titleBgColor};
       display: inline-block; padding: 8px 18px; border-radius: 6px;
@@ -295,7 +246,7 @@ export function printTableReport(opts: {
     .meta-table th { background: #e8eef5; }
     @media print {
       body { padding: 0; }
-      .cliche { break-inside: avoid; }
+      .cliche-v2 { break-inside: avoid; }
       thead { display: table-header-group; }
     }
   </style>

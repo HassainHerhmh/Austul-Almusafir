@@ -46,6 +46,7 @@ import { OfficeReportsPage } from './pages/office/OfficeReportsPage'
 import { OfficePaymentsReportPage } from './pages/office/OfficePaymentsReportPage'
 import { OfficeStaffPage } from './pages/office/OfficeStaffPage'
 import { OfficePermissionsPage } from './pages/office/OfficePermissionsPage'
+import { OfficeTrackingPage } from './pages/office/OfficeTrackingPage'
 import { SettingsPage } from './pages/admin/SettingsPage'
 import { BrandProvider } from './context/BrandContext'
 
@@ -129,6 +130,7 @@ export default function App() {
               <Route path="staff" element={<OfficeStaffPage />} />
               <Route path="permissions" element={<OfficePermissionsPage />} />
               <Route path="bookings" element={<OfficeBookingsPage />} />
+              <Route path="tracking" element={<OfficeTrackingPage />} />
               <Route path="customers" element={<OfficeCustomersPage />} />
               <Route path="accounting" element={<OfficeAccountingPage />} />
               <Route path="statement" element={<OfficeStatementPage />} />

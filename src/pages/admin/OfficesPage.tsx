@@ -17,6 +17,7 @@ const empty: Omit<Office, 'id' | 'createdAt'> = {
   subscription: 'trial',
   ledgerAccountId: null,
   commissionPercent: 0,
+  trackingEnabled: false,
 }
 
 export function OfficesPage() {
@@ -81,6 +82,7 @@ export function OfficesPage() {
         subscription: office.subscription,
         ledgerAccountId: office.ledgerAccountId,
         commissionPercent: office.commissionPercent ?? 0,
+        trackingEnabled: !!office.trackingEnabled,
       })
     } else {
       setEditId(null)
@@ -126,6 +128,7 @@ export function OfficesPage() {
                 <th>الاشتراك</th>
                 <th>حساب محاسبي</th>
                 <th>العمولة %</th>
+                <th>التتبع</th>
                 <th></th>
               </tr>
             </thead>
@@ -151,6 +154,11 @@ export function OfficesPage() {
                   </td>
                   <td>{accountLabel(o.ledgerAccountId)}</td>
                   <td>{Number(o.commissionPercent || 0)}%</td>
+                  <td>
+                    <span className={`badge ${o.trackingEnabled ? 'badge-ok' : 'badge-info'}`}>
+                      {o.trackingEnabled ? 'مفعّل' : 'مغلق'}
+                    </span>
+                  </td>
                   <td>
                     <div className="actions">
                       <button
@@ -269,6 +277,18 @@ export function OfficesPage() {
                       })
                     }
                   />
+                </div>
+                <div className="field" style={{ gridColumn: '1 / -1' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <input
+                      type="checkbox"
+                      checked={form.trackingEnabled}
+                      onChange={(e) =>
+                        setForm({ ...form, trackingEnabled: e.target.checked })
+                      }
+                    />
+                    السماح للمكتب بتتبع الباصات
+                  </label>
                 </div>
               </div>
               <div className="actions" style={{ marginTop: '1rem' }}>

@@ -337,6 +337,83 @@ trackingRouter.get(
   }),
 )
 
+/** تتبع الوكيل — فقط إن كان المكتب مفعّلاً، ولرحلاته (حجوزات أو حملة) */
+trackingRouter.get(
+  '/office-live',
+  requireRoles('office_manager', 'booking_clerk', 'accountant'),
+  asyncHandler(async (req, res) => {
+    const officeId = req.user!.officeId
+    if (!officeId) return fail(res, 'المكتب غير مرتبط بالحساب', 400)
+
+    const office = await prisma.office.findUnique({ where: { id: officeId } })
+    if (!office) return fail(res, 'المكتب غير موجود', 404)
+
+    if (!office.trackingEnabled) {
+      return ok(res, { enabled: false, list: [] })
+    }
+
+    const booked = await prisma.booking.findMany({
+      where: { officeId, status: 'confirmed' },
+      select: { tripId: true },
+      distinct: ['tripId'],
+    })
+    const campaigns = await prisma.trip.findMany({
+      where: { campaignOfficeId: officeId },
+      select: { id: true },
+    })
+    const tripIds = [
+      ...new Set([...booked.map((b) => b.tripId), ...campaigns.map((t) => t.id)]),
+    ]
+
+    if (tripIds.length === 0) {
+      return ok(res, { enabled: true, list: [] })
+    }
+
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000)
+    const list = await prisma.tripLocation.findMany({
+      where: {
+        tripId: { in: tripIds },
+        updatedAt: { gte: since },
+      },
+      include: {
+        trip: {
+          include: {
+            bus: true,
+            driver: true,
+            stops: { include: { destination: true }, orderBy: { sortOrder: 'asc' } },
+          },
+        },
+      },
+      orderBy: { updatedAt: 'desc' },
+    })
+
+    return ok(res, {
+      enabled: true,
+      list: list.map((loc) => ({
+        tripId: loc.tripId,
+        lat: loc.lat,
+        lng: loc.lng,
+        accuracy: loc.accuracy,
+        speed: loc.speed,
+        heading: loc.heading,
+        active: loc.active,
+        updatedAt: loc.updatedAt.toISOString(),
+        trip: {
+          id: loc.trip.id,
+          date: loc.trip.date,
+          departureTime: loc.trip.departureTime,
+          status: loc.trip.status,
+          label: tripLabel(loc.trip.stops),
+          busNumber: loc.trip.bus.busNumber,
+          plateNumber: loc.trip.bus.plateNumber,
+          driverName: loc.trip.driver.name,
+          driverPhone: loc.trip.driver.phone,
+        },
+      })),
+    })
+  }),
+)
+
 trackingRouter.get(
   '/shareable-trips',
   requireAdmin,

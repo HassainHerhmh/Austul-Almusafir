@@ -61,6 +61,7 @@ const officeLinks: {
     icon: ShieldCheck,
   },
   { to: '/office/bookings', label: 'الحجوزات', pageId: 'bookings', icon: Ticket },
+  { to: '/office/tracking', label: 'تتبع الباصات', pageId: 'tracking', icon: Navigation },
   // العملاء مخفي مؤقتاً من قائمة المكاتب — لا حاجة له حالياً
   // { to: '/office/customers', label: 'العملاء', pageId: 'customers', icon: UserCircle2 },
   { to: '/office/accounting', label: 'المحاسبة', pageId: 'accounting', icon: Wallet },

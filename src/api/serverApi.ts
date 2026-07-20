@@ -22,6 +22,7 @@ function asOffice(o: any): Office {
     subscription: o.subscription,
     ledgerAccountId: o.ledgerAccountId ?? null,
     commissionPercent: Number(o.commissionPercent) || 0,
+    trackingEnabled: !!o.trackingEnabled,
     createdAt: String(o.createdAt).slice(0, 10),
   }
 }
@@ -497,6 +498,31 @@ export const serverApi = {
           }
         }>
       }>('/api/tracking/live'),
+    officeLive: () =>
+      apiRequest<{
+        enabled: boolean
+        list: Array<{
+          tripId: string
+          lat: number
+          lng: number
+          accuracy: number | null
+          speed: number | null
+          heading: number | null
+          active: boolean
+          updatedAt: string
+          trip: {
+            id: string
+            date: string
+            departureTime: string
+            status: string
+            label: string
+            busNumber: string
+            plateNumber: string
+            driverName: string
+            driverPhone: string
+          }
+        }>
+      }>('/api/tracking/office-live'),
     shareableTrips: () =>
       apiRequest<{
         list: Array<{

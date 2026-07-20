@@ -33,6 +33,7 @@ export const officePermissionSections: PermissionSection[] = [
     ],
   },
   { id: 'bookings', label: 'الحجوزات', path: '/office/bookings' },
+  { id: 'tracking', label: 'تتبع الباصات', path: '/office/tracking' },
   { id: 'customers', label: 'العملاء', path: '/office/customers' },
   { id: 'accounting', label: 'المحاسبة', path: '/office/accounting' },
   { id: 'statement', label: 'كشف الحساب', path: '/office/statement' },
@@ -83,6 +84,7 @@ export function roleDefaultPermissions(role: Role): UserPermissionsMap {
     base.dashboard = { view: true, add: false, edit: false, delete: false }
     base.bookings = { view: true, add: true, edit: true, delete: false }
     base.customers = { view: true, add: true, edit: true, delete: false }
+    base.tracking = { view: true, add: false, edit: false, delete: false }
   }
 
   if (role === 'accountant') {

@@ -55,7 +55,7 @@ else
 fi
 
 echo "Prisma db push…"
-npx prisma db push --skip-generate
+npx prisma db push --skip-generate --accept-data-loss
 echo "Seed…"
 npx tsx prisma/seed.ts
 echo "Starting API on port ${PORT:-8080}…"

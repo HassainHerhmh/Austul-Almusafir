@@ -28,7 +28,7 @@ export function TicketView({ booking, trip, onClose }: Props) {
         <div className="ticket-grid">
           <div>
             <span>رقم الحجز</span>
-            <strong>{booking.id}</strong>
+            <strong>{booking.bookingNumber ?? '—'}</strong>
           </div>
           <div>
             <span>المقعد</span>

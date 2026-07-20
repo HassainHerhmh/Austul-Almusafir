@@ -118,6 +118,8 @@ export interface Customer {
 
 export interface Booking {
   id: string
+  /** رقم الحجز التسلسلي (يبدأ من 1578) */
+  bookingNumber: number | null
   tripId: string
   officeId: string
   customerId: string

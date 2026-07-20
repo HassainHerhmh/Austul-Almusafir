@@ -183,6 +183,8 @@ model Customer {
 
 model Booking {
   id             String    @id @default(cuid())
+  /** رقم الحجز التسلسلي الظاهر للمسافر (يبدأ من 1578) */
+  bookingNumber  Int?      @unique
   tripId         String
   trip           Trip      @relation(fields: [tripId], references: [id])
   officeId       String
@@ -260,4 +262,10 @@ model JournalLine {
 model AppSetting {
   key   String @id
   value Json
+}
+
+/** عدّادات تسلسلية (مثل رقم الحجز) */
+model AppCounter {
+  id    String @id
+  value Int
 }

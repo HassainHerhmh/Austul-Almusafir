@@ -1,6 +1,7 @@
 import 'dotenv/config'
 import { createApp } from './app'
 import { config, prisma } from './config'
+import { ensureBookingNumbers } from './services/bookingNumber'
 import { logger } from './utils/logger'
 
 async function migrateLegacyBookableTrips() {
@@ -22,6 +23,7 @@ async function migrateLegacyBookableTrips() {
 const app = createApp()
 
 void migrateLegacyBookableTrips()
+  .then(() => ensureBookingNumbers())
   .catch((err) => logger.error('migration', err))
   .finally(() => {
     app.listen(config.port, '0.0.0.0', () => {

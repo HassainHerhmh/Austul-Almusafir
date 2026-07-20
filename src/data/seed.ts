@@ -55,6 +55,7 @@ export function loadState(): AppState {
         visaTypes: parsed.visaTypes ?? [],
         bookings: (parsed.bookings ?? []).map((b) => ({
           ...b,
+          bookingNumber: b.bookingNumber ?? null,
           ticketNumber: b.ticketNumber ?? '',
           passportNumber: b.passportNumber ?? '',
           visaTypeId: b.visaTypeId ?? '',

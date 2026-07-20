@@ -44,6 +44,7 @@ function asUser(u: any): User {
 function asBooking(b: any): Booking {
   return {
     id: b.id,
+    bookingNumber: b.bookingNumber != null ? Number(b.bookingNumber) : null,
     tripId: b.tripId,
     officeId: b.officeId,
     customerId: b.customerId,

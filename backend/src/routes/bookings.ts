@@ -11,6 +11,7 @@ import {
   reverseBookingCharge,
 } from '../services/ledger'
 import { asyncHandler, fail, ok, paramId } from '../utils/http'
+import { allocateBookingNumber } from '../services/bookingNumber'
 
 export const bookingsRouter = Router()
 bookingsRouter.use(authRequired)
@@ -190,24 +191,28 @@ bookingsRouter.post(
       })
     }
 
-    const booking = await prisma.booking.create({
-      data: {
-        tripId: trip.id,
-        officeId,
-        customerId: customer.id,
-        passengerName: body.data.passengerName,
-        ticketNumber: body.data.ticketNumber.trim(),
-        passportNumber: body.data.passportNumber,
-        visaTypeId: body.data.visaTypeId?.trim() || '',
-        boardingDestinationId: body.data.boardingDestinationId,
-        arrivalDestinationId: body.data.arrivalDestinationId,
-        seatNumber: body.data.seatNumber,
-        price: ticketPrice,
-        paymentMethod: body.data.paymentMethod,
-        notes: body.data.notes?.trim() ?? '',
-        status: 'confirmed',
-        bookedById: req.user!.id,
-      },
+    const booking = await prisma.$transaction(async (tx) => {
+      const bookingNumber = await allocateBookingNumber(tx)
+      return tx.booking.create({
+        data: {
+          bookingNumber,
+          tripId: trip.id,
+          officeId,
+          customerId: customer.id,
+          passengerName: body.data.passengerName,
+          ticketNumber: body.data.ticketNumber.trim(),
+          passportNumber: body.data.passportNumber,
+          visaTypeId: body.data.visaTypeId?.trim() || '',
+          boardingDestinationId: body.data.boardingDestinationId,
+          arrivalDestinationId: body.data.arrivalDestinationId,
+          seatNumber: body.data.seatNumber,
+          price: ticketPrice,
+          paymentMethod: body.data.paymentMethod,
+          notes: body.data.notes?.trim() ?? '',
+          status: 'confirmed',
+          bookedById: req.user!.id,
+        },
+      })
     })
 
     if (ticketPrice > 0 && ledgerAccountId) {

@@ -1,4 +1,6 @@
 import * as XLSX from 'xlsx'
+import type { PrintSettings } from '../print/printSettings'
+import { DEFAULT_PRINT_SETTINGS } from '../print/printSettings'
 
 export function downloadExcel(filename: string, rows: Record<string, string | number>[]) {
   const ws = XLSX.utils.json_to_sheet(rows)
@@ -171,6 +173,7 @@ export function printTableReport(opts: {
   logoUrl?: string | null
   phones?: string
   tripMeta?: TripMetaRow[]
+  printSettings?: PrintSettings | null
 }) {
   const {
     title,
@@ -180,27 +183,35 @@ export function printTableReport(opts: {
     logoUrl = null,
     phones = '',
     tripMeta = [],
+    printSettings = null,
   } = opts
 
+  const theme = printSettings ?? DEFAULT_PRINT_SETTINGS
   const phoneLines = phones
     .split(/[\n,،]+/)
     .map((p) => p.trim())
     .filter(Boolean)
+  const mgmt = theme.managementPhones || phoneLines.join(' - ')
+  const service = theme.servicePhones || phoneLines.join(' - ')
 
   const cliche = `
     <div class="cliche">
-      ${
-        logoUrl
-          ? `<img class="logo" src="${logoUrl}" alt="" />`
-          : `<div class="logo-fallback">🚌</div>`
-      }
-      <div class="cliche-text">
-        ${companyName ? `<div class="company">${escapeHtml(companyName)}</div>` : ''}
+      <div class="brand-side">
+        <div class="company">${escapeHtml(companyName)}</div>
+        ${theme.nameEn ? `<div class="company-en">${escapeHtml(theme.nameEn)}</div>` : ''}
+        ${mgmt ? `<div class="phones">الإدارة : ${escapeHtml(mgmt)}</div>` : ''}
+      </div>
+      <div class="logo-wrap">
         ${
-          phoneLines.length
-            ? `<div class="phones">${phoneLines.map(escapeHtml).join(' · ')}</div>`
-            : ''
+          logoUrl
+            ? `<img class="logo" src="${logoUrl}" alt="" />`
+            : `<div class="logo-fallback">🚌</div>`
         }
+        ${theme.slogan ? `<div class="slogan">${escapeHtml(theme.slogan)}</div>` : ''}
+      </div>
+      <div class="accent-panel">
+        ${theme.address ? `<div>📍 ${escapeHtml(theme.address)}</div>` : ''}
+        ${service ? `<div>خدمة العملاء : ${escapeHtml(service)}</div>` : ''}
       </div>
     </div>`
 
@@ -245,24 +256,41 @@ export function printTableReport(opts: {
     * { box-sizing: border-box; }
     body { font-family: Tahoma, Arial, sans-serif; padding: 20px; color: #111; margin: 0; }
     .cliche {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      border-bottom: 2px solid #1e3a5f;
-      padding-bottom: 14px;
-      margin-bottom: 16px;
+      display: grid;
+      grid-template-columns: 1.1fr 0.85fr 1.15fr;
+      gap: 10px;
+      align-items: stretch;
+      border-bottom: 3px solid ${theme.accentColor};
+      padding-bottom: 12px;
+      margin-bottom: 14px;
     }
+    .brand-side { text-align: right; padding: 4px; }
+    .company { font-size: 20px; font-weight: 800; color: ${theme.primaryColor}; }
+    .company-en { font-size: 12px; font-weight: 700; color: ${theme.primaryColor}; margin-top: 2px; }
+    .phones { margin-top: 8px; font-size: 12px; color: #444; direction: ltr; text-align: right; }
+    .logo-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
     .logo { width: 72px; height: 72px; object-fit: contain; }
     .logo-fallback {
       width: 72px; height: 72px; display: grid; place-items: center;
-      font-size: 36px; background: #f3f4f6; border-radius: 12px;
+      font-size: 36px; background: ${theme.accentColor}; border-radius: 50%; color: #fff;
     }
-    .company { font-size: 22px; font-weight: 700; color: #0c1a24; }
-    .phones { margin-top: 6px; font-size: 13px; color: #444; direction: ltr; text-align: right; }
-    h1 { font-size: 16px; margin: 0 0 12px; color: #333; }
-    .meta { font-size: 12px; color: #666; margin-bottom: 14px; }
+    .slogan { margin-top: 4px; font-size: 11px; font-weight: 700; color: ${theme.accentColor}; }
+    .accent-panel {
+      background: linear-gradient(135deg, ${theme.accentColor}, #a8841a);
+      color: #1a1408;
+      border-radius: 0 16px 0 0;
+      padding: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.5;
+      clip-path: polygon(8% 0, 100% 0, 100% 100%, 0 100%);
+    }
+    h1 {
+      font-size: 15px; margin: 0 0 12px; color: #fff; background: ${theme.titleBgColor};
+      display: inline-block; padding: 8px 18px; border-radius: 6px;
+    }
     table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 14px; }
-    th, td { border: 1px solid #ccc; padding: 7px 8px; text-align: right; }
+    th, td { border: 1px solid ${theme.frameColor}; padding: 7px 8px; text-align: right; }
     th { background: #f3f4f6; font-weight: 700; }
     .meta-table th { background: #e8eef5; }
     @media print {
@@ -300,3 +328,4 @@ export function printTableReport(opts: {
   win.document.write(html)
   win.document.close()
 }
+

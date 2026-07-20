@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   MapPin,
   Navigation,
+  Printer,
   Route,
   Settings,
   ShieldCheck,
@@ -42,6 +43,7 @@ const adminLinks: { to: string; end?: boolean; label: string; icon: LucideIcon }
   { to: '/admin/tracking', label: 'تتبع الباصات', icon: Navigation },
   { to: '/admin/accounts', label: 'الحسابات', icon: Calculator },
   { to: '/admin/reports', label: 'التقارير', icon: FileBarChart2 },
+  { to: '/admin/print-settings', label: 'إعدادات الطباعة', icon: Printer },
   { to: '/admin/settings', label: 'الإعدادات', icon: Settings },
 ]
 

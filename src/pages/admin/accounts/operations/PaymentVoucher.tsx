@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import api from '../../../../api/accountingApi';
 import { serverApi } from '../../../../api/serverApi';
 import { DEFAULT_BRANCH_NAME } from "../constants";
+import { useBrand } from '../../../../context/BrandContext';
+import { printStyledVoucher } from '../../../../print/printStyledVoucher';
 
 type PaymentType = "cash" | "bank" | "";
 
@@ -83,6 +85,7 @@ const getPaymentTypeName = (voucher: Voucher) => {
 };
 
 const PaymentVoucher: React.FC = () => {
+  const { name: brandName, logoUrl, phones } = useBrand();
   const [showModal, setShowModal] = useState(false);
   const [showExtra, setShowExtra] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -539,6 +542,35 @@ const PaymentVoucher: React.FC = () => {
     return matchSearch && matchDate;
   });
 
+  const printSelected = async () => {
+    if (!selectedId) {
+      alert("اختر سنداً أولاً");
+      return;
+    }
+    const v = list.find((x) => x.id === selectedId);
+    if (!v) return;
+    await printStyledVoucher(
+      { name: brandName, logoUrl, phones },
+      {
+        kind: "payment",
+        number: v.voucherNo || String(v.id),
+        date: (v.date || "").slice(0, 10).split("-").reverse().join("/") || v.date,
+        partyLabel: "المستفيد",
+        partyName: v.account || "—",
+        accountLabel: "الحساب",
+        accountValue: v.account || "—",
+        amount: Number(v.amount) || 0,
+        currency: v.currency || "ريال سعودي",
+        description:
+          v.notes ||
+          (v.paymentType === "cash"
+            ? `صرف نقدي — ${v.cashBox || "صندوق"}`
+            : `صرف بنكي — ${v.bankAccount || "بنك"}${v.transferNo ? ` — حوالة ${v.transferNo}` : ""}`),
+        note: v.handling ? `عمولة/مناولة: ${v.handling}` : "",
+      },
+    );
+  };
+
   return (
     <div className="space-y-4" dir="rtl">
       <div className="flex items-center justify-between rounded-lg bg-[#e9efe6] p-4">
@@ -560,7 +592,13 @@ const PaymentVoucher: React.FC = () => {
           >
             حذف
           </button>
-          <button className="btn-gray">طباعة</button>
+          <button
+            onClick={() => void printSelected()}
+            disabled={!selectedId}
+            className={`btn-gray ${!selectedId ? "cursor-not-allowed opacity-50" : ""}`}
+          >
+            طباعة
+          </button>
         </div>
       </div>
 

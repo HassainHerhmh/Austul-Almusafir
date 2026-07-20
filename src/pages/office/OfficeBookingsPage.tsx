@@ -5,6 +5,7 @@ import { TicketView } from '../../components/TicketView'
 import { PAYMENT_LABELS, formatMoney, formatTimeAr, todayStr } from '../../components/utils'
 import { useApp } from '../../context/AppContext'
 import { useBrand } from '../../context/BrandContext'
+import { serverApi } from '../../api/serverApi'
 import type { Booking, PaymentMethod } from '../../types'
 import { printTableReport, downloadExcelReport } from '../../utils/importExport'
 
@@ -208,7 +209,7 @@ export function OfficeBookingsPage() {
     setPrintOpen(true)
   }
 
-  const doPrint = () => {
+  const doPrint = async () => {
     const selected = PRINT_COLUMNS.filter((c) => printCols[c.key])
     if (selected.length === 0) {
       alert('اختر عموداً واحداً على الأقل')
@@ -245,12 +246,20 @@ export function OfficeBookingsPage() {
         rows: rowsWithNum,
       })
     } else {
+      let printSettings = null
+      try {
+        const res = await serverApi.settings.print.get()
+        printSettings = res.data
+      } catch {
+        /* افتراضي */
+      }
       printTableReport({
         title,
         companyName,
         logoUrl,
         phones,
         tripMeta,
+        printSettings,
         headers: headersWithNum,
         rows: rowsWithNum,
       })
@@ -778,7 +787,7 @@ export function OfficeBookingsPage() {
               ))}
             </div>
             <div className="actions">
-              <button type="button" className="btn btn-primary" onClick={doPrint}>
+              <button type="button" className="btn btn-primary" onClick={() => void doPrint()}>
                 {printFormat === 'excel' ? 'تصدير Excel' : 'طباعة PDF'}
               </button>
               <button type="button" className="btn btn-ghost" onClick={() => setPrintOpen(false)}>

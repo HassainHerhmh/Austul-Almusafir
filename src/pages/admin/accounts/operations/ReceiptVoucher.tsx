@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import api from '../../../../api/accountingApi';
 import { serverApi } from '../../../../api/serverApi';
 import { DEFAULT_BRANCH_NAME } from "../constants";
+import { useBrand } from '../../../../context/BrandContext';
+import { printStyledVoucher } from '../../../../print/printStyledVoucher';
 
 /* =========================
    Receipt Voucher - UI Only
@@ -80,6 +82,7 @@ const ReceiptVoucher: React.FC = () => {
   /* =========================
      State
   ========================= */
+  const { name: brandName, logoUrl, phones } = useBrand();
   const [showModal, setShowModal] = useState(false);
   const [showExtra, setShowExtra] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -557,6 +560,35 @@ const openEdit = () => {
   setShowModal(true);
 };
 
+  const printSelected = async () => {
+    if (!selectedId) {
+      alert("اختر سنداً أولاً");
+      return;
+    }
+    const v = list.find((x) => x.id === selectedId);
+    if (!v) return;
+    await printStyledVoucher(
+      { name: brandName, logoUrl, phones },
+      {
+        kind: "receipt",
+        number: v.voucherNo || String(v.id),
+        date: (v.date || "").slice(0, 10).split("-").reverse().join("/") || v.date,
+        partyLabel: "عميلنا",
+        partyName: v.account || "—",
+        accountLabel: "الحساب",
+        accountValue: v.account || "—",
+        amount: Number(v.amount) || 0,
+        currency: v.currency || "ريال سعودي",
+        description:
+          v.notes ||
+          (v.receiptType === "cash"
+            ? `قبض نقدي — ${v.cashBox || "صندوق"}`
+            : `قبض بنكي — ${v.bankAccount || "بنك"}${v.transferNo ? ` — حوالة ${v.transferNo}` : ""}`),
+        note: v.handling ? `عمولة/مناولة: ${v.handling}` : "",
+      },
+    );
+  };
+
 
   /* =========================
      Filter
@@ -612,7 +644,11 @@ const openEdit = () => {
     </button>
 
     {/* طباعة */}
-    <button className="btn-gray">
+    <button
+      onClick={() => void printSelected()}
+      disabled={!selectedId}
+      className={`btn-gray ${!selectedId ? "opacity-50 cursor-not-allowed" : ""}`}
+    >
       🖨️ طباعة
     </button>
 

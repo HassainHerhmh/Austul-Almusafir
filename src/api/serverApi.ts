@@ -432,6 +432,43 @@ export const serverApi = {
           body: JSON.stringify(data),
         }),
     },
+    print: {
+      get: () =>
+        apiRequest<{
+          data: {
+            primaryColor: string
+            accentColor: string
+            titleBgColor: string
+            titleTextColor: string
+            frameColor: string
+            nameEn: string
+            slogan: string
+            address: string
+            managementPhones: string
+            servicePhones: string
+            footerNote: string
+          }
+        }>('/api/settings/print'),
+      save: (data: Record<string, string>) =>
+        apiRequest<{
+          data: {
+            primaryColor: string
+            accentColor: string
+            titleBgColor: string
+            titleTextColor: string
+            frameColor: string
+            nameEn: string
+            slogan: string
+            address: string
+            managementPhones: string
+            servicePhones: string
+            footerNote: string
+          }
+        }>('/api/settings/print', {
+          method: 'POST',
+          body: JSON.stringify(data),
+        }),
+    },
   },
 
   tracking: {

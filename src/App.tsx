@@ -48,6 +48,7 @@ import { OfficeStaffPage } from './pages/office/OfficeStaffPage'
 import { OfficePermissionsPage } from './pages/office/OfficePermissionsPage'
 import { OfficeTrackingPage } from './pages/office/OfficeTrackingPage'
 import { SettingsPage } from './pages/admin/SettingsPage'
+import { PrintSettingsPage } from './pages/admin/PrintSettingsPage'
 import { BrandProvider } from './context/BrandContext'
 
 export default function App() {
@@ -116,6 +117,7 @@ export default function App() {
 
               <Route path="reports" element={<AdminReportsPage />} />
               <Route path="settings" element={<SettingsPage />} />
+              <Route path="print-settings" element={<PrintSettingsPage />} />
             </Route>
 
             <Route

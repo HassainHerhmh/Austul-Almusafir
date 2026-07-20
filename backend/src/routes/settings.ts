@@ -9,6 +9,7 @@ export const settingsRouter = Router()
 const TRANSIT_KEY = 'transit_accounts'
 const PRICING_KEY = 'trip_pricing'
 const BRAND_KEY = 'platform_brand'
+const PRINT_KEY = 'print_settings'
 
 type BrandValue = {
   name: string
@@ -20,6 +21,52 @@ const DEFAULT_BRAND: BrandValue = {
   name: 'أسطول المسافر',
   logoUrl: null,
   phones: '',
+}
+
+type PrintValue = {
+  primaryColor: string
+  accentColor: string
+  titleBgColor: string
+  titleTextColor: string
+  frameColor: string
+  nameEn: string
+  slogan: string
+  address: string
+  managementPhones: string
+  servicePhones: string
+  footerNote: string
+}
+
+const DEFAULT_PRINT: PrintValue = {
+  primaryColor: '#1e3a5f',
+  accentColor: '#c9a227',
+  titleBgColor: '#1d2b44',
+  titleTextColor: '#ffffff',
+  frameColor: '#1e3a5f',
+  nameEn: 'OSTOOL ALMOSAFER',
+  slogan: 'الراحة.. وجهتنا',
+  address: '',
+  managementPhones: '',
+  servicePhones: '',
+  footerNote: 'هذا السند آلي ولا يحتاج ختم أو توقيع',
+}
+
+function readPrintValue(raw: Partial<PrintValue> | null): PrintValue {
+  const pick = (v: unknown, fallback: string) =>
+    typeof v === 'string' && v.trim() ? v.trim() : fallback
+  return {
+    primaryColor: pick(raw?.primaryColor, DEFAULT_PRINT.primaryColor),
+    accentColor: pick(raw?.accentColor, DEFAULT_PRINT.accentColor),
+    titleBgColor: pick(raw?.titleBgColor, DEFAULT_PRINT.titleBgColor),
+    titleTextColor: pick(raw?.titleTextColor, DEFAULT_PRINT.titleTextColor),
+    frameColor: pick(raw?.frameColor, DEFAULT_PRINT.frameColor),
+    nameEn: pick(raw?.nameEn, DEFAULT_PRINT.nameEn),
+    slogan: pick(raw?.slogan, DEFAULT_PRINT.slogan),
+    address: typeof raw?.address === 'string' ? raw.address.trim() : '',
+    managementPhones: typeof raw?.managementPhones === 'string' ? raw.managementPhones.trim() : '',
+    servicePhones: typeof raw?.servicePhones === 'string' ? raw.servicePhones.trim() : '',
+    footerNote: pick(raw?.footerNote, DEFAULT_PRINT.footerNote),
+  }
 }
 
 async function readBrand(): Promise<BrandValue> {
@@ -79,6 +126,51 @@ settingsRouter.post(
     await prisma.appSetting.upsert({
       where: { key: BRAND_KEY },
       create: { key: BRAND_KEY, value },
+      update: { value },
+    })
+
+    return ok(res, { data: value })
+  }),
+)
+
+settingsRouter.get(
+  '/print',
+  asyncHandler(async (_req, res) => {
+    const row = await prisma.appSetting.findUnique({ where: { key: PRINT_KEY } })
+    return ok(res, {
+      data: readPrintValue((row?.value as Partial<PrintValue> | null) ?? null),
+    })
+  }),
+)
+
+settingsRouter.post(
+  '/print',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const body = z
+      .object({
+        primaryColor: z.string().min(3).max(32).optional(),
+        accentColor: z.string().min(3).max(32).optional(),
+        titleBgColor: z.string().min(3).max(32).optional(),
+        titleTextColor: z.string().min(3).max(32).optional(),
+        frameColor: z.string().min(3).max(32).optional(),
+        nameEn: z.string().max(120).optional(),
+        slogan: z.string().max(120).optional(),
+        address: z.string().max(300).optional(),
+        managementPhones: z.string().max(200).optional(),
+        servicePhones: z.string().max(200).optional(),
+        footerNote: z.string().max(300).optional(),
+      })
+      .safeParse(req.body)
+    if (!body.success) return fail(res, 'بيانات غير صالحة')
+
+    const existing = await prisma.appSetting.findUnique({ where: { key: PRINT_KEY } })
+    const prev = readPrintValue((existing?.value as Partial<PrintValue> | null) ?? null)
+    const value = readPrintValue({ ...prev, ...body.data })
+
+    await prisma.appSetting.upsert({
+      where: { key: PRINT_KEY },
+      create: { key: PRINT_KEY, value },
       update: { value },
     })
 

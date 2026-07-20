@@ -60,9 +60,20 @@ export function OfficeBookingsPage() {
   const trips = useMemo(
     () =>
       state.trips
-        .filter((t) => t.status === 'open')
-        .sort((a, b) => b.date.localeCompare(a.date) || b.departureTime.localeCompare(a.departureTime)),
-    [state.trips],
+        .filter((t) => {
+          if (t.status !== 'open') return false
+          // حملة: تظهر لمكتب الحملة بأي تاريخ
+          if (t.tripKind === 'campaign') {
+            return !t.campaignOfficeId || t.campaignOfficeId === officeId
+          }
+          return true
+        })
+        .sort((a, b) => {
+          if (a.tripKind === 'campaign' && b.tripKind !== 'campaign') return -1
+          if (b.tripKind === 'campaign' && a.tripKind !== 'campaign') return 1
+          return b.date.localeCompare(a.date) || b.departureTime.localeCompare(a.departureTime)
+        }),
+    [state.trips, officeId],
   )
 
   const [tripId, setTripId] = useState(params.get('trip') ?? trips[0]?.id ?? '')
@@ -361,7 +372,9 @@ export function OfficeBookingsPage() {
                     const s = getTripSeats(t.id)
                     return (
                       <option key={t.id} value={t.id}>
-                        {getTripLabel(t)} — {t.date} {formatTimeAr(t.departureTime)} (متبقي {s.remaining})
+                        {t.tripKind === 'campaign' ? '[حملة] ' : ''}
+                        {getTripLabel(t)} — {t.date} {formatTimeAr(t.departureTime)} (متبقي{' '}
+                        {s.remaining})
                       </option>
                     )
                   })}

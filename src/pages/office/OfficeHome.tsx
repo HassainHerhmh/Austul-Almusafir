@@ -36,10 +36,25 @@ export function OfficeHome() {
     vouchers.filter((v) => v.type === 'payment').reduce((s, v) => s + v.amount, 0)
 
   const trips = [...state.trips]
-    .filter((t) => t.status !== 'scheduled')
-    .sort(
-      (a, b) => b.date.localeCompare(a.date) || b.departureTime.localeCompare(a.departureTime),
-    )
+    .filter((t) => {
+      // مكتملة / ملغاة / مجدولة لا تظهر للوكيل
+      if (t.status === 'completed' || t.status === 'cancelled' || t.status === 'scheduled') {
+        return false
+      }
+      // حملة مفتوحة: تظهر لمكتب الحملة دون اشتراط تاريخ اليوم
+      if (t.tripKind === 'campaign') {
+        if (t.status !== 'open') return false
+        return !t.campaignOfficeId || t.campaignOfficeId === officeId
+      }
+      // ركاب: مفتوحة / مقفلة / انطلقت — بأي تاريخ
+      return t.status === 'open' || t.status === 'closed' || t.status === 'departed'
+    })
+    .sort((a, b) => {
+      // المفتوحة أولاً، ثم الأحدث تاريخاً
+      if (a.status === 'open' && b.status !== 'open') return -1
+      if (b.status === 'open' && a.status !== 'open') return 1
+      return b.date.localeCompare(a.date) || b.departureTime.localeCompare(a.departureTime)
+    })
 
   return (
     <div>
@@ -93,6 +108,9 @@ export function OfficeHome() {
                 <div>
                   <h3>
                     {getTripLabel(trip)}{' '}
+                    {trip.tripKind === 'campaign' && (
+                      <span className="badge badge-warn">حملة</span>
+                    )}{' '}
                     {isToday && <span className="badge badge-amber badge-warn">اليوم</span>}{' '}
                     {statusBadge(trip.status)}
                   </h3>

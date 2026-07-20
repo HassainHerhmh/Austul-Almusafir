@@ -108,6 +108,7 @@ export function OfficeBookingsPage() {
   })
   const [editError, setEditError] = useState<string | null>(null)
   const [editBusy, setEditBusy] = useState(false)
+  const [bookingBusy, setBookingBusy] = useState(false)
 
   const selectedTrip = useMemo(
     () => state.trips.find((t) => t.id === tripId) ?? null,
@@ -259,6 +260,7 @@ export function OfficeBookingsPage() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (bookingBusy) return
     if (!can('book')) {
       setError('ليس لديك صلاحية الحجز')
       return
@@ -275,34 +277,39 @@ export function OfficeBookingsPage() {
       setError('اختر منطقة الوصول')
       return
     }
-    const result = await createBooking({
-      tripId,
-      officeId,
-      passengerName,
-      ticketNumber,
-      phone,
-      passportNumber,
-      visaTypeId,
-      boardingDestinationId,
-      arrivalDestinationId,
-      seatNumber: seat,
-      paymentMethod,
-      notes,
-      bookedBy: currentUser!.id,
-    })
-    if (typeof result === 'string') {
-      setError(result)
-      return
-    }
+    setBookingBusy(true)
     setError(null)
-    setPassengerName('')
-    setTicketNumber('')
-    setPhone('')
-    setPassportNumber('')
-    setVisaTypeId('')
-    setNotes('')
-    setSeat(null)
-    setTicketBooking(result)
+    try {
+      const result = await createBooking({
+        tripId,
+        officeId,
+        passengerName,
+        ticketNumber,
+        phone,
+        passportNumber,
+        visaTypeId,
+        boardingDestinationId,
+        arrivalDestinationId,
+        seatNumber: seat,
+        paymentMethod,
+        notes,
+        bookedBy: currentUser!.id,
+      })
+      if (typeof result === 'string') {
+        setError(result)
+        return
+      }
+      setPassengerName('')
+      setTicketNumber('')
+      setPhone('')
+      setPassportNumber('')
+      setVisaTypeId('')
+      setNotes('')
+      setSeat(null)
+      setTicketBooking(result)
+    } finally {
+      setBookingBusy(false)
+    }
   }
 
   const openEdit = (b: Booking) => {
@@ -534,9 +541,13 @@ export function OfficeBookingsPage() {
               <button
                 type="submit"
                 className="btn btn-primary"
-                disabled={!seat || !boardingDestinationId || !arrivalDestinationId}
+                disabled={
+                  bookingBusy || !seat || !boardingDestinationId || !arrivalDestinationId
+                }
               >
-                تأكيد الحجز {seat ? `(مقعد ${seat})` : ''}
+                {bookingBusy
+                  ? 'جاري الحجز…'
+                  : `تأكيد الحجز ${seat ? `(مقعد ${seat})` : ''}`}
               </button>
             </div>
           </form>
@@ -621,6 +632,7 @@ export function OfficeBookingsPage() {
           <table className="data">
             <thead>
               <tr>
+                <th>#</th>
                 <th>الراكب</th>
                 <th>رقم التذكرة</th>
                 <th>رقم الجواز</th>
@@ -638,11 +650,12 @@ export function OfficeBookingsPage() {
               </tr>
             </thead>
             <tbody>
-              {myBookings.map((b) => {
+              {myBookings.map((b, idx) => {
                 const trip = state.trips.find((t) => t.id === b.tripId)
                 const addedBy = state.users.find((u) => u.id === b.bookedBy)
                 return (
                   <tr key={b.id}>
+                    <td>{idx + 1}</td>
                     <td>{b.passengerName}</td>
                     <td>{b.ticketNumber || '—'}</td>
                     <td>{b.passportNumber || '—'}</td>
@@ -704,7 +717,7 @@ export function OfficeBookingsPage() {
               })}
               {myBookings.length === 0 && (
                 <tr>
-                  <td colSpan={14} className="empty">
+                  <td colSpan={15} className="empty">
                     لا توجد حجوزات لهذا اليوم
                   </td>
                 </tr>

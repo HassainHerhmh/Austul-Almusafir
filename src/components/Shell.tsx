@@ -21,6 +21,7 @@ import {
   Calculator,
   Banknote,
   Stamp,
+  X,
   type LucideIcon,
 } from 'lucide-react'
 import { useApp } from '../context/AppContext'
@@ -64,8 +65,6 @@ const officeLinks: {
   },
   { to: '/office/bookings', label: 'الحجوزات', pageId: 'bookings', icon: Ticket },
   { to: '/office/tracking', label: 'تتبع الباصات', pageId: 'tracking', icon: Navigation },
-  // العملاء مخفي مؤقتاً من قائمة المكاتب — لا حاجة له حالياً
-  // { to: '/office/customers', label: 'العملاء', pageId: 'customers', icon: UserCircle2 },
   { to: '/office/accounting', label: 'المحاسبة', pageId: 'accounting', icon: Wallet },
   { to: '/office/statement', label: 'كشف الحساب', pageId: 'statement', icon: ScrollText },
   { to: '/office/reports', label: 'التقارير', pageId: 'reports', icon: FileBarChart2 },
@@ -86,6 +85,7 @@ export function Shell() {
       return false
     }
   })
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
   useEffect(() => {
     try {
@@ -95,6 +95,19 @@ export function Shell() {
     }
   }, [collapsed])
 
+  useEffect(() => {
+    if (!mobileNavOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMobileNavOpen(false)
+    }
+    document.addEventListener('keydown', onKey)
+    document.body.classList.add('mobile-nav-lock')
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.body.classList.remove('mobile-nav-lock')
+    }
+  }, [mobileNavOpen])
+
   const links = isAdmin
     ? adminLinks
     : officeLinks.filter((link) => !link.pageId || canPage(link.pageId, 'view'))
@@ -103,8 +116,20 @@ export function Shell() {
 
   void state.bookings
 
+  const closeMobileNav = () => setMobileNavOpen(false)
+
   return (
-    <div className={`app-shell${collapsed ? ' sidebar-collapsed' : ''}`}>
+    <div
+      className={`app-shell${collapsed ? ' sidebar-collapsed' : ''}${mobileNavOpen ? ' mobile-nav-open' : ''}`}
+    >
+      <button
+        type="button"
+        className="mobile-nav-backdrop"
+        aria-label="إغلاق القائمة"
+        tabIndex={mobileNavOpen ? 0 : -1}
+        onClick={closeMobileNav}
+      />
+
       <aside className="sidebar" aria-label="القائمة الجانبية">
         <div className="brand">
           <div className="brand-row">
@@ -120,13 +145,21 @@ export function Shell() {
             />
             <button
               type="button"
-              className="sidebar-toggle"
+              className="sidebar-toggle desktop-only"
               onClick={() => setCollapsed((v) => !v)}
               title={collapsed ? 'توسيع القائمة' : 'طيّ القائمة'}
               aria-label={collapsed ? 'توسيع القائمة' : 'طيّ القائمة'}
               aria-expanded={!collapsed}
             >
               {collapsed ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
+            </button>
+            <button
+              type="button"
+              className="sidebar-close mobile-only"
+              onClick={closeMobileNav}
+              aria-label="إغلاق القائمة"
+            >
+              <X size={20} />
             </button>
           </div>
         </div>
@@ -148,6 +181,7 @@ export function Shell() {
                 end={link.end}
                 title={link.label}
                 className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
+                onClick={closeMobileNav}
               >
                 <Icon className="nav-link-icon" size={20} strokeWidth={1.9} aria-hidden />
                 <span className="nav-link-label">{link.label}</span>
@@ -174,7 +208,10 @@ export function Shell() {
       </aside>
 
       <div className="main-column">
-        <TopHeader />
+        <TopHeader
+          onOpenNav={() => setMobileNavOpen(true)}
+          menuOpen={mobileNavOpen}
+        />
         <main className="main">
           <Outlet />
         </main>

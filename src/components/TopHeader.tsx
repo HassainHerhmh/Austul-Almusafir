@@ -1,4 +1,4 @@
-import { Bell, Moon, Sun } from 'lucide-react'
+import { Bell, Menu, Moon, Sun } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
@@ -22,7 +22,13 @@ function loadSeenAt(): string {
   return localStorage.getItem(SEEN_KEY) ?? new Date(0).toISOString()
 }
 
-export function TopHeader() {
+export function TopHeader({
+  onOpenNav,
+  menuOpen,
+}: {
+  onOpenNav?: () => void
+  menuOpen?: boolean
+} = {}) {
   const {
     currentUser,
     currentOffice,
@@ -94,6 +100,20 @@ export function TopHeader() {
   return (
     <header className="top-header">
       <div className="top-header-start">
+        {onOpenNav && (
+          <button
+            type="button"
+            className="header-btn mobile-nav-btn mobile-only"
+            aria-label="فتح القائمة"
+            aria-expanded={!!menuOpen}
+            title="القائمة"
+            onClick={onOpenNav}
+          >
+            <span className="header-icon" aria-hidden>
+              <Menu strokeWidth={1.75} />
+            </span>
+          </button>
+        )}
         <div className="top-header-title">
           <strong>{isAdmin ? 'لوحة مدير النظام' : currentOffice?.name}</strong>
           <span>{currentUser?.name}</span>

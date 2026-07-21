@@ -48,6 +48,16 @@ export function OfficeBookingsPage() {
   const { name: companyName, logoUrl, phones } = useBrand()
   const [params] = useSearchParams()
   const officeId = currentOffice!.id
+  const officeBookingsByTrip = useMemo(
+    () =>
+      state.bookings.reduce<Record<string, number>>((acc, booking) => {
+        if (booking.officeId === officeId && booking.status === 'confirmed') {
+          acc[booking.tripId] = (acc[booking.tripId] ?? 0) + 1
+        }
+        return acc
+      }, {}),
+    [state.bookings, officeId],
+  )
 
   // تحديث المقاعد/الحجوزات في الخلفية كل 10 ثوانٍ
   useEffect(() => {
@@ -115,6 +125,16 @@ export function OfficeBookingsPage() {
     () => state.trips.find((t) => t.id === tripId) ?? null,
     [state.trips, tripId],
   )
+
+  useEffect(() => {
+    if (!trips.length) {
+      if (tripId) setTripId('')
+      return
+    }
+    if (!trips.some((t) => t.id === tripId)) {
+      setTripId(trips[0].id)
+    }
+  }, [trips, tripId])
 
   const routeStops = useMemo(() => {
     if (!selectedTrip?.stops?.length) return []
@@ -408,7 +428,9 @@ export function OfficeBookingsPage() {
             {seats && (
               <div className="actions">
                 <span className="badge badge-info">المقاعد {seats.total}</span>
-                <span className="badge badge-danger">محجوز {seats.booked}</span>
+                <span className="badge badge-danger">
+                  حجوزات مكتبك {officeBookingsByTrip[tripId] ?? 0}
+                </span>
                 <span className="badge badge-ok">متبقي {seats.remaining}</span>
               </div>
             )}
@@ -428,11 +450,12 @@ export function OfficeBookingsPage() {
                 >
                   {trips.map((t) => {
                     const s = getTripSeats(t.id)
+                    const officeBookedCount = officeBookingsByTrip[t.id] ?? 0
                     return (
                       <option key={t.id} value={t.id}>
                         {t.tripKind === 'campaign' ? '[حملة] ' : ''}
                         {getTripLabel(t)} — {t.date} {formatTimeAr(t.departureTime)} (متبقي{' '}
-                        {s.remaining})
+                        {s.remaining} | حجوزاتك {officeBookedCount})
                       </option>
                     )
                   })}

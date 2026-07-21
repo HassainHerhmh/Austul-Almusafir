@@ -26,6 +26,10 @@ export function OfficeHome() {
   const myBookings = state.bookings.filter(
     (b) => b.officeId === officeId && b.status === 'confirmed',
   )
+  const myBookingsByTrip = myBookings.reduce<Record<string, number>>((acc, booking) => {
+    acc[booking.tripId] = (acc[booking.tripId] ?? 0) + 1
+    return acc
+  }, {})
   const todaySales = myBookings
     .filter((b) => b.bookedAt.startsWith(today))
     .reduce((s, b) => s + b.price, 0)
@@ -37,17 +41,22 @@ export function OfficeHome() {
 
   const trips = [...state.trips]
     .filter((t) => {
-      // مكتملة / ملغاة / مجدولة لا تظهر للوكيل
-      if (t.status === 'completed' || t.status === 'cancelled' || t.status === 'scheduled') {
+      const officeBookedCount = myBookingsByTrip[t.id] ?? 0
+      // مقفلة / ملغاة / مجدولة لا تظهر للوكيل
+      if (t.status === 'closed' || t.status === 'cancelled' || t.status === 'scheduled') {
         return false
+      }
+      // مكتملة / انطلقت: تظهر فقط إذا لدى هذا المكتب حجوزات على نفس الرحلة
+      if (t.status === 'completed' || t.status === 'departed') {
+        return officeBookedCount > 0
       }
       // حملة مفتوحة: تظهر لمكتب الحملة دون اشتراط تاريخ اليوم
       if (t.tripKind === 'campaign') {
         if (t.status !== 'open') return false
         return !t.campaignOfficeId || t.campaignOfficeId === officeId
       }
-      // ركاب: مفتوحة / مقفلة / انطلقت — بأي تاريخ
-      return t.status === 'open' || t.status === 'closed' || t.status === 'departed'
+      // ركاب: المفتوحة فقط تظهر دائماً
+      return t.status === 'open'
     })
     .sort((a, b) => {
       // المفتوحة أولاً، ثم الأحدث تاريخاً
@@ -101,6 +110,7 @@ export function OfficeHome() {
         <div className="trip-card-list">
           {trips.map((trip) => {
             const seats = getTripSeats(trip.id)
+            const officeBookedCount = myBookingsByTrip[trip.id] ?? 0
             const isToday = trip.date === today
             const canBook = trip.status === 'open' && seats.remaining > 0
             return (
@@ -130,9 +140,14 @@ export function OfficeHome() {
                   </div>
                 </div>
                 <div style={{ textAlign: 'left' }}>
-                  <div className="badge badge-ok">متبقي {seats.remaining}</div>
+                  <div
+                    style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', flexWrap: 'wrap' }}
+                  >
+                    <div className="badge badge-danger">حجوزاتك {officeBookedCount}</div>
+                    <div className="badge badge-ok">متبقي {seats.remaining}</div>
+                  </div>
                   <div style={{ fontSize: '0.8rem', color: 'var(--muted)', marginTop: 4 }}>
-                    محجوز {seats.booked} من {seats.total}
+                    المحجوز الكلي {seats.booked} من {seats.total}
                   </div>
                   {can('book') && canBook && (
                     <Link

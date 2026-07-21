@@ -55,12 +55,21 @@ export function TopHeader({
   }, [theme])
 
   useEffect(() => {
-    const onDoc = (e: MouseEvent) => {
+    const onDoc = (e: MouseEvent | TouchEvent) => {
       if (!panelRef.current?.contains(e.target as Node)) setOpenNotifs(false)
     }
     document.addEventListener('mousedown', onDoc)
-    return () => document.removeEventListener('mousedown', onDoc)
+    document.addEventListener('touchstart', onDoc, { passive: true })
+    return () => {
+      document.removeEventListener('mousedown', onDoc)
+      document.removeEventListener('touchstart', onDoc)
+    }
   }, [])
+
+  useEffect(() => {
+    document.body.classList.toggle('notif-open', openNotifs)
+    return () => document.body.classList.remove('notif-open')
+  }, [openNotifs])
 
   const relevantBookings = useMemo(() => {
     let list = [...state.bookings].filter((b) => b.status === 'confirmed')

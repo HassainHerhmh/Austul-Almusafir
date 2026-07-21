@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { formatMoney, formatTimeAr, todayStr } from '../../components/utils'
 import { useApp } from '../../context/AppContext'
@@ -19,6 +20,7 @@ export function OfficeHome() {
     getTripLabel,
     getTripSeats,
     can,
+    ensureTripSeats,
   } = useApp()
   const officeId = currentOffice?.id
   const today = todayStr()
@@ -64,6 +66,13 @@ export function OfficeHome() {
       if (b.status === 'open' && a.status !== 'open') return 1
       return b.date.localeCompare(a.date) || b.departureTime.localeCompare(a.departureTime)
     })
+
+  useEffect(() => {
+    // نحتاج لمعرفة المقاعد المحجوزة عبر جميع الوكلاء لعرض «متبقي» بدقة
+    // نُحمّل أول عدة رحلات فقط لتخفيف الضغط على السيرفر.
+    const ids = trips.slice(0, 10).map((t) => t.id)
+    void Promise.allSettled(ids.map((id) => ensureTripSeats(id)))
+  }, [trips, ensureTripSeats])
 
   return (
     <div>

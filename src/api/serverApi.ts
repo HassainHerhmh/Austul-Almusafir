@@ -231,6 +231,13 @@ export const serverApi = {
 
   bookings: {
     list: () => apiRequest<{ list: any[] }>('/api/bookings'),
+    tripSeats: (tripId: string) =>
+      apiRequest<{
+        total: number
+        booked: number
+        remaining: number
+        bookedSeats: number[]
+      }>(`/api/bookings/seats?tripId=${encodeURIComponent(tripId)}`),
     create: (data: unknown) =>
       apiRequest<{ booking: any }>('/api/bookings', {
         method: 'POST',

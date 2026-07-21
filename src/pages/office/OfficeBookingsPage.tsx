@@ -44,6 +44,7 @@ export function OfficeBookingsPage() {
     createBooking,
     updateBooking,
     refreshBookings,
+    ensureTripSeats,
   } = useApp()
   const { name: companyName, logoUrl, phones } = useBrand()
   const [params] = useSearchParams()
@@ -125,6 +126,11 @@ export function OfficeBookingsPage() {
     () => state.trips.find((t) => t.id === tripId) ?? null,
     [state.trips, tripId],
   )
+
+  useEffect(() => {
+    if (!tripId) return
+    void ensureTripSeats(tripId)
+  }, [tripId, ensureTripSeats])
 
   useEffect(() => {
     if (!trips.length) {

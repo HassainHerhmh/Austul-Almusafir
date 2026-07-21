@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
@@ -58,6 +59,7 @@ interface AppContextValue {
     remaining: number
     bookedSeats: number[]
   }
+  ensureTripSeats: (tripId: string) => Promise<void>
   getOfficeAgencyBalance: (officeId?: string) => number
   upsertOffice: (office: Omit<Office, 'id' | 'createdAt'> & { id?: string }) => Promise<void>
   upsertUser: (user: Omit<User, 'id'> & { id?: string }) => Promise<void>
@@ -177,8 +179,15 @@ const AppContext = createContext<AppContextValue | null>(null)
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AppState>(() => emptyState())
   const [balances, setBalances] = useState<Record<string, number>>({})
+  const [tripSeatsAll, setTripSeatsAll] = useState<
+    Record<
+      string,
+      { total: number; booked: number; remaining: number; bookedSeats: number[] }
+    >
+  >({})
   const [loading, setLoading] = useState(true)
   const [apiReady, setApiReady] = useState(false)
+  const tripSeatsFetchingRef = useRef<Set<string>>(new Set())
 
   const currentUser = useMemo(
     () => state.users.find((u) => u.id === state.currentUserId) ?? null,
@@ -526,6 +535,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }
 
   const getTripSeats = (tripId: string) => {
+    const cached = tripSeatsAll[tripId]
+    if (cached) return cached
+
     const trip = state.trips.find((t) => t.id === tripId)
     const bus = trip ? getBus(trip.busId) : undefined
     const total = bus?.seats ?? 0
@@ -537,6 +549,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
       booked: confirmed.length,
       remaining: Math.max(0, total - confirmed.length),
       bookedSeats: confirmed.map((b) => b.seatNumber),
+    }
+  }
+
+  const ensureTripSeats: AppContextValue['ensureTripSeats'] = async (tripId) => {
+    if (isAdmin) return
+    if (!tripId) return
+    if (tripSeatsAll[tripId]) return
+    if (tripSeatsFetchingRef.current.has(tripId)) return
+
+    tripSeatsFetchingRef.current.add(tripId)
+    try {
+      const res = await serverApi.bookings.tripSeats(tripId)
+      // API returns seat occupancy across جميع المكاتب (confirmed only)
+      setTripSeatsAll((prev) => ({
+        ...prev,
+        [tripId]: {
+          total: res.total,
+          booked: res.booked,
+          remaining: res.remaining,
+          bookedSeats: res.bookedSeats,
+        },
+      }))
+    } catch {
+      /* keep fallback */
+    } finally {
+      tripSeatsFetchingRef.current.delete(tripId)
     }
   }
 
@@ -854,6 +892,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     getOffice,
     getTripLabel,
     getTripSeats,
+    ensureTripSeats,
     getOfficeAgencyBalance,
     upsertOffice,
     upsertUser,

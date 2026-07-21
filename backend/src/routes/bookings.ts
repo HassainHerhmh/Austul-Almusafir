@@ -38,6 +38,38 @@ bookingsRouter.get(
   }),
 )
 
+bookingsRouter.get(
+  '/seats',
+  asyncHandler(async (req, res) => {
+    const schema = z.object({
+      tripId: z.string().min(1),
+    })
+    const q = schema.safeParse(req.query)
+    if (!q.success) return fail(res, 'tripId غير صالح')
+
+    const tripId = q.data.tripId
+
+    const trip = await prisma.trip.findUnique({
+      where: { id: tripId },
+      include: { bus: true },
+    })
+    if (!trip) return fail(res, 'الرحلة غير موجودة', 404)
+
+    const bookings = await prisma.booking.findMany({
+      where: { tripId, status: 'confirmed' },
+      select: { seatNumber: true },
+    })
+
+    const seatSet = new Set<number>(bookings.map((b) => b.seatNumber))
+    const bookedSeats = [...seatSet].sort((a, b) => a - b)
+    const total = trip.bus?.seats ?? 0
+    const booked = bookedSeats.length
+    const remaining = Math.max(0, total - booked)
+
+    return ok(res, { total, booked, remaining, bookedSeats })
+  }),
+)
+
 bookingsRouter.post(
   '/',
   requireRoles('admin', 'office_manager', 'booking_clerk'),

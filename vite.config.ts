@@ -4,7 +4,8 @@ import tailwindcss from '@tailwindcss/vite'
 
 // https://vite.dev/config/
 export default defineConfig({
-  // مسارات نسبية حتى يعمل البناء داخل Capacitor WebView
-  base: './',
+  // '/' للويب (Vercel) حتى لا تنكسر الأصول عند المسارات المتداخلة مثل /office/bookings
+  // بناء الأندرويد يمرّر --base ./ عبر سكربت build:android
+  base: '/',
   plugins: [react(), tailwindcss()],
 })

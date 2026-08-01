@@ -24,6 +24,7 @@ export function DriverTrackingPage() {
   const activeTripRef = useRef<string | null>(null)
   const lastPingAtRef = useRef(0)
   const wakeLockRef = useRef<WakeLockSentinel | null>(null)
+  const resumePendingRef = useRef(false)
 
   useEffect(() => {
     activeTripRef.current = activeTripId
@@ -75,12 +76,15 @@ export function DriverTrackingPage() {
     const now = Date.now()
     if (now - lastPingAtRef.current < PING_MIN_MS) return
     lastPingAtRef.current = now
+    const resume = resumePendingRef.current
     await serverApi.tracking.ping({
       tripId,
       lat,
       lng,
       accuracy: accuracy ?? null,
+      resume,
     })
+    if (resume) resumePendingRef.current = false
     setLastPing(new Date().toLocaleTimeString('ar-YE'))
     setCoords({ lat, lng })
   }, [])
@@ -95,12 +99,12 @@ export function DriverTrackingPage() {
     setStatus(null)
     try {
       if (activeTripId && activeTripId !== trip.id) {
+        await stopWatch()
         try {
           await serverApi.tracking.stop(activeTripId)
         } catch {
           /* ignore */
         }
-        await stopWatch()
       }
 
       await new Promise<void>((resolve, reject) => {
@@ -111,6 +115,7 @@ export function DriverTrackingPage() {
         )
       })
 
+      resumePendingRef.current = true
       setActiveTripId(trip.id)
       await requestWakeLock()
 
@@ -144,7 +149,12 @@ export function DriverTrackingPage() {
       setStatus(`التتبع يعمل: ${trip.label || trip.plateNumber} — أبقِ هذه الصفحة مفتوحة`)
       await refreshTrips().catch(() => undefined)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'تعذر بدء التتبع')
+      const msg = e instanceof Error ? e.message : 'تعذر بدء التتبع'
+      setError(msg)
+      const issue =
+        /denied|سماح|إذن|permission/i.test(msg) ? 'permission_denied' as const : 'gps_off' as const
+      void serverApi.tracking.reportIssue({ tripId: trip.id, issue, message: msg }).catch(() => undefined)
+      resumePendingRef.current = false
       setActiveTripId(null)
       await stopWatch()
     } finally {
@@ -154,17 +164,19 @@ export function DriverTrackingPage() {
 
   const stopTrip = async () => {
     if (!activeTripId) return
+    const tripId = activeTripId
     setBusy(true)
     setError(null)
     try {
-      try {
-        await serverApi.tracking.stop(activeTripId)
-      } catch {
-        /* ignore */
-      }
+      resumePendingRef.current = false
       await stopWatch()
       setActiveTripId(null)
-      setStatus('تم إيقاف التتبع')
+      try {
+        await serverApi.tracking.stop(tripId)
+        setStatus('تم إيقاف التتبع')
+      } catch {
+        setError('تم الإيقاف محلياً، لكن تعذر إبلاغ المنصة')
+      }
       await refreshTrips().catch(() => undefined)
     } finally {
       setBusy(false)

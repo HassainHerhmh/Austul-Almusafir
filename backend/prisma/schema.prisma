@@ -148,15 +148,19 @@ model TripTrackingShare {
 
 /** آخر موقع GPS حي لكل رحلة */
 model TripLocation {
-  tripId    String   @id
-  trip      Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
-  lat       Float
-  lng       Float
-  accuracy  Float?
-  speed     Float?
-  heading   Float?
-  active    Boolean  @default(true)
-  updatedAt DateTime @updatedAt
+  tripId         String    @id
+  trip           Trip      @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  lat            Float
+  lng            Float
+  accuracy       Float?
+  speed          Float?
+  heading        Float?
+  active         Boolean   @default(true)
+  /** مشكلة من تطبيق السائق: permission_denied | gps_off | background_denied | battery | send_failed */
+  clientIssue    String?
+  clientIssueMsg String?   @db.VarChar(500)
+  clientIssueAt  DateTime?
+  updatedAt      DateTime  @updatedAt
 }
 
 model TripStop {

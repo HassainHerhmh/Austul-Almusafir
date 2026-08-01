@@ -7,6 +7,15 @@ import markerShadow from 'leaflet/dist/images/marker-shadow.png'
 import 'leaflet/dist/leaflet.css'
 import { serverApi } from '../../api/serverApi'
 import { formatTimeAr } from '../../components/utils'
+import {
+  clientIssueText,
+  hasMapCoords,
+  statusBadgeClass,
+  statusColor,
+  statusLabel,
+  trackStatusFromItem,
+  type TrackStatus,
+} from '../../components/trackingStatus'
 
 delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl
 L.Icon.Default.mergeOptions({
@@ -16,32 +25,12 @@ L.Icon.Default.mergeOptions({
 })
 
 type LiveItem = Awaited<ReturnType<typeof serverApi.tracking.officeLive>>['list'][number]
-type TrackStatus = 'live' | 'interrupted' | 'stopped'
 
-const STALE_MS = 2 * 60 * 1000
 const EMPTY_MSG =
   'لا يوجد لديك رحلات حالية أو انتظر حتى تبدأ الرحلة سيتم ظهور خريطة التتبع'
 
-function isStale(updatedAt: string) {
-  return Date.now() - new Date(updatedAt).getTime() > STALE_MS
-}
-
 function trackStatus(item: LiveItem): TrackStatus {
-  if (!item.active) return 'stopped'
-  if (isStale(item.updatedAt)) return 'interrupted'
-  return 'live'
-}
-
-function statusLabel(status: TrackStatus) {
-  if (status === 'live') return 'مباشر'
-  if (status === 'interrupted') return 'انقطع الإرسال'
-  return 'متوقف'
-}
-
-function statusColor(status: TrackStatus) {
-  if (status === 'live') return '#0f766e'
-  if (status === 'interrupted') return '#b45309'
-  return '#64748b'
+  return trackStatusFromItem(item)
 }
 
 function escapeHtml(s: string) {
@@ -113,17 +102,19 @@ export function OfficeTrackingPage() {
     return () => window.clearInterval(id)
   }, [refresh])
 
+  const mapList = useMemo(() => list.filter(hasMapCoords), [list])
+
   const points = useMemo(
-    () => list.map((i) => ({ lat: i.lat, lng: i.lng })),
-    [list],
+    () => mapList.map((i) => ({ lat: i.lat, lng: i.lng })),
+    [mapList],
   )
 
   const tripKey = useMemo(
     () =>
-      [...list.map((i) => i.tripId)]
+      [...mapList.map((i) => i.tripId)]
         .sort()
         .join('|'),
-    [list],
+    [mapList],
   )
 
   const showEmpty = !loading && list.length === 0
@@ -167,9 +158,10 @@ export function OfficeTrackingPage() {
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                   />
                   <FitBounds points={points} tripKey={tripKey} />
-                  {list.map((item) => {
+                  {mapList.map((item) => {
                     const status = trackStatus(item)
                     const busNo = item.trip.busNumber || item.trip.plateNumber || '؟'
+                    const issue = clientIssueText(item.clientIssue, item.clientIssueMsg)
                     return (
                       <Marker
                         key={item.tripId}
@@ -182,12 +174,18 @@ export function OfficeTrackingPage() {
                               باص {item.trip.busNumber || '—'} — {item.trip.plateNumber}
                             </strong>
                             <div>{item.trip.label || '—'}</div>
+                            <div>السائق: {item.trip.driverName}</div>
                             <div>
                               الحالة:{' '}
                               <span style={{ color: statusColor(status), fontWeight: 700 }}>
                                 {statusLabel(status)}
                               </span>
                             </div>
+                            {issue && (
+                              <div style={{ color: '#be123c', fontWeight: 600, marginTop: 4 }}>
+                                {item.trip.driverName} — {issue}
+                              </div>
+                            )}
                             <div style={{ fontSize: 12, opacity: 0.8 }}>
                               آخر تحديث: {item.updatedAt.slice(0, 19).replace('T', ' ')}
                               {item.trip.departureTime
@@ -219,13 +217,16 @@ export function OfficeTrackingPage() {
                   <tr>
                     <th>الباص</th>
                     <th>الرحلة</th>
+                    <th>السائق</th>
                     <th>آخر تحديث</th>
                     <th>الحالة</th>
+                    <th>مشكلة السماح</th>
                   </tr>
                 </thead>
                 <tbody>
                   {list.map((item) => {
                     const status = trackStatus(item)
+                    const issue = clientIssueText(item.clientIssue, item.clientIssueMsg)
                     return (
                       <tr key={item.tripId}>
                         <td>
@@ -234,19 +235,15 @@ export function OfficeTrackingPage() {
                             .join(' — ')}
                         </td>
                         <td>{item.trip.label || '—'}</td>
+                        <td>{item.trip.driverName}</td>
                         <td>{item.updatedAt.slice(0, 19).replace('T', ' ')}</td>
                         <td>
-                          <span
-                            className={`badge ${
-                              status === 'live'
-                                ? 'badge-ok'
-                                : status === 'interrupted'
-                                  ? 'badge-warn'
-                                  : 'badge-danger'
-                            }`}
-                          >
+                          <span className={`badge ${statusBadgeClass(status)}`}>
                             {statusLabel(status)}
                           </span>
+                        </td>
+                        <td style={issue ? { color: 'var(--danger)', fontWeight: 600 } : undefined}>
+                          {issue ? `${item.trip.driverName}: ${issue}` : '—'}
                         </td>
                       </tr>
                     )

@@ -518,6 +518,7 @@ export const serverApi = {
       accuracy?: number | null
       speed?: number | null
       heading?: number | null
+      resume?: boolean
     }) =>
       apiRequest<{
         location: {
@@ -533,6 +534,26 @@ export const serverApi = {
         '/api/tracking/stop',
         { method: 'POST', body: JSON.stringify({ tripId }) },
       ),
+    reportIssue: (data: {
+      tripId: string
+      issue:
+        | 'permission_denied'
+        | 'gps_off'
+        | 'background_denied'
+        | 'battery'
+        | 'send_failed'
+      message: string
+    }) =>
+      apiRequest<{
+        location: {
+          tripId: string
+          active: boolean
+          clientIssue: string | null
+          clientIssueMsg: string | null
+          clientIssueAt: string | null
+          updatedAt: string
+        }
+      }>('/api/tracking/client-issue', { method: 'POST', body: JSON.stringify(data) }),
     live: () =>
       apiRequest<{
         list: Array<{
@@ -543,6 +564,9 @@ export const serverApi = {
           speed: number | null
           heading: number | null
           active: boolean
+          clientIssue: string | null
+          clientIssueMsg: string | null
+          clientIssueAt: string | null
           updatedAt: string
           trip: {
             id: string
@@ -567,6 +591,9 @@ export const serverApi = {
           speed: number | null
           heading: number | null
           active: boolean
+          clientIssue: string | null
+          clientIssueMsg: string | null
+          clientIssueAt: string | null
           updatedAt: string
           trip: {
             id: string

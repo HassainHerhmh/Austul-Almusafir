@@ -3,7 +3,6 @@ import Constants from 'expo-constants'
 
 const TOKEN_KEY = 'austul-driver-token'
 const TRIP_KEY = 'austul-tracking-trip'
-const API_KEY = 'austul-api-url'
 const USER_NAME_KEY = 'austul-driver-name'
 
 export function getDefaultApiUrl() {
@@ -12,16 +11,7 @@ export function getDefaultApiUrl() {
 }
 
 export async function getApiUrl() {
-  try {
-    const saved = await AsyncStorage.getItem(API_KEY)
-    return (saved || getDefaultApiUrl()).replace(/\/$/, '')
-  } catch {
-    return getDefaultApiUrl()
-  }
-}
-
-export async function setApiUrl(url: string) {
-  await AsyncStorage.setItem(API_KEY, url.replace(/\/$/, ''))
+  return getDefaultApiUrl()
 }
 
 export async function getToken() {
@@ -177,6 +167,7 @@ export async function pingLocation(payload: {
   accuracy?: number | null
   speed?: number | null
   heading?: number | null
+  resume?: boolean
 }) {
   if (
     !Number.isFinite(payload.lat) ||
@@ -201,6 +192,7 @@ export async function pingLocation(payload: {
           payload.heading != null && Number.isFinite(payload.heading)
             ? payload.heading
             : null,
+        resume: payload.resume === true,
       }),
       clearOn401: false,
       timeoutMs: 15000,
@@ -215,4 +207,28 @@ export async function stopTracking(tripId: string) {
     clearOn401: false,
     timeoutMs: 10000,
   })
+}
+
+export type ClientIssueCode =
+  | 'permission_denied'
+  | 'gps_off'
+  | 'background_denied'
+  | 'battery'
+  | 'send_failed'
+
+export async function reportClientIssue(
+  tripId: string,
+  issue: ClientIssueCode,
+  message: string,
+) {
+  try {
+    return await apiRequest('/api/tracking/client-issue', {
+      method: 'POST',
+      body: JSON.stringify({ tripId, issue, message: message.slice(0, 500) }),
+      clearOn401: false,
+      timeoutMs: 10000,
+    })
+  } catch {
+    return null
+  }
 }

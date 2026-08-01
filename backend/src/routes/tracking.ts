@@ -216,6 +216,8 @@ trackingRouter.post(
         accuracy: z.number().nullable().optional(),
         speed: z.number().nullable().optional(),
         heading: z.number().nullable().optional(),
+        /** true عند بدء التتبع من التطبيق — يمنع إعادة التفعيل بعد الإيقاف */
+        resume: z.boolean().optional(),
       })
       .safeParse(req.body)
     if (!body.success) return fail(res, 'بيانات الموقع غير صالحة')
@@ -225,6 +227,11 @@ trackingRouter.post(
     if (trip.driverId !== driverId) return fail(res, 'هذه الرحلة ليست مرتبطة بحسابك', 403)
     if (['cancelled', 'completed'].includes(trip.status)) {
       return fail(res, 'لا يمكن تتبع رحلة منتهية أو ملغاة', 400)
+    }
+
+    const existing = await prisma.tripLocation.findUnique({ where: { tripId: trip.id } })
+    if (existing && !existing.active && !body.data.resume) {
+      return fail(res, 'التتبع متوقف لهذه الرحلة — ابدأ التتبع من التطبيق', 409)
     }
 
     const location = await prisma.tripLocation.upsert({
@@ -237,6 +244,9 @@ trackingRouter.post(
         speed: body.data.speed ?? null,
         heading: body.data.heading ?? null,
         active: true,
+        clientIssue: null,
+        clientIssueMsg: null,
+        clientIssueAt: null,
       },
       update: {
         lat: body.data.lat,
@@ -245,6 +255,9 @@ trackingRouter.post(
         speed: body.data.speed ?? null,
         heading: body.data.heading ?? null,
         active: true,
+        clientIssue: null,
+        clientIssueMsg: null,
+        clientIssueAt: null,
       },
     })
 
@@ -279,13 +292,83 @@ trackingRouter.post(
 
     const location = await prisma.tripLocation.update({
       where: { tripId: trip.id },
-      data: { active: false },
+      data: {
+        active: false,
+        clientIssue: null,
+        clientIssueMsg: null,
+        clientIssueAt: null,
+      },
     })
 
     return ok(res, {
       location: {
         tripId: location.tripId,
         active: location.active,
+        updatedAt: location.updatedAt.toISOString(),
+      },
+    })
+  }),
+)
+
+const CLIENT_ISSUE_CODES = [
+  'permission_denied',
+  'gps_off',
+  'background_denied',
+  'battery',
+  'send_failed',
+] as const
+
+trackingRouter.post(
+  '/client-issue',
+  requireRoles('driver'),
+  asyncHandler(async (req, res) => {
+    const driverId = await resolveDriverId(req.user!.id)
+    if (!driverId) return fail(res, 'الحساب غير مربوط بسائق — راجع الإدارة', 400)
+
+    const body = z
+      .object({
+        tripId: z.string().min(1),
+        issue: z.enum(CLIENT_ISSUE_CODES),
+        message: z.string().trim().min(1).max(500),
+      })
+      .safeParse(req.body)
+    if (!body.success) return fail(res, 'بيانات غير صالحة')
+
+    const trip = await prisma.trip.findUnique({ where: { id: body.data.tripId } })
+    if (!trip) return fail(res, 'الرحلة غير موجودة', 404)
+    if (trip.driverId !== driverId) return fail(res, 'هذه الرحلة ليست مرتبطة بحسابك', 403)
+
+    const now = new Date()
+    const existing = await prisma.tripLocation.findUnique({ where: { tripId: trip.id } })
+    const location = existing
+      ? await prisma.tripLocation.update({
+          where: { tripId: trip.id },
+          data: {
+            active: false,
+            clientIssue: body.data.issue,
+            clientIssueMsg: body.data.message,
+            clientIssueAt: now,
+          },
+        })
+      : await prisma.tripLocation.create({
+          data: {
+            tripId: trip.id,
+            lat: 0,
+            lng: 0,
+            active: false,
+            clientIssue: body.data.issue,
+            clientIssueMsg: body.data.message,
+            clientIssueAt: now,
+          },
+        })
+
+    return ok(res, {
+      location: {
+        tripId: location.tripId,
+        active: location.active,
+        clientIssue: location.clientIssue,
+        clientIssueMsg: location.clientIssueMsg,
+        clientIssueAt: location.clientIssueAt?.toISOString() ?? null,
         updatedAt: location.updatedAt.toISOString(),
       },
     })
@@ -320,6 +403,9 @@ trackingRouter.get(
         speed: loc.speed,
         heading: loc.heading,
         active: loc.active,
+        clientIssue: loc.clientIssue,
+        clientIssueMsg: loc.clientIssueMsg,
+        clientIssueAt: loc.clientIssueAt?.toISOString() ?? null,
         updatedAt: loc.updatedAt.toISOString(),
         trip: {
           id: loc.trip.id,
@@ -382,6 +468,9 @@ trackingRouter.get(
         speed: loc.speed,
         heading: loc.heading,
         active: loc.active,
+        clientIssue: loc.clientIssue,
+        clientIssueMsg: loc.clientIssueMsg,
+        clientIssueAt: loc.clientIssueAt?.toISOString() ?? null,
         updatedAt: loc.updatedAt.toISOString(),
         trip: {
           id: loc.trip.id,

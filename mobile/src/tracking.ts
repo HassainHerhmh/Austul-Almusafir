@@ -37,6 +37,8 @@ let heartbeatTimer: ReturnType<typeof setInterval> | null = null
 let lastPingAt = 0
 let lastCoords: Location.LocationObjectCoords | null = null
 let heartbeatTripId: string | null = null
+/** true فقط أثناء جلسة تتبع بدأها السائق — أول نبضة تُرسل resume لإعادة التفعيل بعد إيقاف */
+let sessionResumePending = false
 
 async function sendPingFromCoords(
   tripId: string,
@@ -47,6 +49,7 @@ async function sendPingFromCoords(
   if (!force && now - lastPingAt < MIN_PING_GAP_MS) return
   lastPingAt = now
   lastCoords = coords
+  const resume = sessionResumePending
   await pingLocation({
     tripId,
     lat: coords.latitude,
@@ -54,7 +57,9 @@ async function sendPingFromCoords(
     accuracy: coords.accuracy,
     speed: coords.speed,
     heading: coords.heading,
+    resume,
   })
+  if (resume) sessionResumePending = false
 }
 
 /** يقرأ موقعاً جديداً أو يعيد آخر إحداثيات معروفة ويرسلها للسيرفر */
@@ -265,9 +270,12 @@ export async function startTracking(tripId: string): Promise<{ background: boole
     )
   }
 
+  sessionResumePending = true
+
   try {
     await startBackgroundLocationTask()
   } catch (e) {
+    sessionResumePending = false
     throw new Error(
       e instanceof Error
         ? `تعذر تشغيل التتبع في الخلفية: ${e.message}`
@@ -305,6 +313,7 @@ export async function startTracking(tripId: string): Promise<{ background: boole
 }
 
 export async function stopTrackingLocalOnly() {
+  sessionResumePending = false
   stopHeartbeat(true)
 
   try {

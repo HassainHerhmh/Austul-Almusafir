@@ -8,6 +8,15 @@ import 'leaflet/dist/leaflet.css'
 import { serverApi } from '../../api/serverApi'
 import { useApp } from '../../context/AppContext'
 import { formatTimeAr } from '../../components/utils'
+import {
+  clientIssueText,
+  hasMapCoords,
+  statusBadgeClass,
+  statusColor,
+  statusLabel,
+  trackStatusFromItem,
+  type TrackStatus,
+} from '../../components/trackingStatus'
 
 delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl
 L.Icon.Default.mergeOptions({
@@ -20,30 +29,9 @@ type LiveItem = Awaited<ReturnType<typeof serverApi.tracking.live>>['list'][numb
 type ShareItem = Awaited<ReturnType<typeof serverApi.tracking.shares.list>>['list'][number]
 type ShareableTrip = Awaited<ReturnType<typeof serverApi.tracking.shareableTrips>>['list'][number]
 type OfficeAccessItem = Awaited<ReturnType<typeof serverApi.tracking.officeAccess.list>>['list'][number]
-type TrackStatus = 'live' | 'interrupted' | 'stopped'
-
-const STALE_MS = 2 * 60 * 1000
-
-function isStale(updatedAt: string) {
-  return Date.now() - new Date(updatedAt).getTime() > STALE_MS
-}
 
 function trackStatus(item: LiveItem): TrackStatus {
-  if (!item.active) return 'stopped'
-  if (isStale(item.updatedAt)) return 'interrupted'
-  return 'live'
-}
-
-function statusLabel(status: TrackStatus) {
-  if (status === 'live') return 'مباشر'
-  if (status === 'interrupted') return 'انقطع الإرسال'
-  return 'متوقف'
-}
-
-function statusColor(status: TrackStatus) {
-  if (status === 'live') return '#0f766e'
-  if (status === 'interrupted') return '#b45309'
-  return '#64748b'
+  return trackStatusFromItem(item)
 }
 
 function escapeHtml(s: string) {
@@ -299,30 +287,34 @@ export function AdminTrackingPage() {
     }
   }
 
+  const mapList = useMemo(() => list.filter(hasMapCoords), [list])
+
   const points = useMemo(
-    () => list.map((i) => ({ lat: i.lat, lng: i.lng })),
-    [list],
+    () => mapList.map((i) => ({ lat: i.lat, lng: i.lng })),
+    [mapList],
   )
 
   const tripKey = useMemo(
     () =>
-      [...list.map((i) => i.tripId)]
+      [...mapList.map((i) => i.tripId)]
         .sort()
         .join('|'),
-    [list],
+    [mapList],
   )
 
   const counts = useMemo(() => {
     let live = 0
     let interrupted = 0
     let stopped = 0
+    let problem = 0
     for (const item of list) {
       const s = trackStatus(item)
       if (s === 'live') live += 1
       else if (s === 'interrupted') interrupted += 1
+      else if (s === 'problem') problem += 1
       else stopped += 1
     }
-    return { live, interrupted, stopped }
+    return { live, interrupted, stopped, problem }
   }, [list])
 
   const center: [number, number] = points[0]
@@ -335,8 +327,8 @@ export function AdminTrackingPage() {
         <div>
           <h1>تتبع الباصات</h1>
           <p>
-            كل الرحلات على الخريطة · مباشر {counts.live} · انقطع {counts.interrupted} · متوقف{' '}
-            {counts.stopped}
+            كل الرحلات على الخريطة · مباشر {counts.live} · انقطع {counts.interrupted} · مشكلة سماح{' '}
+            {counts.problem} · متوقف {counts.stopped}
           </p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
@@ -368,9 +360,10 @@ export function AdminTrackingPage() {
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
               <FitBounds points={points} tripKey={tripKey} />
-              {list.map((item) => {
+              {mapList.map((item) => {
                 const status = trackStatus(item)
                 const busNo = item.trip.busNumber || item.trip.plateNumber || '؟'
+                const issue = clientIssueText(item.clientIssue, item.clientIssueMsg)
                 return (
                   <Marker
                     key={item.tripId}
@@ -390,6 +383,11 @@ export function AdminTrackingPage() {
                             {statusLabel(status)}
                           </span>
                         </div>
+                        {issue && (
+                          <div style={{ color: '#be123c', fontWeight: 600, marginTop: 4 }}>
+                            {item.trip.driverName} — {issue}
+                          </div>
+                        )}
                         <div style={{ fontSize: 12, opacity: 0.8 }}>
                           آخر تحديث: {item.updatedAt.slice(0, 19).replace('T', ' ')}
                           {item.trip.departureTime
@@ -424,11 +422,13 @@ export function AdminTrackingPage() {
                 <th>السائق</th>
                 <th>آخر تحديث</th>
                 <th>الحالة</th>
+                <th>مشكلة السماح</th>
               </tr>
             </thead>
             <tbody>
               {list.map((item) => {
                 const status = trackStatus(item)
+                const issue = clientIssueText(item.clientIssue, item.clientIssueMsg)
                 return (
                   <tr key={item.tripId}>
                     <td>
@@ -438,25 +438,20 @@ export function AdminTrackingPage() {
                     <td>{item.trip.driverName}</td>
                     <td>{item.updatedAt.slice(0, 19).replace('T', ' ')}</td>
                     <td>
-                      <span
-                        className={`badge ${
-                          status === 'live'
-                            ? 'badge-ok'
-                            : status === 'interrupted'
-                              ? 'badge-warn'
-                              : 'badge-danger'
-                        }`}
-                      >
+                      <span className={`badge ${statusBadgeClass(status)}`}>
                         {statusLabel(status)}
                       </span>
+                    </td>
+                    <td style={issue ? { color: 'var(--danger)', fontWeight: 600 } : undefined}>
+                      {issue ? `${item.trip.driverName}: ${issue}` : '—'}
                     </td>
                   </tr>
                 )
               })}
               {list.length === 0 && !loading && (
                 <tr>
-                  <td colSpan={5} className="empty">
-                    لا توجد مواقع خلال آخر 24 ساعة — يبدأ التتبع من صفحة السائق في المتصفح
+                  <td colSpan={6} className="empty">
+                    لا توجد مواقع خلال آخر 24 ساعة — يبدأ التتبع من تطبيق السائق
                   </td>
                 </tr>
               )}

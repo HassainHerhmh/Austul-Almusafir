@@ -69,6 +69,8 @@ export async function setupTrackingNotifications(onStopped?: () => void) {
         guardEnabled = false
         stopNotificationGuard()
         const tripId = await getActiveTripId()
+        await stopBackgroundTracking()
+        await setActiveTripId(null)
         if (tripId) {
           try {
             await stopTracking(tripId)
@@ -76,8 +78,6 @@ export async function setupTrackingNotifications(onStopped?: () => void) {
             /* ignore */
           }
         }
-        await stopBackgroundTracking()
-        await setActiveTripId(null)
         await hideTrackingNotification()
         onStopped?.()
       })()

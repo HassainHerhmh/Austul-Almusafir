@@ -18,15 +18,15 @@ import {
   DriverTrip,
   fetchMyTrips,
   getActiveTripId,
-  getApiUrl,
   getSavedUserName,
   getToken,
   login,
+  reportClientIssue,
   setActiveTripId,
-  setApiUrl,
   setSavedUserName,
   setToken,
   stopTracking,
+  type ClientIssueCode,
 } from './src/api'
 import { startTracking, stopBackgroundTracking, requestBatteryUnrestricted, PermissionNeededError } from './src/tracking'
 import {
@@ -44,8 +44,6 @@ export default function App() {
   const [user, setUser] = useState<UserInfo | null>(null)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-  const [apiUrl, setApiUrlState] = useState('')
-  const [showApi, setShowApi] = useState(false)
   const [trips, setTrips] = useState<DriverTrip[]>([])
   const [activeTripId, setActive] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -78,7 +76,6 @@ export default function App() {
   useEffect(() => {
     ;(async () => {
       try {
-        setApiUrlState(await getApiUrl())
         const token = await getToken()
         if (!token) return
 
@@ -128,7 +125,6 @@ export default function App() {
     setBusy(true)
     setError(null)
     try {
-      if (apiUrl.trim()) await setApiUrl(apiUrl.trim())
       const u = await login(username.trim(), password)
       setUser({ name: u.name })
       await refreshTrips()
@@ -165,20 +161,36 @@ export default function App() {
     }
   }
 
+  const classifyIssue = (e: unknown): { code: ClientIssueCode; message: string } => {
+    const message = e instanceof Error ? e.message : 'تعذر بدء التتبع'
+    if (e instanceof PermissionNeededError) {
+      if (/GPS|خدمة الموقع|مغلقة/.test(message)) {
+        return { code: 'gps_off', message }
+      }
+      if (/خلفية|دائماً|background/i.test(message)) {
+        return { code: 'background_denied', message }
+      }
+      return { code: 'permission_denied', message }
+    }
+    if (/بطارية|battery/i.test(message)) return { code: 'battery', message }
+    return { code: 'send_failed', message }
+  }
+
   const startTrip = async (trip: DriverTrip) => {
     setBusy(true)
     setError(null)
     setStatus(null)
     try {
       if (activeTripId && activeTripId !== trip.id) {
+        await stopBackgroundTracking()
+        stopNotificationGuard()
+        await hideTrackingNotification()
         try {
           await stopTracking(activeTripId)
         } catch {
           /* ignore */
         }
-        await stopBackgroundTracking()
-        stopNotificationGuard()
-        await hideTrackingNotification()
+        await setActiveTripId(null)
       }
 
       await setActiveTripId(trip.id)
@@ -201,6 +213,8 @@ export default function App() {
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'تعذر بدء التتبع'
       setError(msg)
+      const issue = classifyIssue(e)
+      await reportClientIssue(trip.id, issue.code, issue.message)
       await setActiveTripId(null)
       setActive(null)
       await stopBackgroundTracking()
@@ -230,20 +244,31 @@ export default function App() {
 
   const stopTrip = async () => {
     if (!activeTripId) return
+    const tripId = activeTripId
     setBusy(true)
     setError(null)
     try {
-      try {
-        await stopTracking(activeTripId)
-      } catch {
-        /* نوقف محلياً حتى لو فشل السيرفر */
-      }
+      // أوقف الإرسال المحلي أولاً حتى لا تُعاد تفعيل الرحلة بنبضة متأخرة
       await stopBackgroundTracking()
       stopNotificationGuard()
       await hideTrackingNotification()
       await setActiveTripId(null)
       setActive(null)
-      setStatus('تم إيقاف التتبع')
+
+      let stopped = false
+      for (let i = 0; i < 2 && !stopped; i++) {
+        try {
+          await stopTracking(tripId)
+          stopped = true
+        } catch {
+          if (i === 0) await new Promise((r) => setTimeout(r, 400))
+        }
+      }
+      if (!stopped) {
+        setError('تم الإيقاف على الجهاز، لكن تعذر إبلاغ المنصة — أعد المحاولة عند توفر الشبكة')
+      } else {
+        setStatus('تم إيقاف التتبع')
+      }
       await refreshTrips().catch(() => undefined)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'تعذر إيقاف التتبع')
@@ -285,22 +310,6 @@ export default function App() {
             secureTextEntry
           />
 
-          <Pressable onPress={() => setShowApi((v) => !v)}>
-            <Text style={styles.link}>{showApi ? 'إخفاء عنوان السيرفر' : 'إعداد عنوان السيرفر'}</Text>
-          </Pressable>
-          {showApi && (
-            <>
-              <Text style={styles.label}>API URL</Text>
-              <TextInput
-                style={styles.input}
-                value={apiUrl}
-                onChangeText={setApiUrlState}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-            </>
-          )}
-
           {error && <Text style={styles.error}>{error}</Text>}
 
           <Pressable style={styles.btn} onPress={() => void onLogin()} disabled={busy}>
@@ -315,13 +324,17 @@ export default function App() {
     <SafeAreaView style={styles.safe}>
       <StatusBar style="dark" />
       <View style={styles.header}>
-        <View style={{ flex: 1 }}>
+        <Pressable
+          style={[styles.logoutBtn, busy && styles.logoutBtnDisabled]}
+          onPress={() => void onLogout()}
+          disabled={busy}
+        >
+          <Text style={styles.logoutBtnText}>خروج</Text>
+        </Pressable>
+        <View style={styles.headerText}>
           <Text style={styles.title}>مرحباً {user.name}</Text>
           <Text style={styles.sub}>اختر رحلة وابدأ إرسال الموقع</Text>
         </View>
-        <Pressable onPress={() => void onLogout()} disabled={busy}>
-          <Text style={styles.link}>خروج</Text>
-        </Pressable>
       </View>
 
       <Text style={styles.hint}>
@@ -395,13 +408,34 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
+    direction: 'ltr',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
+    alignItems: 'center',
+    marginBottom: 14,
     gap: 12,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
-  title: { fontSize: 22, fontWeight: '700', color: '#0c1a24', textAlign: 'right' },
-  sub: { color: '#5b6b73', marginTop: 4, textAlign: 'right' },
+  headerText: {
+    flex: 1,
+    alignItems: 'flex-end',
+  },
+  title: { fontSize: 20, fontWeight: '700', color: '#0c1a24', textAlign: 'right' },
+  sub: { color: '#5b6b73', marginTop: 4, textAlign: 'right', fontSize: 13 },
+  logoutBtn: {
+    backgroundColor: '#fff1f2',
+    borderWidth: 1,
+    borderColor: '#fecdd3',
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+  },
+  logoutBtnDisabled: { opacity: 0.55 },
+  logoutBtnText: { color: '#be123c', fontWeight: '700', fontSize: 14 },
   hint: {
     backgroundColor: '#fff7ed',
     color: '#9a3412',

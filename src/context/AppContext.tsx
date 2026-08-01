@@ -588,28 +588,35 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const upsertUser: AppContextValue['upsertUser'] = async (user) => {
     let saved: User
+    const officeId = user.officeId || null
+    const driverId = user.driverId || null
     if (user.id) {
       const payload: Record<string, unknown> = {
-        username: user.username,
-        name: user.name,
-        phone: user.phone ?? '',
+        username: user.username.trim(),
+        name: user.name.trim(),
+        phone: (user.phone ?? '').trim(),
         role: user.role,
-        officeId: user.officeId,
-        driverId: user.driverId ?? null,
+        officeId,
+        driverId,
         active: user.active,
       }
-      if (user.password) payload.password = user.password
+      const password = user.password?.trim()
+      if (password) payload.password = password
       const res = await serverApi.users.update(user.id, payload)
       saved = asUser(res.user)
     } else {
+      const password = user.password?.trim() ?? ''
+      if (password.length < 4) {
+        throw new ApiError('كلمة المرور مطلوبة (4 أحرف على الأقل)')
+      }
       const res = await serverApi.users.create({
-        username: user.username,
-        password: user.password,
-        name: user.name,
-        phone: user.phone ?? '',
+        username: user.username.trim(),
+        password,
+        name: user.name.trim(),
+        phone: (user.phone ?? '').trim(),
         role: user.role,
-        officeId: user.officeId,
-        driverId: user.driverId ?? null,
+        officeId,
+        driverId,
         active: user.active,
       })
       saved = asUser(res.user)

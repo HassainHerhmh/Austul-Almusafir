@@ -19,6 +19,8 @@ export function UsersPage() {
   const [form, setForm] = useState(empty)
   const [editId, setEditId] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
 
   const users = isAdmin
     ? state.users
@@ -30,33 +32,73 @@ export function UsersPage() {
       .map((u) => u.driverId as string),
   )
 
-  const save = (e: React.FormEvent) => {
-    e.preventDefault()
-    const isDriver = form.role === 'driver'
-    const payload = {
-      ...form,
-      officeId: form.role === 'admin' || isDriver ? null : form.officeId || null,
-      driverId: isDriver ? form.driverId || null : null,
-    }
-    if (!isDriver && payload.role !== 'admin' && !payload.officeId) {
-      alert('يجب اختيار المكتب')
-      return
-    }
-    if (isDriver && !payload.driverId) {
-      alert('يجب اختيار السائق المرتبط بحساب التتبع')
-      return
-    }
-    void upsertUser(editId ? { ...payload, id: editId } : payload)
+  const closeModal = () => {
     setOpen(false)
     setForm(empty)
     setEditId(null)
+    setError(null)
+    setSaving(false)
+  }
+
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError(null)
+    const isDriver = form.role === 'driver'
+    const username = form.username.trim()
+    const name = form.name.trim()
+    const password = form.password.trim()
+
+    if (username.length < 2) {
+      setError('اسم المستخدم يجب أن يكون حرفين على الأقل')
+      return
+    }
+    if (!name) {
+      setError('الاسم مطلوب')
+      return
+    }
+    if (!editId && password.length < 4) {
+      setError('كلمة المرور مطلوبة (4 أحرف على الأقل)')
+      return
+    }
+    if (editId && password && password.length < 4) {
+      setError('كلمة المرور يجب أن تكون 4 أحرف على الأقل')
+      return
+    }
+
+    const payload = {
+      username,
+      password,
+      name,
+      phone: form.phone.trim(),
+      role: form.role,
+      officeId: form.role === 'admin' || isDriver ? null : form.officeId || null,
+      driverId: isDriver ? form.driverId || null : null,
+      active: form.active,
+    }
+    if (!isDriver && payload.role !== 'admin' && !payload.officeId) {
+      setError('يجب اختيار المكتب')
+      return
+    }
+    if (isDriver && !payload.driverId) {
+      setError('يجب اختيار السائق المرتبط بحساب التتبع')
+      return
+    }
+
+    setSaving(true)
+    try {
+      await upsertUser(editId ? { ...payload, id: editId } : payload)
+      closeModal()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'تعذر حفظ المستخدم')
+      setSaving(false)
+    }
   }
 
   const startEdit = (u: User) => {
     setEditId(u.id)
     setForm({
       username: u.username,
-      password: u.password,
+      password: '',
       name: u.name,
       phone: u.phone || '',
       role: u.role,
@@ -64,6 +106,7 @@ export function UsersPage() {
       driverId: u.driverId,
       active: u.active,
     })
+    setError(null)
     setOpen(true)
   }
 
@@ -80,6 +123,7 @@ export function UsersPage() {
           onClick={() => {
             setEditId(null)
             setForm(empty)
+            setError(null)
             setOpen(true)
           }}
         >
@@ -150,6 +194,7 @@ export function UsersPage() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h2>{editId ? 'تعديل مستخدم' : 'مستخدم جديد'}</h2>
             <form onSubmit={save}>
+              {error && <p className="error-msg">{error}</p>}
               <div className="form-grid">
                 <div className="field">
                   <label>الاسم</label>
@@ -259,10 +304,10 @@ export function UsersPage() {
                 </div>
               </div>
               <div className="actions" style={{ marginTop: '1rem' }}>
-                <button type="submit" className="btn btn-primary">
-                  حفظ
+                <button type="submit" className="btn btn-primary" disabled={saving}>
+                  {saving ? 'جاري الحفظ...' : 'حفظ'}
                 </button>
-                <button type="button" className="btn btn-ghost" onClick={() => setOpen(false)}>
+                <button type="button" className="btn btn-ghost" onClick={closeModal} disabled={saving}>
                   إلغاء
                 </button>
               </div>

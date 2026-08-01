@@ -62,23 +62,47 @@ usersRouter.get(
   }),
 )
 
+const emptyToNull = (v: unknown) => (v === '' || v === undefined ? null : v)
+const emptyToUndef = (v: unknown) => (v === '' || v === undefined || v === null ? undefined : v)
+
+const userRoleSchema = z.enum([
+  'admin',
+  'office_manager',
+  'booking_clerk',
+  'accountant',
+  'driver',
+])
+
+function firstZodMessage(err: z.ZodError) {
+  const issue = err.issues[0]
+  if (!issue) return 'بيانات غير صالحة'
+  const path = issue.path.join('.')
+  if (path === 'password') return 'كلمة المرور يجب أن تكون 4 أحرف على الأقل'
+  if (path === 'username') return 'اسم المستخدم قصير جداً'
+  if (path === 'name') return 'الاسم مطلوب'
+  if (path === 'role') return 'الدور غير صالح'
+  if (path === 'officeId') return 'المكتب غير صالح'
+  if (path === 'driverId') return 'السائق غير صالح'
+  return 'بيانات غير صالحة'
+}
+
 usersRouter.post(
   '/',
   requireRoles('admin', 'office_manager'),
   asyncHandler(async (req, res) => {
     const body = z
       .object({
-        username: z.string().min(2),
+        username: z.string().trim().min(2),
         password: z.string().min(4),
-        name: z.string().min(1),
-        phone: z.string().optional(),
-        role: z.enum(['admin', 'office_manager', 'booking_clerk', 'accountant', 'driver']),
-        officeId: z.string().nullable().optional(),
-        driverId: z.string().nullable().optional(),
+        name: z.string().trim().min(1),
+        phone: z.preprocess(emptyToUndef, z.string().optional()),
+        role: userRoleSchema,
+        officeId: z.preprocess(emptyToNull, z.string().nullable().optional()),
+        driverId: z.preprocess(emptyToNull, z.string().nullable().optional()),
         active: z.boolean().optional(),
       })
       .safeParse(req.body)
-    if (!body.success) return fail(res, 'بيانات غير صالحة')
+    if (!body.success) return fail(res, firstZodMessage(body.error))
 
     let officeId = body.data.officeId ?? null
     let role = body.data.role
@@ -132,19 +156,17 @@ usersRouter.put(
 
     const body = z
       .object({
-        username: z.string().min(2).optional(),
-        password: z.string().min(4).optional(),
-        name: z.string().min(1).optional(),
-        phone: z.string().optional(),
-        role: z
-          .enum(['admin', 'office_manager', 'booking_clerk', 'accountant', 'driver'])
-          .optional(),
-        officeId: z.string().nullable().optional(),
-        driverId: z.string().nullable().optional(),
+        username: z.string().trim().min(2).optional(),
+        password: z.preprocess(emptyToUndef, z.string().min(4).optional()),
+        name: z.string().trim().min(1).optional(),
+        phone: z.preprocess(emptyToUndef, z.string().optional()),
+        role: userRoleSchema.optional(),
+        officeId: z.preprocess(emptyToNull, z.string().nullable().optional()),
+        driverId: z.preprocess(emptyToNull, z.string().nullable().optional()),
         active: z.boolean().optional(),
       })
       .safeParse(req.body)
-    if (!body.success) return fail(res, 'بيانات غير صالحة')
+    if (!body.success) return fail(res, firstZodMessage(body.error))
 
     const data: Record<string, unknown> = { ...body.data }
     delete data.password

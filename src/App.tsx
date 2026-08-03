@@ -48,6 +48,7 @@ import { OfficeStaffPage } from './pages/office/OfficeStaffPage'
 import { OfficePermissionsPage } from './pages/office/OfficePermissionsPage'
 import { OfficeTrackingPage } from './pages/office/OfficeTrackingPage'
 import { SettingsPage } from './pages/admin/SettingsPage'
+import { PartnerApiPage } from './pages/admin/PartnerApiPage'
 import { PrintSettingsPage } from './pages/admin/PrintSettingsPage'
 import { BrandProvider } from './context/BrandContext'
 
@@ -116,6 +117,7 @@ export default function App() {
               </Route>
 
               <Route path="reports" element={<AdminReportsPage />} />
+              <Route path="partner-api" element={<PartnerApiPage />} />
               <Route path="settings" element={<SettingsPage />} />
               <Route path="print-settings" element={<PrintSettingsPage />} />
             </Route>

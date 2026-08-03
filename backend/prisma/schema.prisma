@@ -24,6 +24,7 @@ model Office {
   vouchers        Voucher[]
   campaignTrips   Trip[]    @relation("CampaignOffice")
   trackingAccess  TripOfficeTrackingAccess[]
+  partnerApiKeys  PartnerApiKey[]
 }
 
 model User {
@@ -211,8 +212,8 @@ model Booking {
   notes          String    @default("")
   status         String    @default("confirmed")
   bookedAt       DateTime  @default(now())
-  bookedById     String
-  bookedBy       User      @relation("BookedBy", fields: [bookedById], references: [id])
+  bookedById     String?
+  bookedBy       User?     @relation("BookedBy", fields: [bookedById], references: [id])
   vouchers       Voucher[]
 
   @@index([officeId])
@@ -272,4 +273,22 @@ model AppSetting {
 model AppCounter {
   id    String @id
   value Int
+}
+
+/** مفاتيح API لربط منصات خارجية بالحجوزات على مكتب محدد */
+model PartnerApiKey {
+  id          String    @id @default(cuid())
+  name        String
+  officeId    String
+  office      Office    @relation(fields: [officeId], references: [id], onDelete: Cascade)
+  /** بادئة ظاهرة في الواجهة مثل ost_ab12 */
+  keyPrefix   String
+  keyHash     String    @unique
+  permissions Json
+  active      Boolean   @default(true)
+  lastUsedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([officeId])
+  @@index([keyPrefix])
 }

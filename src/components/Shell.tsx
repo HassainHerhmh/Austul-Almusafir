@@ -21,6 +21,7 @@ import {
   Calculator,
   Banknote,
   Stamp,
+  Link2,
   X,
   type LucideIcon,
 } from 'lucide-react'
@@ -45,6 +46,7 @@ const adminLinks: { to: string; end?: boolean; label: string; icon: LucideIcon }
   { to: '/admin/accounts', label: 'الحسابات', icon: Calculator },
   { to: '/admin/reports', label: 'التقارير', icon: FileBarChart2 },
   { to: '/admin/print-settings', label: 'إعدادات الطباعة', icon: Printer },
+  { to: '/admin/partner-api', label: 'ربط API', icon: Link2 },
   { to: '/admin/settings', label: 'الإعدادات', icon: Settings },
 ]
 

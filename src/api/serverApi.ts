@@ -754,6 +754,80 @@ export const serverApi = {
         heading?: number | null
       }>(`/api/tracking/public/${encodeURIComponent(token)}`),
   },
+
+  partnerKeys: {
+    list: () =>
+      apiRequest<{
+        list: Array<{
+          id: string
+          name: string
+          officeId: string
+          officeName: string
+          keyPrefix: string
+          permissions: {
+            bookingsCreate: boolean
+            bookingsUpdate: boolean
+            bookingsCancel: boolean
+            bookingsDelete: boolean
+            bookingsList: boolean
+            seatsView: boolean
+          }
+          active: boolean
+          lastUsedAt: string | null
+          createdAt: string
+        }>
+      }>('/api/partner-keys'),
+    create: (data: {
+      name: string
+      officeId: string
+      permissions: {
+        bookingsCreate: boolean
+        bookingsUpdate: boolean
+        bookingsCancel: boolean
+        bookingsDelete: boolean
+        bookingsList: boolean
+        seatsView: boolean
+      }
+      active?: boolean
+    }) =>
+      apiRequest<{
+        key: {
+          id: string
+          name: string
+          officeId: string
+          officeName: string
+          keyPrefix: string
+          permissions: Record<string, boolean>
+          active: boolean
+          lastUsedAt: string | null
+          createdAt: string
+        }
+        apiKey: string
+        baseUrl: string
+      }>('/api/partner-keys', { method: 'POST', body: JSON.stringify(data) }),
+    update: (
+      id: string,
+      data: {
+        name?: string
+        officeId?: string
+        permissions?: {
+          bookingsCreate: boolean
+          bookingsUpdate: boolean
+          bookingsCancel: boolean
+          bookingsDelete: boolean
+          bookingsList: boolean
+          seatsView: boolean
+        }
+        active?: boolean
+      },
+    ) =>
+      apiRequest<{ key: Record<string, unknown> }>(`/api/partner-keys/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }),
+    remove: (id: string) =>
+      apiRequest<{ deleted: boolean }>(`/api/partner-keys/${id}`, { method: 'DELETE' }),
+  },
 }
 
 export { asOffice, asUser, asBooking, asDestination, asVisaType }

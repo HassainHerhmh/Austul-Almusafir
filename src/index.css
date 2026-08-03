@@ -206,18 +206,105 @@ h3 {
   min-height: 100vh;
 }
 
-.top-header {
+.chrome-top {
   position: sticky;
   top: 0;
   z-index: 40;
+  background: var(--header-bg);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--header-border);
+}
+
+.top-header {
+  position: relative;
+  top: auto;
+  z-index: auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
   padding: 0.75rem 1.5rem;
-  background: var(--header-bg);
-  backdrop-filter: blur(12px);
+  background: transparent;
+  backdrop-filter: none;
   border-bottom: 1px solid var(--header-border);
+}
+
+.open-tabs-bar {
+  display: flex;
+  align-items: stretch;
+  min-height: 38px;
+  padding: 0 0.65rem;
+  background: color-mix(in srgb, var(--panel, #fff) 82%, var(--header-bg));
+  border-bottom: 0;
+}
+
+.open-tabs-scroll {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  width: 100%;
+  padding-top: 6px;
+  scrollbar-width: thin;
+}
+
+.open-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 200px;
+  min-width: 96px;
+  padding: 0.35rem 0.35rem 0.35rem 0.7rem;
+  border: 1px solid var(--line);
+  border-bottom: none;
+  border-radius: 10px 10px 0 0;
+  background: color-mix(in srgb, var(--elevated, #fff) 70%, transparent);
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+  flex: 0 0 auto;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.open-tab:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--elevated, #fff) 92%, transparent);
+}
+
+.open-tab.active {
+  color: var(--text);
+  background: var(--bg, var(--elevated, #fff));
+  border-color: var(--line);
+  box-shadow: 0 -1px 0 var(--bg, #fff);
+  font-weight: 650;
+}
+
+.open-tab-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.82rem;
+  line-height: 1.2;
+}
+
+.open-tab-close {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  flex: 0 0 auto;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.open-tab-close:hover {
+  background: color-mix(in srgb, var(--danger, #b91c1c) 14%, transparent);
+  color: var(--danger, #b91c1c);
 }
 
 .top-header-start {
@@ -1743,6 +1830,22 @@ table.data input::placeholder,
     gap: 0.5rem;
   }
 
+  .open-tabs-bar {
+    min-height: 34px;
+    padding: 0 0.4rem;
+  }
+
+  .open-tab {
+    max-width: 150px;
+    min-width: 80px;
+    padding: 0.28rem 0.28rem 0.28rem 0.55rem;
+    border-radius: 8px 8px 0 0;
+  }
+
+  .open-tab-label {
+    font-size: 0.75rem;
+  }
+
   .top-header-start {
     gap: 0.5rem;
     min-width: 0;
@@ -1925,6 +2028,8 @@ table.data input::placeholder,
 @media print {
   .sidebar,
   .top-header,
+  .chrome-top,
+  .open-tabs-bar,
   .page-header .actions,
   .no-print {
     display: none !important;

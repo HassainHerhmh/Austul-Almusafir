@@ -29,6 +29,7 @@ import { useApp } from '../context/AppContext'
 import { BrandMark } from './BrandMark'
 import { formatMoney } from './utils'
 import { TopHeader } from './TopHeader'
+import { OpenTabsBar } from './OpenTabsBar'
 
 const SIDEBAR_COLLAPSE_KEY = 'austul-sidebar-collapsed'
 
@@ -210,10 +211,13 @@ export function Shell() {
       </aside>
 
       <div className="main-column">
-        <TopHeader
-          onOpenNav={() => setMobileNavOpen(true)}
-          menuOpen={mobileNavOpen}
-        />
+        <div className="chrome-top">
+          <TopHeader
+            onOpenNav={() => setMobileNavOpen(true)}
+            menuOpen={mobileNavOpen}
+          />
+          <OpenTabsBar />
+        </div>
         <main className="main">
           <Outlet />
         </main>

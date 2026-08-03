@@ -68,14 +68,11 @@ function tripLabel(
 partnerApiRouter.get(
   '/trips',
   asyncHandler(async (req, res) => {
-    const officeId = req.partner!.officeId
+    // ربط API: الرحلات العامة المفتوحة فقط — الحملات لا تظهر للشركاء
     const list = await prisma.trip.findMany({
       where: {
         status: 'open',
-        OR: [
-          { tripKind: { not: 'campaign' } },
-          { tripKind: 'campaign', campaignOfficeId: officeId },
-        ],
+        tripKind: { not: 'campaign' },
       },
       include: {
         bus: { select: { id: true, busNumber: true, plateNumber: true, seats: true } },
@@ -95,7 +92,7 @@ partnerApiRouter.get(
         status: t.status,
         tripKind: t.tripKind,
         pricingMode: t.pricingMode,
-        price: t.tripKind === 'campaign' ? 0 : t.price,
+        price: t.price,
         label: tripLabel(t.stops),
         bus: t.bus,
         stops: t.stops.map((s) => ({
@@ -118,9 +115,8 @@ partnerApiRouter.get(
       include: { bus: true },
     })
     if (!trip) return fail(res, 'الرحلة غير موجودة', 404)
-
-    if (trip.tripKind === 'campaign' && trip.campaignOfficeId && trip.campaignOfficeId !== req.partner!.officeId) {
-      return fail(res, 'ليس لديك صلاحية على هذه الرحلة', 403)
+    if (trip.tripKind === 'campaign') {
+      return fail(res, 'رحلات الحملة غير متاحة عبر ربط API', 403)
     }
 
     const bookings = await prisma.booking.findMany({
@@ -187,8 +183,8 @@ partnerApiRouter.post(
       include: { bus: true, stops: { orderBy: { sortOrder: 'asc' } } },
     })
     if (!trip || trip.status !== 'open') return fail(res, 'الرحلة غير متاحة للحجز')
-    if (trip.tripKind === 'campaign' && trip.campaignOfficeId && trip.campaignOfficeId !== officeId) {
-      return fail(res, 'هذه الحملة ليست لمكتبك', 403)
+    if (trip.tripKind === 'campaign') {
+      return fail(res, 'رحلات الحملة غير متاحة عبر ربط API', 403)
     }
     if (body.data.seatNumber < 1 || body.data.seatNumber > trip.bus.seats) {
       return fail(res, 'رقم المقعد غير صالح')

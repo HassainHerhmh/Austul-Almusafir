@@ -39,6 +39,24 @@ import {
 
 type UserInfo = { name: string }
 
+function formatTimeAr(time: string | null | undefined) {
+  if (!time) return '—'
+  const m = String(time).trim().match(/^(\d{1,2}):(\d{2})/)
+  if (!m) return time
+  let h = Number(m[1])
+  const min = m[2]
+  if (!Number.isFinite(h) || h < 0 || h > 23) return time
+  const period = h < 12 ? 'صباحاً' : 'مساءً'
+  const h12 = h % 12 === 0 ? 12 : h % 12
+  return min === '00' ? `${h12} ${period}` : `${h12}:${min} ${period}`
+}
+
+function greetingByHour(name: string) {
+  const h = new Date().getHours()
+  const greet = h >= 5 && h < 17 ? 'صباح الخير' : 'مساء الخير'
+  return `${greet} ${name}`
+}
+
 export default function App() {
   const [booting, setBooting] = useState(true)
   const [user, setUser] = useState<UserInfo | null>(null)
@@ -332,7 +350,7 @@ export default function App() {
           <Text style={styles.logoutBtnText}>خروج</Text>
         </Pressable>
         <View style={styles.headerText}>
-          <Text style={styles.title}>مرحباً {user.name}</Text>
+          <Text style={styles.title}>{greetingByHour(user.name)}</Text>
           <Text style={styles.sub}>اختر رحلة وابدأ إرسال الموقع</Text>
         </View>
       </View>
@@ -377,7 +395,7 @@ export default function App() {
                 {[item.busNumber, item.plateNumber].filter(Boolean).join(' — ')}
               </Text>
               <Text style={styles.tripMeta}>
-                {item.date} · {item.departureTime} · {item.status}
+                {item.date} · {formatTimeAr(item.departureTime)} · {item.status}
               </Text>
               <Pressable
                 style={[styles.btn, active ? styles.btnMuted : null]}

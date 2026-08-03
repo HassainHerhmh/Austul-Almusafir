@@ -38,7 +38,7 @@ export function formatTimeAr(time: string | null | undefined) {
   let h = Number(m[1])
   const min = m[2]
   if (!Number.isFinite(h) || h < 0 || h > 23) return time
-  const period = h < 12 ? 'صباحاً' : 'مساء'
+  const period = h < 12 ? 'صباحاً' : 'مساءً'
   const h12 = h % 12 === 0 ? 12 : h % 12
   return min === '00' ? `${h12} ${period}` : `${h12}:${min} ${period}`
 }

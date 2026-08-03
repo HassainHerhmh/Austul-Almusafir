@@ -61,7 +61,8 @@ function mapTrip(t: {
   }
 }
 
-async function chargeCampaignOnOpen(trip: {
+/** قيد إجمالي الحملة على الوكيل — يُستدعى عند الفتح أو الإقفال/الاكتمال (idempotent) */
+async function ensureCampaignCharge(trip: {
   id: string
   tripKind: string
   campaignOfficeId: string | null
@@ -70,10 +71,10 @@ async function chargeCampaignOnOpen(trip: {
 }) {
   if (trip.tripKind !== 'campaign') return
   if (!(trip.price > 0)) {
-    throw new Error('أدخل السعر الإجمالي للحملة قبل الفتح')
+    throw new Error('أدخل السعر الإجمالي للحملة قبل تسجيل القيد')
   }
   if (!trip.campaignOfficeId) {
-    throw new Error('اختر مكتب/وكيل الحملة قبل فتح الرحلة')
+    throw new Error('اختر مكتب/وكيل الحملة قبل تسجيل القيد')
   }
 
   const office = await prisma.office.findUnique({ where: { id: trip.campaignOfficeId } })
@@ -110,7 +111,7 @@ async function chargeCampaignOnOpen(trip: {
     tripDate: trip.date,
   })
 
-  // سند قبض للوكيل بمبلغ الحملة (مرة واحدة)
+  // سند قبض للوكيل بمبلغ الحملة (مرة واحدة) — لا يشترط حجوزات ركاب
   const alreadyVoucher = await prisma.voucher.findFirst({
     where: {
       officeId: office.id,
@@ -319,6 +320,25 @@ tripsRouter.put(
       },
       include: { stops: true },
     })
+
+    // حملة مقفلة/مكتملة: سجّل إجمالي الحملة على الوكيل حتى بدون إدخال ركاب
+    if (
+      trip.tripKind === 'campaign' &&
+      (trip.status === 'closed' || trip.status === 'completed')
+    ) {
+      try {
+        await ensureCampaignCharge({
+          id: trip.id,
+          tripKind: trip.tripKind,
+          campaignOfficeId: trip.campaignOfficeId,
+          price: trip.price,
+          date: trip.date,
+        })
+      } catch (e) {
+        return fail(res, e instanceof Error ? e.message : 'تعذر تسجيل قيد الحملة', 400)
+      }
+    }
+
     return ok(res, { trip: mapTrip(trip) })
   }),
 )
@@ -364,7 +384,7 @@ tripsRouter.post(
     }
 
     try {
-      await chargeCampaignOnOpen(existing)
+      await ensureCampaignCharge(existing)
     } catch (e) {
       return fail(res, e instanceof Error ? e.message : 'تعذر تسجيل قيد الحملة', 400)
     }
@@ -388,11 +408,24 @@ tripsRouter.post(
     })
     if (!existing) return fail(res, 'الرحلة غير موجودة', 404)
     if (existing.status === 'closed') {
+      // حتى لو كانت مقفلة مسبقاً: تأكد من قيد الحملة (لا يشترط حجوزات)
+      try {
+        await ensureCampaignCharge(existing)
+      } catch (e) {
+        return fail(res, e instanceof Error ? e.message : 'تعذر تسجيل قيد الحملة', 400)
+      }
       return ok(res, { trip: mapTrip(existing) })
     }
-    if (existing.status !== 'open') {
-      return fail(res, 'يمكن إقفال الرحلات المفتوحة فقط')
+    if (existing.status !== 'open' && existing.status !== 'completed' && existing.status !== 'departed') {
+      return fail(res, 'يمكن إقفال الرحلات المفتوحة أو المكتملة/المنطلقة فقط')
     }
+
+    try {
+      await ensureCampaignCharge(existing)
+    } catch (e) {
+      return fail(res, e instanceof Error ? e.message : 'تعذر تسجيل قيد الحملة', 400)
+    }
+
     const trip = await prisma.trip.update({
       where: { id: paramId(req) },
       data: { status: 'closed' },
@@ -419,7 +452,7 @@ tripsRouter.post(
     }
 
     try {
-      await chargeCampaignOnOpen(existing)
+      await ensureCampaignCharge(existing)
     } catch (e) {
       return fail(res, e instanceof Error ? e.message : 'تعذر تسجيل قيد الحملة', 400)
     }

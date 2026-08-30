@@ -1,6 +1,7 @@
 import cors from 'cors'
 import express from 'express'
 import helmet from 'helmet'
+import type { CorsOptions } from 'cors'
 import { config } from './config'
 import { accountsRouter } from './routes/accounts'
 import { authRouter } from './routes/auth'
@@ -30,12 +31,26 @@ export function createApp() {
 
   app.disable('x-powered-by')
 
-  app.use(
-    cors({
-      origin: config.corsOrigin === '*' ? true : config.corsOrigin.split(','),
-      credentials: true,
-    }),
-  )
+  const corsOptions: CorsOptions = {
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  }
+  if (config.corsOrigins === true) {
+    corsOptions.origin = true
+  } else {
+    const allowed = config.corsOrigins
+    corsOptions.origin = (origin, callback) => {
+      if (!origin || allowed.includes(origin)) {
+        callback(null, true)
+        return
+      }
+      callback(null, false)
+    }
+  }
+
+  app.use(cors(corsOptions))
+  app.options(/.*/, cors(corsOptions))
   app.use(express.json({ limit: '2mb' }))
 
   app.get('/api/health', (_req, res) => {

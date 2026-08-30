@@ -7,6 +7,10 @@ pick_db_url() {
     echo "$MYSQL_PRIVATE_URL"
     return
   fi
+  if [ -n "$DATABASE_URL" ] && ! echo "$DATABASE_URL" | grep -q 'mysql://build:'; then
+    echo "$DATABASE_URL"
+    return
+  fi
   if [ -n "$MYSQL_PUBLIC_URL" ]; then
     echo "$MYSQL_PUBLIC_URL"
     return
@@ -40,7 +44,7 @@ pick_db_url() {
 export DATABASE_URL="$(pick_db_url)"
 
 case "$DATABASE_URL" in
-  *127.0.0.1*|*localhost*|*://build:*|"")
+  *://build:*|"")
     echo "ERROR: DATABASE_URL محلي/وهمي أو فارغ"
     echo "  على خدمة الـ API أضف: MYSQL_PUBLIC_URL = \${{MySQL.MYSQL_PUBLIC_URL}}"
     echo "  و JWT_SECRET"

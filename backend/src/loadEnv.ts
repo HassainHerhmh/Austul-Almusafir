@@ -10,43 +10,64 @@ export function ensureDatabaseUrl() {
     !!url && /mysql:\/\/build:/.test(url)
 
   const withPool = (url: string) => {
-    if (/[?&]connection_limit=/.test(url)) return url
-    return url.includes('?') ? `${url}&connection_limit=5` : `${url}?connection_limit=5`
+    const params = new URLSearchParams()
+    if (!/[?&]connection_limit=/.test(url)) params.set('connection_limit', '5')
+    // Hostinger remote MySQL يتطلب SSL أحياناً
+    if (
+      !/[?&]sslaccept=/.test(url) &&
+      /hstgr\.io|hostinger/i.test(url) &&
+      !/localhost|127\.0\.0\.1/.test(url)
+    ) {
+      params.set('sslaccept', 'accept_invalid_certs')
+    }
+    const qs = params.toString()
+    if (!qs) return url
+    return url.includes('?') ? `${url}&${qs}` : `${url}?${qs}`
   }
 
   const fromParts = (host: string, port?: string) => {
-    const user = encodeURIComponent(process.env.MYSQLUSER || 'root')
-    const pass = encodeURIComponent(process.env.MYSQLPASSWORD || process.env.MYSQL_ROOT_PASSWORD || '')
+    const user = encodeURIComponent(process.env.MYSQLUSER || process.env.MYSQL_USER || 'root')
+    const rawPass = process.env.MYSQLPASSWORD || process.env.MYSQL_PASSWORD || process.env.MYSQL_ROOT_PASSWORD || ''
+    const pass = encodeURIComponent(rawPass)
     const db = process.env.MYSQLDATABASE || process.env.MYSQL_DATABASE || 'railway'
     return `mysql://${user}:${pass}@${host}:${port || '3306'}/${db}`
   }
 
+  const hasMysqlParts = () =>
+    !!(process.env.MYSQLHOST || process.env.MYSQL_HOST) &&
+    !!(process.env.MYSQLUSER || process.env.MYSQL_USER) &&
+    !!(process.env.MYSQLPASSWORD || process.env.MYSQL_PASSWORD || process.env.MYSQL_ROOT_PASSWORD)
+
   let chosen: string | undefined
   let via = 'unknown'
 
-  const explicitDb = process.env.DATABASE_URL?.trim()
-  if (explicitDb && !isBuildPlaceholder(explicitDb)) {
-    chosen = explicitDb
-    via = 'DATABASE_URL'
-  } else if (process.env.FORCE_PRIVATE_MYSQL === '1' && process.env.MYSQL_PRIVATE_URL) {
-    chosen = process.env.MYSQL_PRIVATE_URL
-    via = 'private (forced)'
-  } else if (process.env.MYSQL_PUBLIC_URL && !isBuildPlaceholder(process.env.MYSQL_PUBLIC_URL)) {
-    chosen = process.env.MYSQL_PUBLIC_URL
-    via = 'public'
-  } else if (
-    process.env.MYSQL_URL &&
-    !isBuildPlaceholder(process.env.MYSQL_URL) &&
-    !/railway\.internal/.test(process.env.MYSQL_URL)
-  ) {
-    chosen = process.env.MYSQL_URL
-    via = 'MYSQL_URL'
-  } else if (process.env.MYSQLHOST && !/railway\.internal/.test(process.env.MYSQLHOST)) {
-    chosen = fromParts(process.env.MYSQLHOST, process.env.MYSQLPORT || process.env.MYSQL_PUBLIC_PORT || '3306')
-    via = 'MYSQLHOST'
-  } else if (process.env.MYSQL_URL) {
-    chosen = process.env.MYSQL_URL
-    via = 'MYSQL_URL (fallback)'
+  // Hostinger: متغيرات منفصلة أفضل — تتجنب كسر @ في كلمة المرور داخل DATABASE_URL
+  if (hasMysqlParts()) {
+    const host = (process.env.MYSQLHOST || process.env.MYSQL_HOST)!
+    chosen = fromParts(host, process.env.MYSQLPORT || process.env.MYSQL_PORT || '3306')
+    via = 'MYSQLHOST parts'
+  } else {
+    const explicitDb = process.env.DATABASE_URL?.trim()
+    if (explicitDb && !isBuildPlaceholder(explicitDb)) {
+      chosen = explicitDb
+      via = 'DATABASE_URL'
+    } else if (process.env.FORCE_PRIVATE_MYSQL === '1' && process.env.MYSQL_PRIVATE_URL) {
+      chosen = process.env.MYSQL_PRIVATE_URL
+      via = 'private (forced)'
+    } else if (process.env.MYSQL_PUBLIC_URL && !isBuildPlaceholder(process.env.MYSQL_PUBLIC_URL)) {
+      chosen = process.env.MYSQL_PUBLIC_URL
+      via = 'public'
+    } else if (
+      process.env.MYSQL_URL &&
+      !isBuildPlaceholder(process.env.MYSQL_URL) &&
+      !/railway\.internal/.test(process.env.MYSQL_URL)
+    ) {
+      chosen = process.env.MYSQL_URL
+      via = 'MYSQL_URL'
+    } else if (process.env.MYSQL_URL) {
+      chosen = process.env.MYSQL_URL
+      via = 'MYSQL_URL (fallback)'
+    }
   }
 
   if (!chosen || isBuildPlaceholder(chosen)) {

@@ -1546,8 +1546,9 @@ table.data input::placeholder,
 .trip-offer-time-row {
   display: flex;
   align-items: baseline;
-  justify-content: space-between;
-  gap: 0.5rem;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 0.35rem;
   font-size: 0.88rem;
 }
 

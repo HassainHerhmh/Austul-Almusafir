@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { TicketView } from '../../components/TicketView'
 import { PAYMENT_LABELS, formatMoney, formatTimeAr, todayStr } from '../../components/utils'
 import { useApp } from '../../context/AppContext'
 import { useBrand } from '../../context/BrandContext'
@@ -76,6 +77,7 @@ export function AdminBookingsPage() {
   const { name: companyName, logoUrl, phones } = useBrand()
 
   const [editBooking, setEditBooking] = useState<Booking | null>(null)
+  const [ticketBooking, setTicketBooking] = useState<Booking | null>(null)
   const [printOpen, setPrintOpen] = useState(false)
   const [printCols, setPrintCols] = useState<Record<PrintColKey, boolean>>(DEFAULT_PRINT_COLS)
   const [editForm, setEditForm] = useState({
@@ -373,6 +375,7 @@ export function AdminBookingsPage() {
           <table className="data">
             <thead>
               <tr>
+                {isBranchAdmin && <th style={{ width: 88 }}>طباعة</th>}
                 <th>الراكب</th>
                 <th>رقم التذكرة</th>
                 <th>رقم الجواز</th>
@@ -395,6 +398,21 @@ export function AdminBookingsPage() {
                   const trip = state.trips.find((t) => t.id === b.tripId)
                   return (
                     <tr key={b.id}>
+                      {isBranchAdmin && (
+                        <td>
+                          {b.status === 'confirmed' && trip ? (
+                            <button
+                              type="button"
+                              className="btn btn-ghost btn-sm"
+                              onClick={() => setTicketBooking(b)}
+                            >
+                              طباعة
+                            </button>
+                          ) : (
+                            '—'
+                          )}
+                        </td>
+                      )}
                       <td>{b.passengerName}</td>
                       <td>{b.ticketNumber || '—'}</td>
                       <td>{b.passportNumber || '—'}</td>
@@ -453,7 +471,7 @@ export function AdminBookingsPage() {
                 })}
               {sortedBookings.length === 0 && (
                 <tr>
-                  <td colSpan={15} className="empty">
+                  <td colSpan={isBranchAdmin ? 16 : 15} className="empty">
                     لا توجد حجوزات مطابقة للفلتر
                   </td>
                 </tr>
@@ -524,6 +542,24 @@ export function AdminBookingsPage() {
                 إغلاق
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {ticketBooking && (
+        <div className="modal-backdrop" onClick={() => setTicketBooking(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            {(() => {
+              const trip = state.trips.find((t) => t.id === ticketBooking.tripId)
+              if (!trip) return <p className="empty">الرحلة غير موجودة</p>
+              return (
+                <TicketView
+                  booking={ticketBooking}
+                  trip={trip}
+                  onClose={() => setTicketBooking(null)}
+                />
+              )
+            })()}
           </div>
         </div>
       )}

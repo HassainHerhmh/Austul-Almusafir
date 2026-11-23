@@ -125,6 +125,13 @@ officesRouter.post(
       })
       .safeParse(req.body)
     if (!body.success) return fail(res, 'بيانات غير صالحة')
+    if (body.data.ledgerAccountId == null) {
+      return fail(res, 'اختر الحساب المحاسبي للمكتب من القائمة')
+    }
+    const ledgerAccount = await prisma.account.findUnique({
+      where: { id: body.data.ledgerAccountId },
+    })
+    if (!ledgerAccount) return fail(res, 'الحساب المحاسبي غير موجود', 404)
 
     let branchId = body.data.branchId ?? null
     if (req.user!.role === 'branch_admin') {
@@ -189,6 +196,16 @@ officesRouter.put(
     } else if (data.branchId) {
       const branch = await prisma.branch.findUnique({ where: { id: data.branchId as string } })
       if (!branch) return fail(res, 'الفرع غير موجود', 404)
+    }
+
+    const nextLedgerId =
+      data.ledgerAccountId !== undefined ? data.ledgerAccountId : existing.ledgerAccountId
+    if (nextLedgerId == null) {
+      return fail(res, 'اختر الحساب المحاسبي للمكتب من القائمة')
+    }
+    if (data.ledgerAccountId != null) {
+      const ledgerAccount = await prisma.account.findUnique({ where: { id: data.ledgerAccountId } })
+      if (!ledgerAccount) return fail(res, 'الحساب المحاسبي غير موجود', 404)
     }
 
     const office = await prisma.office.update({

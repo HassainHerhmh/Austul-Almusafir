@@ -4,7 +4,6 @@ import { prisma } from '../config'
 import { authRequired, requireAgencyAdmin, type AuthUser } from '../middleware/auth'
 import { branchIdOnCreate, tripsListWhere } from '../utils/branchScope'
 import {
-  findOfficeLedgerAccount,
   postCampaignCharge,
   resolveTicketRevenueTransitAccount,
   reverseCampaignCharge,
@@ -92,16 +91,7 @@ async function ensureCampaignCharge(trip: {
   const office = await prisma.office.findUnique({ where: { id: trip.campaignOfficeId } })
   if (!office) throw new Error('مكتب الحملة غير موجود')
 
-  let ledgerAccountId = office.ledgerAccountId
-  if (!ledgerAccountId) {
-    ledgerAccountId = await findOfficeLedgerAccount(office.name)
-    if (ledgerAccountId) {
-      await prisma.office.update({
-        where: { id: office.id },
-        data: { ledgerAccountId },
-      })
-    }
-  }
+  const ledgerAccountId = office.ledgerAccountId
   if (!ledgerAccountId) {
     throw new Error(
       `المكتب «${office.name}» غير مربوط بحساب ذمة — اربطه من إدارة المكاتب`,

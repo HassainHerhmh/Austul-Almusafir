@@ -72,6 +72,10 @@ export function OfficesPage() {
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!form.ledgerAccountId) {
+      alert('اختر الحساب المحاسبي للمكتب من القائمة')
+      return
+    }
     const payload = isBranchAdmin
       ? { ...form, branchId: currentBranch?.id ?? null }
       : form
@@ -108,13 +112,20 @@ export function OfficesPage() {
     return a ? `${a.code} — ${a.name_ar}` : `#${id}`
   }
 
-  const accountOptions =
-    officeAccounts.length > 0
-      ? [
-          ...officeAccounts,
-          ...subAccounts.filter((a) => !officeAccounts.some((o) => o.id === a.id)),
-        ]
-      : subAccounts
+  const accountOptions = useMemo(() => {
+    const base =
+      officeAccounts.length > 0
+        ? [
+            ...officeAccounts,
+            ...subAccounts.filter((a) => !officeAccounts.some((o) => o.id === a.id)),
+          ]
+        : subAccounts
+    if (form.ledgerAccountId && !base.some((a) => a.id === form.ledgerAccountId)) {
+      const linked = accountById.get(form.ledgerAccountId)
+      if (linked) return [linked, ...base]
+    }
+    return base
+  }, [officeAccounts, subAccounts, form.ledgerAccountId, accountById])
 
   return (
     <div>
@@ -281,6 +292,7 @@ export function OfficesPage() {
                 <div className="field">
                   <label>الحساب المحاسبي للمكتب</label>
                   <select
+                    required
                     value={form.ledgerAccountId ?? ''}
                     onChange={(e) =>
                       setForm({
@@ -289,13 +301,20 @@ export function OfficesPage() {
                       })
                     }
                   >
-                    <option value="">— يُنشأ تلقائياً تحت ذمم المكاتب —</option>
+                    <option value="" disabled>
+                      اختر حساباً من القائمة…
+                    </option>
                     {accountOptions.map((a) => (
                       <option key={a.id} value={a.id}>
                         {a.code} — {a.name_ar}
                       </option>
                     ))}
                   </select>
+                  {accountOptions.length === 0 && (
+                    <p style={{ fontSize: '0.85rem', color: 'var(--muted)', margin: '0.35rem 0 0' }}>
+                      لا توجد حسابات فرعية — أنشئ حساباً تحت «ذمم مكاتب السفريات» في دليل الحسابات أولاً.
+                    </p>
+                  )}
                 </div>
                 <div className="field">
                   <label>نسبة العمولة %</label>

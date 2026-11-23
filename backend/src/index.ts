@@ -2,6 +2,7 @@ import 'dotenv/config'
 import { createApp } from './app'
 import { config, prisma } from './config'
 import { ensureBookingNumbers } from './services/bookingNumber'
+import { ensureDatabaseSchema } from './services/ensureSchema'
 import { logger } from './utils/logger'
 
 async function migrateLegacyBookableTrips() {
@@ -19,6 +20,8 @@ async function migrateLegacyBookableTrips() {
     logger.info(`migrated ${result.count} trips to open`)
   }
 }
+
+ensureDatabaseSchema()
 
 const app = createApp()
 

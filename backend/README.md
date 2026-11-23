@@ -70,3 +70,15 @@ Railway يوفّر عادةً `MYSQL_URL` / `MYSQLHOST`. للإتصال السر
 3. `JWT_SECRET=قيمة-طويلة-عشوائية`
 
 ثم Redeploy. التطبيق يختار الرابط الداخلي تلقائياً إن وُجد.
+
+## Hostinger (MySQL)
+
+بعد كل تحديث لـ `schema.prisma`، التطبيق في **الإنتاج** يشغّل تلقائياً `prisma db push` عند التشغيل (ما لم تضبط `DB_AUTO_SYNC=0`).
+
+يدوياً:
+
+```bash
+npm run setup:hostinger
+```
+
+أو `npm run db:sync` ثم إعادة تشغيل Node.

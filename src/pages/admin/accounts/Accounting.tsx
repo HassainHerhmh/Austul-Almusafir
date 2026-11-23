@@ -1,4 +1,5 @@
 import { Link, Outlet, useLocation } from 'react-router-dom'
+import { accountsBaseFromPath } from '../../../routes/portalBase'
 import {
   BookOpen,
   Repeat,
@@ -14,8 +15,6 @@ import {
   Shuffle,
 } from 'lucide-react'
 import './accounts.css'
-
-const BASE = '/admin/accounts'
 
 const setupTabs = [
   { label: 'دليل الحسابات', path: 'setup/accounts', icon: BookOpen },
@@ -34,6 +33,7 @@ const setupTabs = [
 
 const Accounting = () => {
   const location = useLocation()
+  const BASE = accountsBaseFromPath(location.pathname)
 
   const isSetup = location.pathname.includes('/accounts/setup')
   const isOperations = location.pathname.includes('/accounts/operations')

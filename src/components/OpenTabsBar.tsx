@@ -1,7 +1,6 @@
 import { X } from 'lucide-react'
 import { useEffect, useMemo, useState, type MouseEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-
 type OpenTab = { path: string; label: string }
 
 const STORAGE_KEY = 'austul-open-tabs'
@@ -65,16 +64,33 @@ function normalizePath(path: string) {
   return cleaned || '/'
 }
 
+function labelLookupPath(path: string) {
+  return path.startsWith('/branch') ? path.replace(/^\/branch/, '/admin') : path
+}
+
+function isShellPath(path: string) {
+  return (
+    path.startsWith('/admin') || path.startsWith('/office') || path.startsWith('/branch')
+  )
+}
+
+function tabsScope(path: string) {
+  if (path.startsWith('/office')) return 'office'
+  if (path.startsWith('/branch')) return 'branch'
+  return 'admin'
+}
+
 function labelForPath(path: string) {
   const p = normalizePath(path)
-  const exact = ROUTE_LABELS.find((r) => r.path === p)
+  const lookup = labelLookupPath(p)
+  const exact = ROUTE_LABELS.find((r) => r.path === lookup)
   if (exact) return exact.label
 
   // أطول مسار مطابق كبادئة
   let best: { path: string; label: string } | null = null
   for (const r of ROUTE_LABELS) {
     if (r.end) continue
-    if (p === r.path || p.startsWith(`${r.path}/`)) {
+    if (lookup === r.path || lookup.startsWith(`${r.path}/`)) {
       if (!best || r.path.length > best.path.length) best = r
     }
   }
@@ -84,7 +100,9 @@ function labelForPath(path: string) {
 }
 
 function homeForPath(path: string) {
-  return path.startsWith('/office') ? '/office' : '/admin'
+  if (path.startsWith('/office')) return '/office'
+  if (path.startsWith('/branch')) return '/branch'
+  return '/admin'
 }
 
 function loadTabs(scope: string): OpenTab[] {
@@ -113,7 +131,7 @@ export function OpenTabsBar() {
   const location = useLocation()
   const navigate = useNavigate()
   const activePath = normalizePath(location.pathname)
-  const scope = activePath.startsWith('/office') ? 'office' : 'admin'
+  const scope = tabsScope(activePath)
   const home = homeForPath(activePath)
 
   const [tabs, setTabs] = useState<OpenTab[]>(() => loadTabs(scope))
@@ -124,7 +142,7 @@ export function OpenTabsBar() {
   }, [scope])
 
   useEffect(() => {
-    if (!activePath.startsWith('/admin') && !activePath.startsWith('/office')) return
+    if (!isShellPath(activePath)) return
     setTabs((prev) => {
       const exists = prev.some((t) => t.path === activePath)
       const next = exists
@@ -138,7 +156,7 @@ export function OpenTabsBar() {
   const visibleTabs = useMemo(() => {
     // تأكد أن الصفحة الحالية موجودة دائماً في الشريط
     if (tabs.some((t) => t.path === activePath)) return tabs
-    if (!activePath.startsWith('/admin') && !activePath.startsWith('/office')) return tabs
+    if (!isShellPath(activePath)) return tabs
     return [...tabs, { path: activePath, label: labelForPath(activePath) }]
   }, [tabs, activePath])
 
@@ -159,7 +177,7 @@ export function OpenTabsBar() {
     })
   }
 
-  if (!activePath.startsWith('/admin') && !activePath.startsWith('/office')) {
+  if (!isShellPath(activePath)) {
     return null
   }
 

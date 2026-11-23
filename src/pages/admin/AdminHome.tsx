@@ -2,7 +2,7 @@ import { useApp } from '../../context/AppContext'
 import { formatMoney, formatTimeAr, todayStr } from '../../components/utils'
 
 export function AdminHome() {
-  const { state, getTripLabel, getTripSeats, getOffice } = useApp()
+  const { state, getTripLabel, getTripSeats, getOffice, isBranchAdmin, currentBranch } = useApp()
   const today = todayStr()
   const todayTrips = state.trips.filter((t) => t.date === today && t.status === 'open')
   const confirmed = state.bookings.filter((b) => b.status === 'confirmed')
@@ -19,7 +19,7 @@ export function AdminHome() {
     <div>
       <header className="page-header">
         <div>
-          <h1>لوحة مدير النظام</h1>
+          <h1>{isBranchAdmin ? `لوحة الفرع — ${currentBranch?.name ?? ''}` : 'لوحة مدير النظام'}</h1>
         </div>
       </header>
 

@@ -1,7 +1,8 @@
 import { Router } from 'express'
 import { z } from 'zod'
 import { prisma } from '../config'
-import { authRequired, requireAdmin } from '../middleware/auth'
+import { authRequired, requireAdmin, requireAgencyAdmin } from '../middleware/auth'
+import { accountsScopeWhere, branchIdOnCreate } from '../utils/branchScope'
 import { getAccountBalance } from '../services/ledger'
 import { asyncHandler, fail, ok, paramId } from '../utils/http'
 
@@ -35,8 +36,11 @@ function mapAccount(
 }
 
 /** حساب قابل للترحيل: المستوى فرعي فقط (الأب تحت الأب يبقى رئيسي ولا يُرحَّل عليه) */
-async function listPostableAccounts() {
-  const all = await prisma.account.findMany({ orderBy: { code: 'asc' } })
+async function listPostableAccounts(branchWhere: Record<string, unknown>) {
+  const all = await prisma.account.findMany({
+    where: branchWhere,
+    orderBy: { code: 'asc' },
+  })
   const postable = all.filter((a) => a.accountLevel === 'فرعي')
 
   // إزالة التكرار بنفس الكود (تظهر مرة واحدة في قوائم السندات)
@@ -52,8 +56,12 @@ async function listPostableAccounts() {
 
 accountsRouter.get(
   '/',
-  asyncHandler(async (_req, res) => {
-    const list = await prisma.account.findMany({ orderBy: { code: 'asc' } })
+  asyncHandler(async (req, res) => {
+    const branchWhere = await accountsScopeWhere(req.user!)
+    const list = await prisma.account.findMany({
+      where: branchWhere,
+      orderBy: { code: 'asc' },
+    })
     const byId = new Map(list.map((a) => [a.id, a]))
     return ok(res, {
       list: list.map((a) =>
@@ -65,9 +73,10 @@ accountsRouter.get(
 
 accountsRouter.get(
   '/sub',
-  asyncHandler(async (_req, res) => {
-    const list = await listPostableAccounts()
-    const all = await prisma.account.findMany()
+  asyncHandler(async (req, res) => {
+    const branchWhere = await accountsScopeWhere(req.user!)
+    const list = await listPostableAccounts(branchWhere)
+    const all = await prisma.account.findMany({ where: branchWhere })
     const byId = new Map(all.map((a) => [a.id, a]))
     return ok(res, {
       list: list.map((a) =>
@@ -79,7 +88,7 @@ accountsRouter.get(
 
 accountsRouter.get(
   '/journal-lines',
-  requireAdmin,
+  requireAgencyAdmin,
   asyncHandler(async (req, res) => {
     const from = typeof req.query.from === 'string' && req.query.from ? req.query.from : null
     const to = typeof req.query.to === 'string' && req.query.to ? req.query.to : null
@@ -164,7 +173,7 @@ const journalEntryBody = z.object({
 
 accountsRouter.post(
   '/journal-manual',
-  requireAdmin,
+  requireAgencyAdmin,
   asyncHandler(async (req, res) => {
     const body = journalEntryBody.safeParse(req.body)
     if (!body.success) return fail(res, 'بيانات القيد غير صالحة')
@@ -222,7 +231,7 @@ accountsRouter.post(
 
 accountsRouter.put(
   '/journal-manual/:ref',
-  requireAdmin,
+  requireAgencyAdmin,
   asyncHandler(async (req, res) => {
     const ref = Number(paramId(req, 'ref'))
     if (!ref) return fail(res, 'مرجع غير صالح')
@@ -292,7 +301,7 @@ accountsRouter.put(
 
 accountsRouter.delete(
   '/journal-manual/:ref',
-  requireAdmin,
+  requireAgencyAdmin,
   asyncHandler(async (req, res) => {
     const ref = Number(paramId(req, 'ref'))
     if (!ref) return fail(res, 'مرجع غير صالح')
@@ -311,7 +320,7 @@ accountsRouter.delete(
 
 accountsRouter.get(
   '/:id/children-summary',
-  requireAdmin,
+  requireAgencyAdmin,
   asyncHandler(async (req, res) => {
     const parentId = Number(paramId(req))
     if (!parentId) return fail(res, 'معرّف غير صالح')
@@ -452,12 +461,13 @@ const accountBody = z.object({
 
 accountsRouter.post(
   '/',
-  requireAdmin,
+  requireAgencyAdmin,
   asyncHandler(async (req, res) => {
     const body = accountBody.safeParse(req.body)
     if (!body.success) return fail(res, 'بيانات غير صالحة')
 
     const parentId = body.data.parent_id ?? null
+    const branchId = branchIdOnCreate(req.user!)
     const level =
       body.data.account_level ?? (parentId ? 'فرعي' : 'رئيسي')
 
@@ -469,15 +479,17 @@ accountsRouter.post(
     if (!code) {
       if (parentId) {
         const parent = await prisma.account.findUnique({ where: { id: parentId } })
-        const siblings = await prisma.account.count({ where: { parentId } })
+        const siblings = await prisma.account.count({
+          where: { parentId, branchId },
+        })
         code = `${parent?.code ?? ''}${String(siblings + 1).padStart(2, '0')}`
       } else {
-        const roots = await prisma.account.count({ where: { parentId: null } })
+        const roots = await prisma.account.count({ where: { parentId: null, branchId } })
         code = String(roots + 1)
       }
     }
 
-    const existing = await prisma.account.findUnique({ where: { code } })
+    const existing = await prisma.account.findFirst({ where: { code, branchId } })
     if (existing) return fail(res, 'رقم الحساب مستخدم مسبقاً', 409)
 
     const account = await prisma.account.create({
@@ -488,6 +500,7 @@ accountsRouter.post(
         parentId,
         accountLevel: level,
         financialStatement: body.data.financial_statement ?? null,
+        branchId,
       },
     })
     const parent = parentId
@@ -499,7 +512,7 @@ accountsRouter.post(
 
 accountsRouter.put(
   '/:id',
-  requireAdmin,
+  requireAgencyAdmin,
   asyncHandler(async (req, res) => {
     const id = Number(paramId(req))
     if (!id) return fail(res, 'معرّف غير صالح')
@@ -508,6 +521,12 @@ accountsRouter.put(
 
     const prev = await prisma.account.findUnique({ where: { id } })
     if (!prev) return fail(res, 'الحساب غير موجود', 404)
+    if (
+      req.user!.role === 'branch_admin' &&
+      prev.branchId !== req.user!.branchId
+    ) {
+      return fail(res, 'ليس لديك صلاحية', 403)
+    }
 
     const parentId =
       body.data.parent_id !== undefined ? body.data.parent_id : prev.parentId
@@ -521,8 +540,12 @@ accountsRouter.put(
     }
 
     if (body.data.code && body.data.code !== prev.code) {
-      const clash = await prisma.account.findUnique({ where: { code: body.data.code } })
-      if (clash) return fail(res, 'رقم الحساب مستخدم مسبقاً', 409)
+      const clash = await prisma.account.findFirst({
+        where: { code: body.data.code, branchId: prev.branchId },
+      })
+      if (clash && clash.id !== id) {
+        return fail(res, 'رقم الحساب مستخدم مسبقاً', 409)
+      }
     }
 
     const account = await prisma.account.update({

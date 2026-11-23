@@ -81,13 +81,22 @@ const officeLinks: {
   },
 ]
 
-const branchLinks: { to: string; end?: boolean; label: string; icon: LucideIcon }[] = [
-  { to: '/branch', end: true, label: 'لوحة الفرع', icon: LayoutDashboard },
-  { to: '/branch/offices', label: 'المكاتب', icon: Building2 },
-  { to: '/branch/staff', label: 'الموظفون', icon: Users },
-  { to: '/branch/bookings', label: 'الحجوزات', icon: Ticket },
-  { to: '/branch/statement', label: 'كشف الذمة', icon: ScrollText },
-]
+function buildPortalAdminLinks(base: '/admin' | '/branch', includeAgencyOnly: boolean) {
+  return adminLinks
+    .filter((l) => {
+      if (!includeAgencyOnly && l.to.includes('/branches')) return false
+      if (!includeAgencyOnly && l.to.includes('/partner-api')) return false
+      return true
+    })
+    .map((l) => ({
+      ...l,
+      to: l.to.replace(/^\/admin/, base),
+      label:
+        base === '/branch' && l.to === '/admin' && l.end
+          ? 'لوحة الفرع'
+          : l.label,
+    }))
+}
 
 export function Shell() {
   const {
@@ -133,7 +142,7 @@ export function Shell() {
   const links = isAdmin
     ? adminLinks
     : isBranchAdmin
-      ? branchLinks
+      ? buildPortalAdminLinks('/branch', false)
       : officeLinks.filter((link) => !link.pageId || canPage(link.pageId, 'view'))
   const agencyBalance =
     !isAdmin && !isBranchAdmin && currentOffice ? getOfficeAgencyBalance(currentOffice.id) : 0

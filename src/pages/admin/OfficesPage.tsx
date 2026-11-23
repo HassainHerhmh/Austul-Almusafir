@@ -21,7 +21,7 @@ const empty: Omit<Office, 'id' | 'createdAt' | 'branchName'> = {
 }
 
 export function OfficesPage() {
-  const { state, upsertOffice } = useApp()
+  const { state, upsertOffice, isBranchAdmin, currentBranch, isAdmin } = useApp()
   const [form, setForm] = useState(empty)
   const [editId, setEditId] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
@@ -62,9 +62,20 @@ export function OfficesPage() {
     [subAccounts],
   )
 
+  const visibleOffices = useMemo(
+    () =>
+      isBranchAdmin && currentBranch
+        ? state.offices.filter((o) => o.branchId === currentBranch.id)
+        : state.offices,
+    [state.offices, isBranchAdmin, currentBranch],
+  )
+
   const save = async (e: React.FormEvent) => {
     e.preventDefault()
-    await upsertOffice(editId ? { ...form, id: editId } : form)
+    const payload = isBranchAdmin
+      ? { ...form, branchId: currentBranch?.id ?? null }
+      : form
+    await upsertOffice(editId ? { ...payload, id: editId } : payload)
     setForm(empty)
     setEditId(null)
     setOpen(false)
@@ -122,7 +133,7 @@ export function OfficesPage() {
             <thead>
               <tr>
                 <th>الاسم</th>
-                <th>الفرع</th>
+                {isAdmin && <th>الفرع</th>}
                 <th>المدينة</th>
                 <th>الهاتف</th>
                 <th>الحالة</th>
@@ -133,10 +144,16 @@ export function OfficesPage() {
               </tr>
             </thead>
             <tbody>
-              {state.offices.map((o) => (
+              {visibleOffices.map((o) => (
                 <tr key={o.id}>
                   <td>{o.name}</td>
-                  <td>{o.branchId ? state.branches.find((b) => b.id === o.branchId)?.name ?? o.branchName ?? '—' : 'الوكالة'}</td>
+                  {isAdmin && (
+                    <td>
+                      {o.branchId
+                        ? state.branches.find((b) => b.id === o.branchId)?.name ?? o.branchName ?? '—'
+                        : 'الوكالة'}
+                    </td>
+                  )}
                   <td>{o.city}</td>
                   <td>{o.phone}</td>
                   <td>
@@ -191,27 +208,29 @@ export function OfficesPage() {
             <h2>{editId ? 'تعديل مكتب' : 'مكتب جديد'}</h2>
             <form onSubmit={(e) => void save(e)}>
               <div className="form-grid">
-                <div className="field">
-                  <label>الفرع</label>
-                  <select
-                    value={form.branchId ?? ''}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        branchId: e.target.value ? e.target.value : null,
-                      })
-                    }
-                  >
-                    <option value="">— مباشرة للوكالة —</option>
-                    {state.branches
-                      .filter((b) => b.status === 'active')
-                      .map((b) => (
-                        <option key={b.id} value={b.id}>
-                          {b.name}
-                        </option>
-                      ))}
-                  </select>
-                </div>
+                {isAdmin && (
+                  <div className="field">
+                    <label>الفرع</label>
+                    <select
+                      value={form.branchId ?? ''}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          branchId: e.target.value ? e.target.value : null,
+                        })
+                      }
+                    >
+                      <option value="">— مباشرة للوكالة —</option>
+                      {state.branches
+                        .filter((b) => b.status === 'active')
+                        .map((b) => (
+                          <option key={b.id} value={b.id}>
+                            {b.name}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                )}
                 <div className="field">
                   <label>اسم المكتب</label>
                   <input

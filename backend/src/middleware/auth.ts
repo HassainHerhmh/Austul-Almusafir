@@ -70,3 +70,8 @@ export function requireRoles(...roles: string[]) {
 export function requireAdmin(req: Request, res: Response, next: NextFunction) {
   return requireRoles('admin')(req, res, next)
 }
+
+/** مدير الوكالة أو مدير الفرع — لنفس صلاحيات إدارة الأسطول والحسابات على نطاق الفرع */
+export function requireAgencyAdmin(req: Request, res: Response, next: NextFunction) {
+  return requireRoles('admin', 'branch_admin')(req, res, next)
+}

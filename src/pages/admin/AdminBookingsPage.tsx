@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { PAYMENT_LABELS, formatMoney } from '../../components/utils'
 import { useApp } from '../../context/AppContext'
 import { useBrand } from '../../context/BrandContext'
@@ -37,8 +37,13 @@ export function AdminBookingsPage() {
     getDestination,
     updateBooking,
     deleteBooking,
+    isBranchAdmin,
+    currentBranch,
   } = useApp()
   const [branchFilter, setBranchFilter] = useState<string>('')
+  useEffect(() => {
+    if (isBranchAdmin && currentBranch?.id) setBranchFilter(currentBranch.id)
+  }, [isBranchAdmin, currentBranch?.id])
   const { name: companyName, logoUrl, phones } = useBrand()
 
   const [editBooking, setEditBooking] = useState<Booking | null>(null)

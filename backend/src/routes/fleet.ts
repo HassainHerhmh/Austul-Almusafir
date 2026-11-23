@@ -1,23 +1,37 @@
 import { Router } from 'express'
 import { z } from 'zod'
 import { prisma } from '../config'
-import { authRequired, requireAdmin } from '../middleware/auth'
+import { authRequired, requireAdmin, requireAgencyAdmin } from '../middleware/auth'
+import { branchIdOnCreate, branchOwnedWhere, catalogListWhere } from '../utils/branchScope'
 import { asyncHandler, fail, ok, paramId } from '../utils/http'
+
+function assertBranchEntity(
+  req: { user?: { role: string; branchId: string | null } },
+  branchId: string | null,
+) {
+  if (req.user!.role === 'branch_admin' && branchId !== req.user!.branchId) {
+    return false
+  }
+  return true
+}
 
 export const destinationsRouter = Router()
 destinationsRouter.use(authRequired)
 
 destinationsRouter.get(
   '/',
-  asyncHandler(async (_req, res) => {
-    const list = await prisma.destination.findMany({ orderBy: { name: 'asc' } })
+  asyncHandler(async (req, res) => {
+    const list = await prisma.destination.findMany({
+      where: await catalogListWhere(req.user!),
+      orderBy: { name: 'asc' },
+    })
     return ok(res, { list })
   }),
 )
 
 destinationsRouter.post(
   '/',
-  requireAdmin,
+  requireAgencyAdmin,
   asyncHandler(async (req, res) => {
     const body = z
       .object({
@@ -30,6 +44,7 @@ destinationsRouter.post(
       data: {
         name: body.data.name,
         ticketPrice: body.data.ticketPrice ?? 0,
+        branchId: branchIdOnCreate(req.user!),
       },
     })
     return ok(res, { destination }, 201)
@@ -38,8 +53,13 @@ destinationsRouter.post(
 
 destinationsRouter.put(
   '/:id',
-  requireAdmin,
+  requireAgencyAdmin,
   asyncHandler(async (req, res) => {
+    const existing = await prisma.destination.findUnique({ where: { id: paramId(req) } })
+    if (!existing) return fail(res, 'غير موجود', 404)
+    if (!assertBranchEntity(req, existing.branchId)) {
+      return fail(res, 'ليس لديك صلاحية', 403)
+    }
     const body = z
       .object({
         name: z.string().min(1),
@@ -60,8 +80,13 @@ destinationsRouter.put(
 
 destinationsRouter.delete(
   '/:id',
-  requireAdmin,
+  requireAgencyAdmin,
   asyncHandler(async (req, res) => {
+    const existing = await prisma.destination.findUnique({ where: { id: paramId(req) } })
+    if (!existing) return fail(res, 'غير موجود', 404)
+    if (!assertBranchEntity(req, existing.branchId)) {
+      return fail(res, 'ليس لديك صلاحية', 403)
+    }
     await prisma.destination.delete({ where: { id: paramId(req) } })
     return ok(res, { deleted: true })
   }),
@@ -72,20 +97,23 @@ visaTypesRouter.use(authRequired)
 
 visaTypesRouter.get(
   '/',
-  asyncHandler(async (_req, res) => {
-    const list = await prisma.visaType.findMany({ orderBy: { name: 'asc' } })
+  asyncHandler(async (req, res) => {
+    const list = await prisma.visaType.findMany({
+      where: await catalogListWhere(req.user!),
+      orderBy: { name: 'asc' },
+    })
     return ok(res, { list })
   }),
 )
 
 visaTypesRouter.post(
   '/',
-  requireAdmin,
+  requireAgencyAdmin,
   asyncHandler(async (req, res) => {
     const body = z.object({ name: z.string().min(1) }).safeParse(req.body)
     if (!body.success) return fail(res, 'بيانات غير صالحة')
     const visaType = await prisma.visaType.create({
-      data: { name: body.data.name.trim() },
+      data: { name: body.data.name.trim(), branchId: branchIdOnCreate(req.user!) },
     })
     return ok(res, { visaType }, 201)
   }),
@@ -93,8 +121,13 @@ visaTypesRouter.post(
 
 visaTypesRouter.put(
   '/:id',
-  requireAdmin,
+  requireAgencyAdmin,
   asyncHandler(async (req, res) => {
+    const existing = await prisma.visaType.findUnique({ where: { id: paramId(req) } })
+    if (!existing) return fail(res, 'غير موجود', 404)
+    if (!assertBranchEntity(req, existing.branchId)) {
+      return fail(res, 'ليس لديك صلاحية', 403)
+    }
     const body = z.object({ name: z.string().min(1) }).safeParse(req.body)
     if (!body.success) return fail(res, 'بيانات غير صالحة')
     const visaType = await prisma.visaType.update({
@@ -107,8 +140,13 @@ visaTypesRouter.put(
 
 visaTypesRouter.delete(
   '/:id',
-  requireAdmin,
+  requireAgencyAdmin,
   asyncHandler(async (req, res) => {
+    const existing = await prisma.visaType.findUnique({ where: { id: paramId(req) } })
+    if (!existing) return fail(res, 'غير موجود', 404)
+    if (!assertBranchEntity(req, existing.branchId)) {
+      return fail(res, 'ليس لديك صلاحية', 403)
+    }
     await prisma.visaType.delete({ where: { id: paramId(req) } })
     return ok(res, { deleted: true })
   }),
@@ -119,15 +157,18 @@ busesRouter.use(authRequired)
 
 busesRouter.get(
   '/',
-  asyncHandler(async (_req, res) => {
-    const list = await prisma.bus.findMany({ orderBy: [{ busNumber: 'asc' }, { plateNumber: 'asc' }] })
+  asyncHandler(async (req, res) => {
+    const list = await prisma.bus.findMany({
+      where: branchOwnedWhere(req.user!),
+      orderBy: [{ busNumber: 'asc' }, { plateNumber: 'asc' }],
+    })
     return ok(res, { list })
   }),
 )
 
 busesRouter.post(
   '/',
-  requireAdmin,
+  requireAgencyAdmin,
   asyncHandler(async (req, res) => {
     const body = z
       .object({
@@ -148,6 +189,7 @@ busesRouter.post(
         year: body.data.year?.trim() ?? '',
         seats: body.data.seats,
         status: body.data.status ?? 'available',
+        branchId: branchIdOnCreate(req.user!),
       },
     })
     return ok(res, { bus }, 201)
@@ -156,8 +198,13 @@ busesRouter.post(
 
 busesRouter.put(
   '/:id',
-  requireAdmin,
+  requireAgencyAdmin,
   asyncHandler(async (req, res) => {
+    const existing = await prisma.bus.findUnique({ where: { id: paramId(req) } })
+    if (!existing) return fail(res, 'غير موجود', 404)
+    if (!assertBranchEntity(req, existing.branchId)) {
+      return fail(res, 'ليس لديك صلاحية', 403)
+    }
     const body = z
       .object({
         busNumber: z.string().optional(),
@@ -186,15 +233,18 @@ driversRouter.use(authRequired)
 
 driversRouter.get(
   '/',
-  asyncHandler(async (_req, res) => {
-    const list = await prisma.driver.findMany({ orderBy: { name: 'asc' } })
+  asyncHandler(async (req, res) => {
+    const list = await prisma.driver.findMany({
+      where: branchOwnedWhere(req.user!),
+      orderBy: { name: 'asc' },
+    })
     return ok(res, { list })
   }),
 )
 
 driversRouter.post(
   '/',
-  requireAdmin,
+  requireAgencyAdmin,
   asyncHandler(async (req, res) => {
     const body = z
       .object({
@@ -215,6 +265,7 @@ driversRouter.post(
         nationality: body.data.nationality,
         role: body.data.role ?? 'primary',
         active: body.data.active ?? true,
+        branchId: branchIdOnCreate(req.user!),
       },
     })
     return ok(res, { driver }, 201)
@@ -223,8 +274,13 @@ driversRouter.post(
 
 driversRouter.put(
   '/:id',
-  requireAdmin,
+  requireAgencyAdmin,
   asyncHandler(async (req, res) => {
+    const existing = await prisma.driver.findUnique({ where: { id: paramId(req) } })
+    if (!existing) return fail(res, 'غير موجود', 404)
+    if (!assertBranchEntity(req, existing.branchId)) {
+      return fail(res, 'ليس لديك صلاحية', 403)
+    }
     const body = z
       .object({
         name: z.string().min(1).optional(),

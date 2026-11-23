@@ -20,6 +20,12 @@ model Branch {
   createdAt         DateTime @default(now())
   offices           Office[]
   users             User[]
+  trips             Trip[]
+  buses             Bus[]
+  drivers           Driver[]
+  destinations      Destination[]
+  visaTypes         VisaType[]
+  accounts          Account[]
 }
 
 model Office {
@@ -77,12 +83,20 @@ model Destination {
   name        String
   /** سعر التذكرة لمنطقة الصعود/الوجهة عند التسعير حسب المنطقة */
   ticketPrice Float      @default(0)
+  branchId    String?
+  branch      Branch?    @relation(fields: [branchId], references: [id], onDelete: SetNull)
   tripStops   TripStop[]
+
+  @@index([branchId])
 }
 
 model VisaType {
-  id   String @id @default(cuid())
-  name String
+  id       String  @id @default(cuid())
+  name     String
+  branchId String?
+  branch   Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
+
+  @@index([branchId])
 }
 
 model Bus {
@@ -95,7 +109,11 @@ model Bus {
   year        String @default("")
   seats       Int
   status      String @default("available")
+  branchId    String?
+  branch      Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
   trips       Trip[]
+
+  @@index([branchId])
 }
 
 model Driver {
@@ -107,8 +125,12 @@ model Driver {
   nationality   String  @default("")
   role          String  @default("primary")
   active        Boolean @default(true)
+  branchId      String?
+  branch        Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
   trips         Trip[]  @relation("TripDriver")
   users         User[]
+
+  @@index([branchId])
 }
 
 model Trip {
@@ -138,9 +160,13 @@ model Trip {
   location           TripLocation?
   trackingShares     TripTrackingShare[]
   officeTrackingAccess TripOfficeTrackingAccess[]
+  /** null = رحلة مركزية للوكالة · معرّف = رحلة فرع */
+  branchId           String?
+  branch             Branch?    @relation(fields: [branchId], references: [id], onDelete: SetNull)
   createdAt          DateTime   @default(now())
 
   @@index([campaignOfficeId])
+  @@index([branchId])
 }
 
 /** سماح أدمن لمكتب معيّن بتتبع رحلة معيّنة */
@@ -260,14 +286,19 @@ model Voucher {
 
 model Account {
   id                  Int      @id @default(autoincrement())
-  code                String   @unique
+  code                String
   nameAr              String
   nameEn              String?
   parentId            Int?
   accountLevel        String
   financialStatement  String?
+  branchId            String?
+  branch              Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
   createdAt           DateTime @default(now())
   journalLines        JournalLine[]
+
+  @@unique([code, branchId])
+  @@index([branchId])
 }
 
 model JournalLine {

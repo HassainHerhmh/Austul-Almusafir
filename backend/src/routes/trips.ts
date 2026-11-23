@@ -1,7 +1,8 @@
 import { Router } from 'express'
 import { z } from 'zod'
 import { prisma } from '../config'
-import { authRequired, requireAdmin } from '../middleware/auth'
+import { authRequired, requireAgencyAdmin } from '../middleware/auth'
+import { branchIdOnCreate, tripsListWhere } from '../utils/branchScope'
 import {
   findOfficeLedgerAccount,
   postCampaignCharge,
@@ -134,8 +135,9 @@ async function ensureCampaignCharge(trip: {
 
 tripsRouter.get(
   '/',
-  asyncHandler(async (_req, res) => {
+  asyncHandler(async (req, res) => {
     const list = await prisma.trip.findMany({
+      where: await tripsListWhere(req.user!),
       include: { stops: true },
       orderBy: [{ date: 'asc' }, { departureTime: 'asc' }],
     })
@@ -157,7 +159,7 @@ tripsRouter.get(
 
 tripsRouter.post(
   '/',
-  requireAdmin,
+  requireAgencyAdmin,
   asyncHandler(async (req, res) => {
     const body = z
       .object({
@@ -199,10 +201,17 @@ tripsRouter.post(
     if (campaignOfficeId) {
       const office = await prisma.office.findUnique({ where: { id: campaignOfficeId } })
       if (!office) return fail(res, 'مكتب الحملة غير موجود', 404)
+      if (
+        req.user!.role === 'branch_admin' &&
+        office.branchId !== req.user!.branchId
+      ) {
+        return fail(res, 'مكتب الحملة خارج نطاق الفرع', 403)
+      }
     }
 
     const trip = await prisma.trip.create({
       data: {
+        branchId: branchIdOnCreate(req.user!),
         busId: body.data.busId,
         driverId: body.data.driverId,
         assistantName: body.data.assistantName?.trim() ?? '',
@@ -230,7 +239,7 @@ tripsRouter.post(
 
 tripsRouter.put(
   '/:id',
-  requireAdmin,
+  requireAgencyAdmin,
   asyncHandler(async (req, res) => {
     const existing = await prisma.trip.findUnique({ where: { id: paramId(req) } })
     if (!existing) return fail(res, 'الرحلة غير موجودة', 404)
@@ -345,7 +354,7 @@ tripsRouter.put(
 
 tripsRouter.post(
   '/:id/cancel',
-  requireAdmin,
+  requireAgencyAdmin,
   asyncHandler(async (req, res) => {
     const existing = await prisma.trip.findUnique({
       where: { id: paramId(req) },
@@ -369,7 +378,7 @@ tripsRouter.post(
 /** فتح الرحلة للحجز عند الوكلاء — وللحملة يُقيَّد الإجمالي على الوكيل فوراً */
 tripsRouter.post(
   '/:id/open',
-  requireAdmin,
+  requireAgencyAdmin,
   asyncHandler(async (req, res) => {
     const existing = await prisma.trip.findUnique({
       where: { id: paramId(req) },
@@ -400,7 +409,7 @@ tripsRouter.post(
 
 tripsRouter.post(
   '/:id/close',
-  requireAdmin,
+  requireAgencyAdmin,
   asyncHandler(async (req, res) => {
     const existing = await prisma.trip.findUnique({
       where: { id: paramId(req) },
@@ -437,7 +446,7 @@ tripsRouter.post(
 
 tripsRouter.post(
   '/:id/reopen',
-  requireAdmin,
+  requireAgencyAdmin,
   asyncHandler(async (req, res) => {
     const existing = await prisma.trip.findUnique({
       where: { id: paramId(req) },

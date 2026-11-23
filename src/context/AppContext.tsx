@@ -153,6 +153,10 @@ const ROLE_PERMS: Record<Role, Permission[]> = {
     'view_reports',
   ],
   branch_admin: [
+    'manage_system',
+    'book',
+    'cancel_booking',
+    'print_ticket',
     'view_accounts',
     'manage_office_users',
     'view_reports',

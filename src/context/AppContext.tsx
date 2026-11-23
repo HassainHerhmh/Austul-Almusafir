@@ -449,12 +449,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const res = await serverApi.login(username, password)
       setToken(res.token)
       setLoading(true)
-      await refreshAll()
+      try {
+        await refreshAll()
+      } catch (e) {
+        setToken(null)
+        setState(emptyState())
+        setApiReady(false)
+        return e instanceof ApiError ? e.message : 'تعذر تحميل البيانات بعد الدخول'
+      }
       setLoading(false)
       return null
     } catch (e) {
       setLoading(false)
-      return e instanceof ApiError ? e.message : 'تعذر تسجيل الدخول'
+      if (e instanceof ApiError) return e.message
+      if (e instanceof Error && e.message) return e.message
+      return 'تعذر الاتصال بالسيرفر — تحقق من الإنترنت وعنوان API'
     }
   }
 

@@ -38,12 +38,18 @@ export function createApp() {
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control', 'Pragma'],
   }
+  const capacitorOrigins = [
+    'https://localhost',
+    'capacitor://localhost',
+    'http://localhost',
+    'ionic://localhost',
+  ]
   if (config.corsOrigins === true) {
     corsOptions.origin = true
   } else {
     const allowed = config.corsOrigins
     corsOptions.origin = (origin, callback) => {
-      if (!origin || allowed.includes(origin)) {
+      if (!origin || allowed.includes(origin) || capacitorOrigins.includes(origin)) {
         callback(null, true)
         return
       }

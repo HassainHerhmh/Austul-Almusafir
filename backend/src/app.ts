@@ -2,7 +2,7 @@ import cors from 'cors'
 import express from 'express'
 import helmet from 'helmet'
 import type { CorsOptions } from 'cors'
-import { config } from './config'
+import { config, prisma } from './config'
 import { accountsRouter } from './routes/accounts'
 import { authRouter } from './routes/auth'
 import { bookingsRouter } from './routes/bookings'
@@ -54,8 +54,19 @@ export function createApp() {
   app.options(/.*/, cors(corsOptions))
   app.use(express.json({ limit: '2mb' }))
 
-  app.get('/api/health', (_req, res) => {
-    res.json({ success: true })
+  app.get('/api/health', async (_req, res) => {
+    try {
+      await prisma.user.findFirst({ select: { id: true, branchId: true } })
+      res.json({ success: true, db: true })
+    } catch (err) {
+      logger.error('health', err)
+      res.status(503).json({
+        success: false,
+        db: false,
+        message:
+          'قاعدة البيانات غير متزامنة مع التطبيق — على سيرفر API نفّذ: npx prisma db push --accept-data-loss',
+      })
+    }
   })
 
   app.use('/api/auth', authRouter)

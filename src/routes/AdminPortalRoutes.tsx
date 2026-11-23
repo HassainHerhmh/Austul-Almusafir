@@ -36,8 +36,8 @@ import { SettingsPage } from '../pages/admin/SettingsPage'
 import { PartnerApiPage } from '../pages/admin/PartnerApiPage'
 import { PrintSettingsPage } from '../pages/admin/PrintSettingsPage'
 
-/** مسارات لوحة الإدارة — تُعاد استخدامها تحت /admin و /branch */
-export function AdminPortalRoutes({ showAgencyOnly }: { showAgencyOnly: boolean }) {
+/** مسارات لوحة الإدارة — يجب استدعاؤها كـ {renderAdminPortalRoutes(...)} داخل <Route> وليس كمكوّن */
+export function renderAdminPortalRoutes(showAgencyOnly: boolean) {
   return (
     <>
       <Route index element={<AdminHome />} />

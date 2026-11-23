@@ -16,7 +16,7 @@ import { OfficeStaffPage } from './pages/office/OfficeStaffPage'
 import { OfficePermissionsPage } from './pages/office/OfficePermissionsPage'
 import { OfficeTrackingPage } from './pages/office/OfficeTrackingPage'
 import { BrandProvider } from './context/BrandContext'
-import { AdminPortalRoutes } from './routes/AdminPortalRoutes'
+import { renderAdminPortalRoutes } from './routes/AdminPortalRoutes'
 
 export default function App() {
   return (
@@ -44,7 +44,7 @@ export default function App() {
                 </RequireAuth>
               }
             >
-              <AdminPortalRoutes showAgencyOnly />
+              {renderAdminPortalRoutes(true)}
             </Route>
 
             <Route
@@ -55,7 +55,7 @@ export default function App() {
                 </RequireAuth>
               }
             >
-              <AdminPortalRoutes showAgencyOnly={false} />
+              {renderAdminPortalRoutes(false)}
             </Route>
 
             <Route

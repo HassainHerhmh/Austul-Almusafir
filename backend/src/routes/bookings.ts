@@ -322,6 +322,9 @@ bookingsRouter.patch(
       .safeParse(req.body)
     if (!body.success) return fail(res, 'بيانات غير صالحة')
 
+    if (body.data.status === 'cancelled' && req.user!.role === 'office_manager') {
+      return fail(res, 'إلغاء التذكرة متاح للإدارة فقط', 403)
+    }
     if (body.data.price !== undefined && req.user!.role !== 'admin') {
       return fail(res, 'تعديل سعر التذكرة متاح للإدارة فقط', 403)
     }

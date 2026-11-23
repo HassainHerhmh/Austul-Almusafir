@@ -1,10 +1,17 @@
+import { useEffect } from 'react'
 import { useApp } from '../../context/AppContext'
 import { formatMoney, formatTimeAr, todayStr } from '../../components/utils'
 
 export function AdminHome() {
-  const { state, getTripLabel, getTripSeats, getOffice, isBranchAdmin, currentBranch } = useApp()
+  const { state, getTripLabel, getTripSeats, getOffice, isBranchAdmin, currentBranch, ensureTripSeats } =
+    useApp()
   const today = todayStr()
   const todayTrips = state.trips.filter((t) => t.date === today && t.status === 'open')
+
+  useEffect(() => {
+    const ids = todayTrips.map((t) => t.id)
+    void Promise.allSettled(ids.map((id) => ensureTripSeats(id)))
+  }, [todayTrips, ensureTripSeats, state.bookings])
   const confirmed = state.bookings.filter((b) => b.status === 'confirmed')
   const sales = confirmed.reduce((s, b) => s + b.price, 0)
   const activeOffices = state.offices.filter((o) => o.status === 'active').length

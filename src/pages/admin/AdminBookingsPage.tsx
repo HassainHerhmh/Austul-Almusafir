@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { PAYMENT_LABELS, formatMoney } from '../../components/utils'
+import { PAYMENT_LABELS, formatMoney, formatTimeAr, todayStr } from '../../components/utils'
 import { useApp } from '../../context/AppContext'
 import { useBrand } from '../../context/BrandContext'
 import type { Booking, PaymentMethod } from '../../types'
@@ -41,9 +41,38 @@ export function AdminBookingsPage() {
     currentBranch,
   } = useApp()
   const [branchFilter, setBranchFilter] = useState<string>('')
+  const [officeFilter, setOfficeFilter] = useState('')
+  const [tripFilter, setTripFilter] = useState('')
+  const [filterDate, setFilterDate] = useState('')
+
   useEffect(() => {
     if (isBranchAdmin && currentBranch?.id) setBranchFilter(currentBranch.id)
   }, [isBranchAdmin, currentBranch?.id])
+
+  const officeOptions = useMemo(() => {
+    let offices = [...state.offices]
+    if (branchFilter === '__agency__') {
+      offices = offices.filter((o) => !o.branchId)
+    } else if (branchFilter) {
+      offices = offices.filter((o) => o.branchId === branchFilter)
+    }
+    return offices.sort((a, b) => a.name.localeCompare(b.name, 'ar'))
+  }, [state.offices, branchFilter])
+
+  const tripOptions = useMemo(
+    () =>
+      [...state.trips].sort(
+        (a, b) =>
+          b.date.localeCompare(a.date) || b.departureTime.localeCompare(a.departureTime),
+      ),
+    [state.trips],
+  )
+
+  useEffect(() => {
+    if (officeFilter && !officeOptions.some((o) => o.id === officeFilter)) {
+      setOfficeFilter('')
+    }
+  }, [officeFilter, officeOptions])
   const { name: companyName, logoUrl, phones } = useBrand()
 
   const [editBooking, setEditBooking] = useState<Booking | null>(null)
@@ -171,8 +200,11 @@ export function AdminBookingsPage() {
     } else if (branchFilter) {
       list = list.filter((b) => getOffice(b.officeId)?.branchId === branchFilter)
     }
+    if (officeFilter) list = list.filter((b) => b.officeId === officeFilter)
+    if (tripFilter) list = list.filter((b) => b.tripId === tripFilter)
+    if (filterDate) list = list.filter((b) => b.bookedAt.slice(0, 10) === filterDate)
     return [...list].sort((a, b) => b.bookedAt.localeCompare(a.bookedAt))
-  }, [state.bookings, branchFilter, getOffice])
+  }, [state.bookings, branchFilter, officeFilter, tripFilter, filterDate, getOffice])
 
   const cellValue = (b: Booking, key: PrintColKey): string => {
     const trip = state.trips.find((t) => t.id === b.tripId)
@@ -240,24 +272,102 @@ export function AdminBookingsPage() {
       </header>
 
       <div className="panel">
-        <div className="panel-head" style={{ flexWrap: 'wrap', gap: 12 }}>
-          <h2>قائمة الحجوزات</h2>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span>الفرع</span>
-            <select
-              value={branchFilter}
-              onChange={(e) => setBranchFilter(e.target.value)}
-              className="filter-select"
+        <div className="panel-head" style={{ flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
+          <h2 style={{ margin: 0 }}>قائمة الحجوزات</h2>
+          <div
+            className="actions"
+            style={{
+              flexWrap: 'wrap',
+              gap: '0.65rem',
+              marginInlineStart: 'auto',
+              alignItems: 'center',
+            }}
+          >
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
+              <span style={{ whiteSpace: 'nowrap', fontSize: '0.9rem' }}>الفرع</span>
+              {isBranchAdmin ? (
+                <select
+                  value={branchFilter}
+                  disabled
+                  className="filter-select"
+                  aria-readonly
+                >
+                  <option value={currentBranch?.id ?? ''}>{currentBranch?.name ?? 'الفرع'}</option>
+                </select>
+              ) : (
+                <select
+                  value={branchFilter}
+                  onChange={(e) => {
+                    setBranchFilter(e.target.value)
+                    setOfficeFilter('')
+                  }}
+                  className="filter-select"
+                >
+                  <option value="">كل الفروع</option>
+                  <option value="__agency__">مباشرة للوكالة</option>
+                  {state.branches.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
+              <span style={{ whiteSpace: 'nowrap', fontSize: '0.9rem' }}>المكتب</span>
+              <select
+                value={officeFilter}
+                onChange={(e) => setOfficeFilter(e.target.value)}
+                className="filter-select"
+              >
+                <option value="">كل المكاتب</option>
+                {officeOptions.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
+              <span style={{ whiteSpace: 'nowrap', fontSize: '0.9rem' }}>الرحلة</span>
+              <select
+                value={tripFilter}
+                onChange={(e) => setTripFilter(e.target.value)}
+                className="filter-select"
+                style={{ maxWidth: 280 }}
+              >
+                <option value="">كل الرحلات</option>
+                {tripOptions.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {getTripLabel(t)} — {t.date} {formatTimeAr(t.departureTime)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
+              <span style={{ whiteSpace: 'nowrap', fontSize: '0.9rem' }}>تاريخ الحجز</span>
+              <input
+                type="date"
+                value={filterDate}
+                onChange={(e) => setFilterDate(e.target.value)}
+              />
+            </label>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => setFilterDate(todayStr())}
             >
-              <option value="">الكل</option>
-              <option value="__agency__">مباشرة للوكالة</option>
-              {state.branches.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
-          </label>
+              اليوم
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => setFilterDate('')}
+              disabled={!filterDate}
+            >
+              كل الأيام
+            </button>
+          </div>
         </div>
         <div className="table-wrap">
           <table className="data">
@@ -341,10 +451,10 @@ export function AdminBookingsPage() {
                     </tr>
                   )
                 })}
-              {state.bookings.length === 0 && (
+              {sortedBookings.length === 0 && (
                 <tr>
-                  <td colSpan={14} className="empty">
-                    لا توجد حجوزات
+                  <td colSpan={15} className="empty">
+                    لا توجد حجوزات مطابقة للفلتر
                   </td>
                 </tr>
               )}

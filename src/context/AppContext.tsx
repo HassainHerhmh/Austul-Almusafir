@@ -74,7 +74,7 @@ interface AppContextValue {
     remaining: number
     bookedSeats: number[]
   }
-  ensureTripSeats: (tripId: string) => Promise<void>
+  ensureTripSeats: (tripId: string, force?: boolean) => Promise<void>
   getOfficeAgencyBalance: (officeId?: string) => number
   upsertOffice: (office: Omit<Office, 'id' | 'createdAt'> & { id?: string }) => Promise<void>
   upsertUser: (user: Omit<User, 'id'> & { id?: string }) => Promise<void>
@@ -165,7 +165,6 @@ const ROLE_PERMS: Record<Role, Permission[]> = {
   ],
   office_manager: [
     'book',
-    'cancel_booking',
     'print_ticket',
     'view_accounts',
     'manage_office_users',
@@ -603,28 +602,54 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return stops.map((s) => getDestination(s.destinationId)?.name ?? '?').join(' ← ')
   }
 
-  const getTripSeats = (tripId: string) => {
-    const cached = tripSeatsAll[tripId]
-    if (cached) return cached
-
+  const localTripSeats = (tripId: string) => {
     const trip = state.trips.find((t) => t.id === tripId)
     const bus = trip ? getBus(trip.busId) : undefined
     const total = bus?.seats ?? 0
     const confirmed = state.bookings.filter(
       (b) => b.tripId === tripId && b.status === 'confirmed',
     )
+    const bookedSeats = confirmed.map((b) => b.seatNumber)
+    const booked = bookedSeats.length
     return {
       total,
-      booked: confirmed.length,
-      remaining: Math.max(0, total - confirmed.length),
-      bookedSeats: confirmed.map((b) => b.seatNumber),
+      booked,
+      remaining: Math.max(0, total - booked),
+      bookedSeats,
     }
   }
 
-  const ensureTripSeats: AppContextValue['ensureTripSeats'] = async (tripId) => {
-    if (isAdmin) return
+  const getTripSeats = (tripId: string) => {
+    const local = localTripSeats(tripId)
+    const cached = tripSeatsAll[tripId]
+    if (!cached) return local
+
+    const bookedSeats = [...new Set([...cached.bookedSeats, ...local.bookedSeats])].sort(
+      (a, b) => a - b,
+    )
+    const total = Math.max(cached.total, local.total)
+    const booked = Math.max(cached.booked, local.booked, bookedSeats.length)
+    return {
+      total,
+      booked,
+      remaining: Math.max(0, total - booked),
+      bookedSeats,
+    }
+  }
+
+  const invalidateTripSeats = useCallback((tripId: string) => {
     if (!tripId) return
-    if (tripSeatsAll[tripId]) return
+    setTripSeatsAll((prev) => {
+      if (!prev[tripId]) return prev
+      const next = { ...prev }
+      delete next[tripId]
+      return next
+    })
+  }, [])
+
+  const ensureTripSeats: AppContextValue['ensureTripSeats'] = async (tripId, force = false) => {
+    if (!tripId) return
+    if (!force && tripSeatsAll[tripId]) return
     if (tripSeatsFetchingRef.current.has(tripId)) return
 
     tripSeatsFetchingRef.current.add(tripId)
@@ -913,6 +938,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         ...s,
         bookings: upsertById(s.bookings, booking),
       }))
+      invalidateTripSeats(input.tripId)
+      void ensureTripSeats(input.tripId, true)
       void refreshBalances(state.offices, input.officeId)
       return booking
     } catch (e) {
@@ -926,6 +953,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const res = await serverApi.bookings.patch(id, patch)
       const booking = asBooking(res.booking)
       setState((s) => ({ ...s, bookings: upsertById(s.bookings, booking) }))
+      const tripIds = new Set<string>()
+      if (existing?.tripId) tripIds.add(existing.tripId)
+      if (booking.tripId) tripIds.add(booking.tripId)
+      tripIds.forEach((id) => {
+        invalidateTripSeats(id)
+        void ensureTripSeats(id, true)
+      })
       if (
         patch.status === 'cancelled' ||
         (patch.price !== undefined && existing && patch.price !== existing.price)
@@ -947,6 +981,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         bookings: s.bookings.filter((b) => b.id !== id),
         vouchers: s.vouchers.filter((v) => v.relatedBookingId !== id),
       }))
+      if (existing?.tripId) {
+        invalidateTripSeats(existing.tripId)
+        void ensureTripSeats(existing.tripId, true)
+      }
       if (existing) void refreshBalances(state.offices, existing.officeId)
       return null
     } catch (e) {

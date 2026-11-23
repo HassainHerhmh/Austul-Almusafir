@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { ROLE_LABELS } from '../../components/utils'
 import { useApp } from '../../context/AppContext'
 import type { Role, User } from '../../types'
@@ -16,16 +16,40 @@ const empty = {
 }
 
 export function UsersPage() {
-  const { state, upsertUser, deleteUser, isAdmin } = useApp()
+  const { state, upsertUser, deleteUser, isAdmin, isBranchAdmin, currentBranch, currentUser } =
+    useApp()
   const [form, setForm] = useState(empty)
   const [editId, setEditId] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
-  const users = isAdmin
-    ? state.users
-    : state.users.filter((u) => u.officeId === state.users.find((x) => x.id === state.currentUserId)?.officeId)
+  const branchOfficeIds = useMemo(() => {
+    if (!isBranchAdmin || !currentBranch) return null
+    return new Set(
+      state.offices.filter((o) => o.branchId === currentBranch.id).map((o) => o.id),
+    )
+  }, [isBranchAdmin, currentBranch, state.offices])
+
+  const users = useMemo(() => {
+    if (isAdmin) return state.users
+    if (isBranchAdmin && currentBranch) {
+      return state.users.filter((u) => {
+        if (u.role === 'branch_admin' && u.branchId === currentBranch.id) return true
+        if (u.officeId && branchOfficeIds?.has(u.officeId)) return true
+        return false
+      })
+    }
+    return state.users.filter((u) => u.officeId === currentUser?.officeId)
+  }, [state.users, isAdmin, isBranchAdmin, currentBranch, currentUser?.officeId, branchOfficeIds])
+
+  const officesForForm = useMemo(() => {
+    if (isBranchAdmin && currentBranch) {
+      return state.offices.filter((o) => o.branchId === currentBranch.id)
+    }
+    if (isAdmin) return state.offices
+    return state.offices.filter((o) => o.id === currentUser?.officeId)
+  }, [state.offices, isAdmin, isBranchAdmin, currentBranch, currentUser?.officeId])
 
   const linkedDriverIds = new Set(
     state.users
@@ -293,7 +317,7 @@ export function UsersPage() {
                       onChange={(e) => setForm({ ...form, officeId: e.target.value })}
                     >
                       <option value="">اختر المكتب</option>
-                      {state.offices.map((o) => (
+                      {officesForForm.map((o) => (
                         <option key={o.id} value={o.id}>
                           {o.name}
                         </option>

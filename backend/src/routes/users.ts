@@ -70,12 +70,20 @@ usersRouter.get(
   '/',
   asyncHandler(async (req, res) => {
     let where: Record<string, unknown> = {}
-    if (req.user!.role === 'branch_admin' && req.user!.branchId) {
+    if (req.user!.role === 'admin') {
+      /** وكالة: بدون موظفي مكاتب الفروع */
+      where = {
+        OR: [
+          { role: { in: ['admin', 'branch_admin', 'driver'] } },
+          { office: { branchId: null } },
+        ],
+      }
+    } else if (req.user!.role === 'branch_admin' && req.user!.branchId) {
       const scope = await officeIdsForUser(req.user!)
       const officeIds = scope === 'all' ? [] : scope
       where = {
         OR: [
-          { branchId: req.user!.branchId },
+          { role: 'branch_admin', branchId: req.user!.branchId },
           ...(officeIds.length ? [{ officeId: { in: officeIds } }] : []),
         ],
       }
@@ -140,7 +148,7 @@ usersRouter.post(
       if (role === 'admin' || role === 'driver' || role === 'branch_admin') {
         return fail(res, 'لا يمكن إنشاء هذا الدور', 403)
       }
-      branchId = req.user!.branchId
+      branchId = null
       driverId = null
       if (!officeId) return fail(res, 'اختر مكتباً تابعاً للفرع', 400)
       const office = await prisma.office.findUnique({ where: { id: officeId } })

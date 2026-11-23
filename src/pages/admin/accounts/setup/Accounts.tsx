@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import api from '../../../../api/accountingApi';
 import { serverApi } from '../../../../api/serverApi';
-import { DEFAULT_BRANCH_NAME } from "../constants";
+import { DEFAULT_BRANCH_NAME, defaultBranchDisplayName } from "../constants";
 
 type AccountLevel = "رئيسي" | "فرعي";
 
@@ -39,6 +39,19 @@ const INITIAL_FORM = {
   analysis: "عام",
   financial: "الميزانية العمومية",
 };
+
+function formatCreatedAt(iso?: string) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString("ar-YE", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
 const getRootFinancialStatement = (name: string) => {
   const normalized = name
@@ -201,7 +214,8 @@ const Accounts = () => {
         account_level: (a.account_level as AccountLevel) || "رئيسي",
         financial_statement: a.financial_statement ?? undefined,
         created_at: a.created_at,
-        branch_name: DEFAULT_BRANCH_NAME,
+        created_by: a.created_by ?? null,
+        branch_name: a.branch_name ?? defaultBranchDisplayName(),
       }));
       setAccountsList(list);
       setAccounts(buildTree(list));
@@ -466,7 +480,7 @@ const Accounts = () => {
                 <td className="p-2">{row.name_en ?? "—"}</td>
                 <td className="p-2">{row.created_by ?? "—"}</td>
                 <td className="p-2">{row.branch_name ?? DEFAULT_BRANCH_NAME}</td>
-                <td className="p-2">{row.created_at ?? "—"}</td>
+                <td className="p-2">{formatCreatedAt(row.created_at)}</td>
                 <td className="p-2">{row.account_level}</td>
                 <td className="p-2">{row.group_name ?? "—"}</td>
                 <td className="p-2">{row.financial_statement ?? "—"}</td>

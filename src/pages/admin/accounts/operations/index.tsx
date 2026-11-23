@@ -1,4 +1,5 @@
-import { Outlet, NavLink, Navigate, useLocation } from "react-router-dom";
+import { Outlet, Navigate, useLocation } from "react-router-dom";
+import { AppNavLink } from "../../../../components/InAppNavLink";
 import {
   ArrowUpCircle,
   ArrowDownCircle,
@@ -21,25 +22,25 @@ const Operations = () => {
   return (
     <div className="acc-shell space-y-6" dir="rtl">
       <div className="acc-subnav px-4 py-3 flex flex-wrap gap-4">
-        <NavLink to="receipt-voucher" className={linkClass}>
+        <AppNavLink to="receipt-voucher" className={linkClass}>
           <ArrowUpCircle size={18} />
           سند قبض
-        </NavLink>
+        </AppNavLink>
 
-        <NavLink to="payment-voucher" className={linkClass}>
+        <AppNavLink to="payment-voucher" className={linkClass}>
           <ArrowDownCircle size={18} />
           سند صرف
-        </NavLink>
+        </AppNavLink>
 
-        <NavLink to="journal-entry" className={linkClass}>
+        <AppNavLink to="journal-entry" className={linkClass}>
           <BookOpen size={18} />
           قيد يومي
-        </NavLink>
+        </AppNavLink>
 
-        <NavLink to="currency-exchange" className={linkClass}>
+        <AppNavLink to="currency-exchange" className={linkClass}>
           <RefreshCcw size={18} />
           مصارفة عملة
-        </NavLink>
+        </AppNavLink>
       </div>
 
       <div className="acc-panel p-6 min-h-[300px]">

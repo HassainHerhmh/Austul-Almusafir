@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { Outlet } from 'react-router-dom'
+import { AppNavLink } from './InAppNavLink'
 import {
   Bus,
   ChevronLeft,
@@ -224,7 +225,7 @@ export function Shell() {
           {links.map((link) => {
             const Icon = link.icon
             return (
-              <NavLink
+              <AppNavLink
                 key={link.to}
                 to={link.to}
                 end={link.end}
@@ -234,7 +235,7 @@ export function Shell() {
               >
                 <Icon className="nav-link-icon" size={20} strokeWidth={1.9} aria-hidden />
                 <span className="nav-link-label">{link.label}</span>
-              </NavLink>
+              </AppNavLink>
             )
           })}
         </nav>

@@ -9,19 +9,29 @@ import { asyncHandler, fail, ok, paramId } from '../utils/http'
 export const accountsRouter = Router()
 accountsRouter.use(authRequired)
 
-function mapAccount(
-  a: {
-    id: number
-    code: string
-    nameAr: string
-    nameEn: string | null
-    parentId: number | null
-    accountLevel: string
-    financialStatement: string | null
-    createdAt?: Date
-  },
-  parentName?: string | null,
-) {
+const AGENCY_BRANCH_LABEL = 'الفرع الرئيسي'
+
+type AccountRow = {
+  id: number
+  code: string
+  nameAr: string
+  nameEn: string | null
+  parentId: number | null
+  accountLevel: string
+  financialStatement: string | null
+  branchId?: string | null
+  createdByName?: string | null
+  createdAt?: Date
+  branch?: { name: string } | null
+}
+
+function branchNameForAccount(a: AccountRow): string {
+  if (a.branch?.name) return a.branch.name
+  if (a.branchId) return '—'
+  return AGENCY_BRANCH_LABEL
+}
+
+function mapAccount(a: AccountRow, parentName?: string | null) {
   return {
     id: a.id,
     code: a.code,
@@ -31,9 +41,16 @@ function mapAccount(
     parent_name: parentName ?? null,
     account_level: a.accountLevel,
     financial_statement: a.financialStatement,
+    branch_id: a.branchId ?? null,
+    branch_name: branchNameForAccount(a),
+    created_by: a.createdByName ?? null,
     created_at: a.createdAt?.toISOString?.() ?? undefined,
   }
 }
+
+const accountInclude = {
+  branch: { select: { name: true } },
+} as const
 
 /** حساب قابل للترحيل: المستوى فرعي فقط (الأب تحت الأب يبقى رئيسي ولا يُرحَّل عليه) */
 async function listPostableAccounts(branchWhere: Record<string, unknown>) {
@@ -61,6 +78,7 @@ accountsRouter.get(
     const list = await prisma.account.findMany({
       where: branchWhere,
       orderBy: { code: 'asc' },
+      include: accountInclude,
     })
     const byId = new Map(list.map((a) => [a.id, a]))
     return ok(res, {
@@ -492,6 +510,10 @@ accountsRouter.post(
     const existing = await prisma.account.findFirst({ where: { code, branchId } })
     if (existing) return fail(res, 'رقم الحساب مستخدم مسبقاً', 409)
 
+    const creator = await prisma.user.findUnique({
+      where: { id: req.user!.id },
+      select: { name: true, username: true },
+    })
     const account = await prisma.account.create({
       data: {
         code,
@@ -501,7 +523,9 @@ accountsRouter.post(
         accountLevel: level,
         financialStatement: body.data.financial_statement ?? null,
         branchId,
+        createdByName: creator?.name || creator?.username || null,
       },
+      include: accountInclude,
     })
     const parent = parentId
       ? await prisma.account.findUnique({ where: { id: parentId } })

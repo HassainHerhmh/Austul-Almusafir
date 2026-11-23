@@ -194,6 +194,13 @@ export function OpenTabsBar() {
               role="tab"
               aria-selected={active}
               className={`open-tab${active ? ' active' : ''}`}
+              onAuxClick={(e) => {
+                if (e.button === 1) {
+                  e.preventDefault()
+                  e.stopPropagation()
+                }
+              }}
+              onContextMenu={(e) => e.preventDefault()}
               onClick={() => {
                 if (!active) navigate(tab.path)
               }}

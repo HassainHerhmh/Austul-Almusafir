@@ -294,6 +294,7 @@ model Account {
   financialStatement  String?
   branchId            String?
   branch              Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  createdByName       String?
   createdAt           DateTime @default(now())
   journalLines        JournalLine[]
 

@@ -1,4 +1,5 @@
-import { Link, Outlet, useLocation } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
+import { AppLink } from '../../../components/InAppNavLink'
 import { accountsBaseFromPath } from '../../../routes/portalBase'
 import {
   BookOpen,
@@ -45,33 +46,33 @@ const Accounting = () => {
       <h1 className="acc-title text-2xl">الحسابات</h1>
 
       <div className="flex gap-6 acc-border-b pb-2 text-sm font-semibold flex-wrap">
-        <Link
+        <AppLink
           to={`${BASE}/setup/accounts`}
           className={`acc-parent-tab ${isSetup ? 'active' : ''}`}
         >
           التهيئة
-        </Link>
+        </AppLink>
 
-        <Link
+        <AppLink
           to={`${BASE}/operations/receipt-voucher`}
           className={`acc-parent-tab ${isOperations ? 'active' : ''}`}
         >
           العمليات
-        </Link>
+        </AppLink>
 
-        <Link
+        <AppLink
           to={`${BASE}/reports/account-statement`}
           className={`acc-parent-tab ${isReports ? 'active' : ''}`}
         >
           التقارير
-        </Link>
+        </AppLink>
 
-        <Link
+        <AppLink
           to={`${BASE}/journal-review`}
           className={`acc-parent-tab ${isJournalReview ? 'active' : ''}`}
         >
           مراجعة القيود
-        </Link>
+        </AppLink>
       </div>
 
       {isSetup && (
@@ -82,7 +83,7 @@ const Accounting = () => {
             const active = location.pathname.endsWith(tab.path)
 
             return (
-              <Link
+              <AppLink
                 key={tab.path}
                 to={to}
                 className={`acc-subnav-link flex items-center gap-2 px-3 py-2 text-sm font-semibold ${
@@ -91,7 +92,7 @@ const Accounting = () => {
               >
                 <Icon size={18} />
                 {tab.label}
-              </Link>
+              </AppLink>
             )
           })}
         </div>

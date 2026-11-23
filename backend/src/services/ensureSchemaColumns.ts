@@ -17,6 +17,7 @@ const ADD_COLUMNS = [
   'ALTER TABLE `Destination` ADD COLUMN `branchId` VARCHAR(191) NULL',
   'ALTER TABLE `VisaType` ADD COLUMN `branchId` VARCHAR(191) NULL',
   'ALTER TABLE `Account` ADD COLUMN `branchId` VARCHAR(191) NULL',
+  'ALTER TABLE `Account` ADD COLUMN `createdByName` VARCHAR(191) NULL',
   'ALTER TABLE `Office` ADD COLUMN `branchId` VARCHAR(191) NULL',
   'ALTER TABLE `User` ADD COLUMN `branchId` VARCHAR(191) NULL',
 ]

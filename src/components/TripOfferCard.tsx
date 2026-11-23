@@ -1,5 +1,7 @@
-import type { ReactNode } from 'react'
+import { Baby, User } from 'lucide-react'
+import { useMemo, type ReactNode } from 'react'
 import type { Trip } from '../types'
+import { useApp } from '../context/AppContext'
 import { formatDateAr, formatMoney, formatTimeAr } from './utils'
 import { busTypeLabel } from '../utils/busDisplay'
 import { tripRoutePoints } from '../utils/trip'
@@ -17,7 +19,23 @@ type Props = {
 }
 
 export function TripOfferCard({ trip, title, busType, seats, badges, action, footer }: Props) {
-  const route = tripRoutePoints(trip) || title
+  const { getDestination } = useApp()
+  const cityNames = useMemo(() => {
+    const seen = new Set<string>()
+    const names: string[] = []
+    for (const s of trip.stops ?? []) {
+      if (!s.destinationId || seen.has(s.destinationId)) continue
+      seen.add(s.destinationId)
+      const name = getDestination(s.destinationId)?.name?.trim()
+      if (name) names.push(name)
+    }
+    return names
+  }, [trip.stops, getDestination])
+
+  const fromCity = cityNames[0] ?? title.split(' ← ')[0]?.trim() ?? '—'
+  const toCity = cityNames.length > 1 ? cityNames[cityNames.length - 1] : title.split(' ← ').pop()?.trim() ?? '—'
+  const boardingPoints = tripRoutePoints(trip)
+
   const isCampaign = trip.tripKind === 'campaign'
   const childPrice =
     !isCampaign && trip.childPrice != null && trip.childPrice >= 0 ? trip.childPrice : trip.price
@@ -26,10 +44,6 @@ export function TripOfferCard({ trip, title, busType, seats, badges, action, foo
     : trip.pricingMode === 'boarding'
       ? 'حسب الصعود'
       : formatMoney(trip.price)
-
-  const stops = trip.stops?.map((s) => s.point).filter(Boolean) ?? []
-  const fromStop = stops[0] ?? '—'
-  const toStop = stops.length > 1 ? stops[stops.length - 1] : '—'
 
   return (
     <article className="trip-offer-card">
@@ -46,10 +60,12 @@ export function TripOfferCard({ trip, title, busType, seats, badges, action, foo
             <span className="trip-offer-dot" />
           </div>
           <div className="trip-offer-stops">
-            <span>{fromStop}</span>
-            <span>{toStop}</span>
+            <span>{fromCity}</span>
+            <span>{toCity}</span>
           </div>
-          <p className="trip-offer-route-detail">{route}</p>
+          {boardingPoints ? (
+            <p className="trip-offer-route-detail">نقاط الركوب: {boardingPoints}</p>
+          ) : null}
         </div>
 
         <div className="trip-offer-schedule">
@@ -82,12 +98,12 @@ export function TripOfferCard({ trip, title, busType, seats, badges, action, foo
           {!isCampaign ? (
             <>
               <div className="trip-offer-price-row">
-                <span aria-hidden>👤</span>
+                <User className="trip-offer-price-icon" size={20} strokeWidth={1.75} aria-hidden />
                 <span>بالغ</span>
                 <strong>{adultLabel}</strong>
               </div>
               <div className="trip-offer-price-row child">
-                <span aria-hidden>🧒</span>
+                <Baby className="trip-offer-price-icon" size={20} strokeWidth={1.75} aria-hidden />
                 <span>طفل</span>
                 <strong>{formatMoney(childPrice)}</strong>
               </div>

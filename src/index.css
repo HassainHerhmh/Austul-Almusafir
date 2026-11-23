@@ -1604,6 +1604,15 @@ table.data input::placeholder,
   font-size: 0.9rem;
 }
 
+.trip-offer-price-icon {
+  flex-shrink: 0;
+  color: var(--sea);
+}
+
+.trip-offer-price-row.child .trip-offer-price-icon {
+  color: var(--muted);
+}
+
 .trip-offer-price-row strong {
   margin-inline-start: auto;
   color: var(--sea);

@@ -2,6 +2,7 @@ import cors from 'cors'
 import express from 'express'
 import helmet from 'helmet'
 import type { CorsOptions } from 'cors'
+import { Prisma } from '@prisma/client'
 import { config, prisma } from './config'
 import { accountsRouter } from './routes/accounts'
 import { authRouter } from './routes/auth'
@@ -60,11 +61,17 @@ export function createApp() {
       res.json({ success: true, db: true })
     } catch (err) {
       logger.error('health', err)
+      const prismaMeta =
+        err instanceof Prisma.PrismaClientKnownRequestError ? (err.meta ?? {}) : {}
+      const prismaCode =
+        err instanceof Prisma.PrismaClientKnownRequestError ? err.code : undefined
       res.status(503).json({
         success: false,
         db: false,
         message:
           'قاعدة البيانات غير متزامنة مع التطبيق — على سيرفر API نفّذ: npx prisma db push --accept-data-loss',
+        prismaCode,
+        ...(typeof prismaMeta === 'object' && prismaMeta !== null ? { prismaMeta } : {}),
       })
     }
   })

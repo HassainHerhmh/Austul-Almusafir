@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process'
+import fs from 'node:fs'
 import path from 'node:path'
 import { config } from '../config'
 import { logger } from '../utils/logger'
@@ -30,10 +31,29 @@ export function ensureDatabaseSchema(): void {
   }
 
   const backendRoot = path.resolve(__dirname, '..', '..')
-  const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx'
+  const cliJs = path.join(backendRoot, 'node_modules', 'prisma', 'build', 'index.js')
+  const schemaPath = path.join(backendRoot, 'prisma', 'schema.prisma')
+
+  if (!fs.existsSync(cliJs)) {
+    logger.warn('db-sync', 'ملف prisma CLI غير موجود — شغّل npm install في مجلد backend')
+    return
+  }
+  if (!fs.existsSync(schemaPath)) {
+    logger.warn('db-sync', 'schema.prisma غير موجود')
+    return
+  }
+
   const result = spawnSync(
-    npx,
-    ['prisma', 'db', 'push', '--accept-data-loss', '--skip-generate'],
+    process.execPath,
+    [
+      cliJs,
+      'db',
+      'push',
+      '--accept-data-loss',
+      '--skip-generate',
+      '--schema',
+      schemaPath,
+    ],
     {
       cwd: backendRoot,
       env: process.env,
@@ -42,14 +62,25 @@ export function ensureDatabaseSchema(): void {
     },
   )
 
+  if (result.error) {
+    logger.error('db-sync', result.error.message)
+    return
+  }
+
   if (result.status === 0) {
     logger.info('db-sync', 'تمت مزامنة الجداول مع schema.prisma')
     return
   }
 
-  const err = `${result.stderr || ''}\n${result.stdout || ''}`.trim()
-  logger.error('db-sync', err || `prisma db push exited ${result.status}`)
-  if (config.isProduction) {
-    throw new Error('فشل مزامنة قاعدة البيانات — راجع السجلات أو نفّذ npx prisma db push يدوياً')
+  const out = `${result.stderr || ''}\n${result.stdout || ''}`.trim()
+  logger.error('db-sync', out || `prisma db push exited ${String(result.status)}`)
+
+  const strict = process.env.DB_AUTO_SYNC_STRICT === '1'
+  if (strict) {
+    throw new Error('فشل مزامنة قاعدة البيانات — راجع السجلات')
   }
+  logger.warn(
+    'db-sync',
+    'تشغيل API بدون مزامنة كاملة — نفّذ npm run db:sync يدوياً أو اضبط الجداول',
+  )
 }

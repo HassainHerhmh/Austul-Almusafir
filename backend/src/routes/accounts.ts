@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { z } from 'zod'
 import { prisma } from '../config'
-import { authRequired, requireAdmin, requireAgencyAdmin } from '../middleware/auth'
+import { authRequired, requireAdmin, requireAgencyAdmin, type AuthUser } from '../middleware/auth'
 import { accountsScopeWhere, branchIdOnCreate } from '../utils/branchScope'
 import { getAccountBalance } from '../services/ledger'
 import { asyncHandler, fail, ok, paramId } from '../utils/http'
@@ -51,6 +51,24 @@ function mapAccount(a: AccountRow, parentName?: string | null) {
 const accountInclude = {
   branch: { select: { name: true } },
 } as const
+
+function sameLedgerBranch(
+  accountBranchId: string | null,
+  ledgerBranchId: string | null,
+): boolean {
+  return accountBranchId === ledgerBranchId
+}
+
+async function assertAccountInUserLedger(
+  user: AuthUser,
+  account: { branchId: string | null },
+): Promise<boolean> {
+  if (!user) return false
+  const scope = await accountsScopeWhere(user)
+  const want = scope.branchId as string | null | undefined
+  if (want === '__none__') return false
+  return sameLedgerBranch(account.branchId, want ?? null)
+}
 
 /** حساب قابل للترحيل: المستوى فرعي فقط (الأب تحت الأب يبقى رئيسي ولا يُرحَّل عليه) */
 async function listPostableAccounts(branchWhere: Record<string, unknown>) {
@@ -126,10 +144,26 @@ accountsRouter.get(
             ? { journalDate: { gte: from } }
             : {}
 
+    const branchWhere = await accountsScopeWhere(req.user!)
+    const scopedAccounts = await prisma.account.findMany({
+      where: branchWhere,
+      select: { id: true },
+    })
+    const scopedIds = scopedAccounts.map((a) => a.id)
+    if (!scopedIds.length) {
+      return ok(res, { count: 0, list: [] })
+    }
+
+    const accountIdWhere = accountId
+      ? scopedIds.includes(accountId)
+        ? { accountId }
+        : { accountId: { in: [] as number[] } }
+      : { accountId: { in: scopedIds } }
+
     const lines = await prisma.journalLine.findMany({
       where: {
         ...dateWhere,
-        ...(accountId ? { accountId } : {}),
+        ...accountIdWhere,
         ...(types?.length ? { referenceType: { in: types } } : {}),
       },
       include: { account: true },
@@ -343,13 +377,19 @@ accountsRouter.get(
     const parentId = Number(paramId(req))
     if (!parentId) return fail(res, 'معرّف غير صالح')
 
-    const parent = await prisma.account.findUnique({ where: { id: parentId } })
+    const branchWhere = await accountsScopeWhere(req.user!)
+    const parent = await prisma.account.findFirst({
+      where: { id: parentId, ...branchWhere },
+    })
     if (!parent) return fail(res, 'الحساب غير موجود', 404)
 
     const from = typeof req.query.from === 'string' && req.query.from ? req.query.from : null
     const to = typeof req.query.to === 'string' && req.query.to ? req.query.to : null
 
-    const all = await prisma.account.findMany({ orderBy: { code: 'asc' } })
+    const all = await prisma.account.findMany({
+      where: branchWhere,
+      orderBy: { code: 'asc' },
+    })
     const childrenOf = (id: number) => all.filter((a) => a.parentId === id)
     const hasChildren = (id: number) => all.some((a) => a.parentId === id)
 
@@ -510,6 +550,14 @@ accountsRouter.post(
     const existing = await prisma.account.findFirst({ where: { code, branchId } })
     if (existing) return fail(res, 'رقم الحساب مستخدم مسبقاً', 409)
 
+    if (parentId) {
+      const parentAccount = await prisma.account.findUnique({ where: { id: parentId } })
+      if (!parentAccount) return fail(res, 'حساب الأب غير موجود', 404)
+      if (!sameLedgerBranch(parentAccount.branchId, branchId)) {
+        return fail(res, 'حساب الأب لا ينتمي لنفس دليل الحسابات', 400)
+      }
+    }
+
     const creator = await prisma.user.findUnique({
       where: { id: req.user!.id },
       select: { name: true, username: true },
@@ -545,10 +593,7 @@ accountsRouter.put(
 
     const prev = await prisma.account.findUnique({ where: { id } })
     if (!prev) return fail(res, 'الحساب غير موجود', 404)
-    if (
-      req.user!.role === 'branch_admin' &&
-      prev.branchId !== req.user!.branchId
-    ) {
+    if (!(await assertAccountInUserLedger(req.user!, prev))) {
       return fail(res, 'ليس لديك صلاحية', 403)
     }
 
@@ -561,6 +606,14 @@ accountsRouter.put(
 
     if (level === 'فرعي' && !parentId) {
       return fail(res, 'الحساب الفرعي يجب أن يرتبط بحساب أب')
+    }
+
+    if (parentId) {
+      const parentAccount = await prisma.account.findUnique({ where: { id: parentId } })
+      if (!parentAccount) return fail(res, 'حساب الأب غير موجود', 404)
+      if (!sameLedgerBranch(parentAccount.branchId, prev.branchId)) {
+        return fail(res, 'حساب الأب لا ينتمي لنفس دليل الحسابات', 400)
+      }
     }
 
     if (body.data.code && body.data.code !== prev.code) {
@@ -597,6 +650,12 @@ accountsRouter.get(
   '/statement/:id',
   asyncHandler(async (req, res) => {
     const accountId = Number(paramId(req))
+    if (!accountId) return fail(res, 'معرّف غير صالح')
+    const account = await prisma.account.findUnique({ where: { id: accountId } })
+    if (!account) return fail(res, 'الحساب غير موجود', 404)
+    if (!(await assertAccountInUserLedger(req.user!, account))) {
+      return fail(res, 'ليس لديك صلاحية', 403)
+    }
     const lines = await prisma.journalLine.findMany({
       where: { accountId },
       orderBy: [{ journalDate: 'asc' }, { id: 'asc' }],

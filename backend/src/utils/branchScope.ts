@@ -60,7 +60,8 @@ export function branchIdOnCreate(user: AuthUser, bodyBranchId?: string | null): 
 /** رحلات: الوكالة ترى الكل · الفرع رحلاته · المكتب يرى المركزية + رحلات فرعه */
 /** دليل حسابات: فرع منفصل · مكتب فرع يرى حسابات فرعه · وكالة branchId null */
 export async function accountsScopeWhere(user: AuthUser) {
-  if (user.role === 'admin') return {}
+  /** مركز الوكالة فقط — لا يختلط بدليل فروع المكاتب */
+  if (user.role === 'admin') return { branchId: null }
   if (user.role === 'branch_admin' && user.branchId) {
     return { branchId: user.branchId }
   }

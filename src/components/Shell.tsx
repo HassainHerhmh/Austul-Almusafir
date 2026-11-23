@@ -81,8 +81,25 @@ const officeLinks: {
   },
 ]
 
+const branchLinks: { to: string; end?: boolean; label: string; icon: LucideIcon }[] = [
+  { to: '/branch', end: true, label: 'لوحة الفرع', icon: LayoutDashboard },
+  { to: '/branch/offices', label: 'المكاتب', icon: Building2 },
+  { to: '/branch/staff', label: 'الموظفون', icon: Users },
+  { to: '/branch/bookings', label: 'الحجوزات', icon: Ticket },
+  { to: '/branch/statement', label: 'كشف الذمة', icon: ScrollText },
+]
+
 export function Shell() {
-  const { currentUser, currentOffice, isAdmin, getOfficeAgencyBalance, state, canPage } = useApp()
+  const {
+    currentUser,
+    currentOffice,
+    currentBranch,
+    isAdmin,
+    isBranchAdmin,
+    getOfficeAgencyBalance,
+    state,
+    canPage,
+  } = useApp()
   const [collapsed, setCollapsed] = useState(() => {
     try {
       return localStorage.getItem(SIDEBAR_COLLAPSE_KEY) === '1'
@@ -115,9 +132,11 @@ export function Shell() {
 
   const links = isAdmin
     ? adminLinks
-    : officeLinks.filter((link) => !link.pageId || canPage(link.pageId, 'view'))
+    : isBranchAdmin
+      ? branchLinks
+      : officeLinks.filter((link) => !link.pageId || canPage(link.pageId, 'view'))
   const agencyBalance =
-    !isAdmin && currentOffice ? getOfficeAgencyBalance(currentOffice.id) : 0
+    !isAdmin && !isBranchAdmin && currentOffice ? getOfficeAgencyBalance(currentOffice.id) : 0
 
   void state.bookings
 
@@ -144,7 +163,9 @@ export function Shell() {
                   ? undefined
                   : isAdmin
                     ? 'لوحة مدير النظام'
-                    : currentOffice?.name ?? 'مكتب السفريات'
+                    : isBranchAdmin
+                      ? currentBranch?.name ?? 'لوحة الفرع'
+                      : currentOffice?.name ?? 'مكتب السفريات'
               }
               collapsed={collapsed}
             />
@@ -169,7 +190,7 @@ export function Shell() {
           </div>
         </div>
 
-        {!isAdmin && currentOffice && !collapsed && (
+        {!isAdmin && !isBranchAdmin && currentOffice && !collapsed && (
           <div className="sidebar-agency-balance">
             <div className="agency-balance-label">الرصيد عليكم لدى الوكالة</div>
             <div className="agency-balance-value">{formatMoney(agencyBalance)}</div>

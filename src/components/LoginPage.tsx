@@ -13,7 +13,7 @@ function toggleDocumentTheme() {
 }
 
 export function LoginPage() {
-  const { login, currentUser, isAdmin, loading } = useApp()
+  const { login, currentUser, isAdmin, isBranchAdmin, loading } = useApp()
   const { name, logoUrl, brandReady } = useBrand()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -38,6 +38,7 @@ export function LoginPage() {
     if (currentUser.role === 'driver') {
       return <Navigate to="/driver" replace />
     }
+    if (isBranchAdmin) return <Navigate to="/branch" replace />
     return <Navigate to={isAdmin ? '/admin' : '/office'} replace />
   }
 

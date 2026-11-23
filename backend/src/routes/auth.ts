@@ -45,6 +45,12 @@ authRouter.post(
         return fail(res, 'المكتب موقوف — راجع الوكالة', 403)
       }
     }
+    if (user.role === 'branch_admin' && user.branchId) {
+      const branch = await prisma.branch.findUnique({ where: { id: user.branchId } })
+      if (!branch || branch.status === 'suspended') {
+        return fail(res, 'الفرع موقوف — راجع الوكالة', 403)
+      }
+    }
 
     clearLoginRecord(ip)
 
@@ -53,6 +59,7 @@ authRouter.post(
       username: user.username,
       role: user.role,
       officeId: user.officeId,
+      branchId: user.branchId,
     }
     const token = signToken(payload)
 
@@ -65,6 +72,7 @@ authRouter.post(
         phone: user.phone ?? '',
         role: user.role,
         officeId: user.officeId,
+        branchId: user.branchId,
         driverId: user.driverId ?? null,
         active: user.active,
         permissions: user.permissions ?? null,
@@ -88,6 +96,7 @@ authRouter.get(
         phone: user.phone ?? '',
         role: user.role,
         officeId: user.officeId,
+        branchId: user.branchId,
         driverId: user.driverId ?? null,
         active: user.active,
         permissions: user.permissions ?? null,

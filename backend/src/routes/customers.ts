@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { prisma } from '../config'
 import { authRequired, requireRoles } from '../middleware/auth'
 import { postAdminOfficeSettlement } from '../services/ledger'
+import { officeIdsForUser, officeIdWhere } from '../utils/branchScope'
 import { asyncHandler, fail, ok } from '../utils/http'
 
 export const customersRouter = Router()
@@ -11,12 +12,16 @@ customersRouter.use(authRequired)
 customersRouter.get(
   '/',
   asyncHandler(async (req, res) => {
-    const officeId =
-      req.user!.role === 'admin'
-        ? (req.query.officeId as string | undefined)
-        : req.user!.officeId ?? undefined
+    const scope = await officeIdsForUser(req.user!)
+    const officeIdQuery =
+      req.user!.role === 'admin' && typeof req.query.officeId === 'string'
+        ? req.query.officeId
+        : undefined
     const list = await prisma.customer.findMany({
-      where: officeId ? { officeId } : undefined,
+      where: {
+        ...(scope !== 'all' ? officeIdWhere(scope) : {}),
+        ...(officeIdQuery ? { officeId: officeIdQuery } : {}),
+      },
       orderBy: { createdAt: 'desc' },
     })
     return ok(res, { list })

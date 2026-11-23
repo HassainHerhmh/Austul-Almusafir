@@ -21,6 +21,7 @@ export function RequireAuth({
   if (roles && !roles.includes(currentUser.role)) {
     if (currentUser.role === 'admin') return <Navigate to="/admin" replace />
     if (currentUser.role === 'driver') return <Navigate to="/driver" replace />
+    if (currentUser.role === 'branch_admin') return <Navigate to="/branch" replace />
     return <Navigate to="/office" replace />
   }
   return <>{children}</>
@@ -64,6 +65,7 @@ export function daysAgoStr(days: number) {
 
 export const ROLE_LABELS: Record<Role, string> = {
   admin: 'مدير النظام',
+  branch_admin: 'مدير فرع',
   office_manager: 'مدير مكتب',
   booking_clerk: 'موظف حجز',
   accountant: 'محاسب',

@@ -52,6 +52,7 @@ function asUser(u: any): User {
     phone: u.phone ?? '',
     role: u.role,
     officeId: u.officeId ?? null,
+    branchId: u.branchId ?? null,
     driverId: u.driverId ?? null,
     active: !!u.active,
     permissions: u.permissions ?? null,
@@ -107,6 +108,7 @@ export const serverApi = {
 
   branches: {
     list: () => apiRequest<{ list: any[] }>('/api/branches'),
+    current: () => apiRequest<{ branch: any }>('/api/branches/current'),
     create: (data: unknown) =>
       apiRequest<{ branch: any }>('/api/branches', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: unknown) =>
@@ -114,6 +116,35 @@ export const serverApi = {
         method: 'PUT',
         body: JSON.stringify(data),
       }),
+    statement: (
+      id: string,
+      params?: { from?: string | null; to?: string | null; types?: string | null },
+    ) => {
+      const q = new URLSearchParams()
+      if (params?.from) q.set('from', params.from)
+      if (params?.to) q.set('to', params.to)
+      if (params?.types) q.set('types', params.types)
+      const qs = q.toString()
+      return apiRequest<{
+        branchId: string
+        branchName: string
+        ledgerAccountId: number
+        fromDate: string | null
+        toDate: string | null
+        openingBalance: number
+        closingBalance: number
+        list: Array<{
+          id: number
+          journal_date: string
+          debit: number
+          credit: number
+          balance: number
+          notes: string | null
+          reference_type: string
+          entry_label: string
+        }>
+      }>(`/api/branches/${encodeURIComponent(id)}/statement${qs ? `?${qs}` : ''}`)
+    },
   },
 
   offices: {

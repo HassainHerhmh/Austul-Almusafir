@@ -1,4 +1,10 @@
-export type Role = 'admin' | 'office_manager' | 'booking_clerk' | 'accountant' | 'driver'
+export type Role =
+  | 'admin'
+  | 'branch_admin'
+  | 'office_manager'
+  | 'booking_clerk'
+  | 'accountant'
+  | 'driver'
 
 export type OfficeStatus = 'active' | 'suspended'
 export type BranchStatus = 'active' | 'suspended'
@@ -46,6 +52,8 @@ export interface User {
   phone: string
   role: Role
   officeId: string | null
+  /** مدير الفرع — يدير كل مكاتب الفرع */
+  branchId?: string | null
   /** ربط حساب تطبيق التتبع بسجل السائق */
   driverId: string | null
   active: boolean

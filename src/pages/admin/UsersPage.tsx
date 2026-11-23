@@ -10,6 +10,7 @@ const empty = {
   phone: '',
   role: 'office_manager' as Role,
   officeId: '' as string | null,
+  branchId: '' as string | null,
   driverId: '' as string | null,
   active: true,
 }
@@ -65,17 +66,24 @@ export function UsersPage() {
       return
     }
 
+    const isBranchAdminRole = form.role === 'branch_admin'
     const payload = {
       username,
       password,
       name,
       phone: form.phone.trim(),
       role: form.role,
-      officeId: form.role === 'admin' || isDriver ? null : form.officeId || null,
+      officeId:
+        form.role === 'admin' || isDriver || isBranchAdminRole ? null : form.officeId || null,
+      branchId: isBranchAdminRole ? form.branchId || null : null,
       driverId: isDriver ? form.driverId || null : null,
       active: form.active,
     }
-    if (!isDriver && payload.role !== 'admin' && !payload.officeId) {
+  if (isBranchAdminRole && !payload.branchId) {
+      setError('يجب اختيار الفرع')
+      return
+    }
+    if (!isDriver && payload.role !== 'admin' && !isBranchAdminRole && !payload.officeId) {
       setError('يجب اختيار المكتب')
       return
     }
@@ -103,6 +111,7 @@ export function UsersPage() {
       phone: u.phone || '',
       role: u.role,
       officeId: u.officeId,
+      branchId: u.branchId ?? '',
       driverId: u.driverId,
       active: u.active,
     })
@@ -155,9 +164,11 @@ export function UsersPage() {
                   <td>
                     {u.role === 'driver'
                       ? state.drivers.find((d) => d.id === u.driverId)?.name || '—'
-                      : u.officeId
-                        ? state.offices.find((o) => o.id === u.officeId)?.name
-                        : '—'}
+                      : u.role === 'branch_admin'
+                        ? state.branches.find((b) => b.id === u.branchId)?.name || '—'
+                        : u.officeId
+                          ? state.offices.find((o) => o.id === u.officeId)?.name
+                          : '—'}
                   </td>
                   <td>
                     <span className={`badge ${u.active ? 'badge-ok' : 'badge-danger'}`}>
@@ -239,19 +250,41 @@ export function UsersPage() {
                       setForm({
                         ...form,
                         role,
-                        officeId: role === 'admin' || role === 'driver' ? null : form.officeId,
+                        officeId:
+                          role === 'admin' || role === 'driver' || role === 'branch_admin'
+                            ? null
+                            : form.officeId,
+                        branchId: role === 'branch_admin' ? form.branchId : null,
                         driverId: role === 'driver' ? form.driverId : null,
                       })
                     }}
                   >
                     {isAdmin && <option value="admin">مدير النظام</option>}
+                    {isAdmin && <option value="branch_admin">مدير فرع</option>}
                     <option value="office_manager">مدير مكتب</option>
                     <option value="booking_clerk">موظف حجز</option>
                     <option value="accountant">محاسب</option>
                     {isAdmin && <option value="driver">سائق (تتبع)</option>}
                   </select>
                 </div>
-                {form.role !== 'admin' && form.role !== 'driver' && (
+                {form.role === 'branch_admin' && isAdmin && (
+                  <div className="field">
+                    <label>الفرع</label>
+                    <select
+                      required
+                      value={form.branchId ?? ''}
+                      onChange={(e) => setForm({ ...form, branchId: e.target.value })}
+                    >
+                      <option value="">اختر الفرع</option>
+                      {state.branches.map((b) => (
+                        <option key={b.id} value={b.id}>
+                          {b.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                {form.role !== 'admin' && form.role !== 'driver' && form.role !== 'branch_admin' && (
                   <div className="field">
                     <label>المكتب</label>
                     <select

@@ -3,7 +3,6 @@ import { z } from 'zod'
 import { prisma } from '../config'
 import { authRequired, requireRoles } from '../middleware/auth'
 import {
-  findOfficeLedgerAccount,
   postBookingCharge,
   postBookingCommission,
   resolveCommissionsTransitAccount,
@@ -11,7 +10,9 @@ import {
   reverseBookingCharge,
 } from '../services/ledger'
 import { asyncHandler, fail, ok, paramId } from '../utils/http'
+import { resolveOfficeLedgerAccountId } from '../services/officeLedger'
 import { allocateBookingNumber } from '../services/bookingNumber'
+import { officeIdsForUser, officeIdWhere } from '../utils/branchScope'
 
 export const bookingsRouter = Router()
 bookingsRouter.use(authRequired)
@@ -19,19 +20,21 @@ bookingsRouter.use(authRequired)
 bookingsRouter.get(
   '/',
   asyncHandler(async (req, res) => {
-    const officeId =
-      req.user!.role === 'admin'
-        ? (req.query.officeId as string | undefined)
-        : req.user!.officeId ?? undefined
-    const branchId =
+    const scope = await officeIdsForUser(req.user!)
+    const officeIdQuery =
+      req.user!.role === 'admin' && typeof req.query.officeId === 'string'
+        ? req.query.officeId
+        : undefined
+    const branchIdQuery =
       req.user!.role === 'admin' && typeof req.query.branchId === 'string' && req.query.branchId
         ? req.query.branchId
         : undefined
 
     const list = await prisma.booking.findMany({
       where: {
-        ...(officeId ? { officeId } : {}),
-        ...(branchId ? { office: { branchId } } : {}),
+        ...(scope !== 'all' ? officeIdWhere(scope) : {}),
+        ...(officeIdQuery ? { officeId: officeIdQuery } : {}),
+        ...(branchIdQuery ? { office: { branchId: branchIdQuery } } : {}),
       },
       orderBy: { bookedAt: 'desc' },
     })
@@ -120,21 +123,15 @@ bookingsRouter.post(
 
     const isCampaign = trip.tripKind === 'campaign'
 
-    let ledgerAccountId = office.ledgerAccountId
+    let ledgerAccountId: number | null = null
     if (!isCampaign) {
-      if (!ledgerAccountId) {
-        ledgerAccountId = await findOfficeLedgerAccount(office.name)
-        if (ledgerAccountId) {
-          office = await prisma.office.update({
-            where: { id: office.id },
-            data: { ledgerAccountId },
-          })
-        }
-      }
+      const resolved = await resolveOfficeLedgerAccountId(office)
+      office = resolved.office
+      ledgerAccountId = resolved.ledgerAccountId
       if (!ledgerAccountId) {
         return fail(
           res,
-          `المكتب غير مربوط بحساب ذمة — أنشئ حساب «${office.name}» تحت ذمم مكاتب السفريات واربطه من إدارة المكاتب`,
+          `المكتب غير مربوط بحساب ذمة — اربط المكتب أو الفرع من الإدارة`,
         )
       }
 
@@ -394,10 +391,13 @@ bookingsRouter.patch(
         data: { amount: updated.price },
       })
 
-      const office = await prisma.office.findUnique({ where: { id: booking.officeId } })
-      let ledgerAccountId = office?.ledgerAccountId ?? null
-      if (!ledgerAccountId && office) {
-        ledgerAccountId = await findOfficeLedgerAccount(office.name)
+      const officeRow = await prisma.office.findUnique({ where: { id: booking.officeId } })
+      let ledgerAccountId: number | null = null
+      let office = officeRow
+      if (officeRow) {
+        const resolved = await resolveOfficeLedgerAccountId(officeRow)
+        ledgerAccountId = resolved.ledgerAccountId
+        office = resolved.office
       }
       if (ledgerAccountId) {
         await postBookingCharge({

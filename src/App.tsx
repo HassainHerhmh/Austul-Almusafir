@@ -50,6 +50,11 @@ import { OfficePermissionsPage } from './pages/office/OfficePermissionsPage'
 import { OfficeTrackingPage } from './pages/office/OfficeTrackingPage'
 import { SettingsPage } from './pages/admin/SettingsPage'
 import { PartnerApiPage } from './pages/admin/PartnerApiPage'
+import { BranchHome } from './pages/branch/BranchHome'
+import { BranchOfficesPage } from './pages/branch/BranchOfficesPage'
+import { BranchStaffPage } from './pages/branch/BranchStaffPage'
+import { BranchBookingsPage } from './pages/branch/BranchBookingsPage'
+import { BranchStatementPage } from './pages/branch/BranchStatementPage'
 import { PrintSettingsPage } from './pages/admin/PrintSettingsPage'
 import { BrandProvider } from './context/BrandContext'
 
@@ -122,6 +127,21 @@ export default function App() {
               <Route path="partner-api" element={<PartnerApiPage />} />
               <Route path="settings" element={<SettingsPage />} />
               <Route path="print-settings" element={<PrintSettingsPage />} />
+            </Route>
+
+            <Route
+              path="/branch"
+              element={
+                <RequireAuth roles={['branch_admin']}>
+                  <Shell />
+                </RequireAuth>
+              }
+            >
+              <Route index element={<BranchHome />} />
+              <Route path="offices" element={<BranchOfficesPage />} />
+              <Route path="staff" element={<BranchStaffPage />} />
+              <Route path="bookings" element={<BranchBookingsPage />} />
+              <Route path="statement" element={<BranchStatementPage />} />
             </Route>
 
             <Route

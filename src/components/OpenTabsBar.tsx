@@ -51,6 +51,11 @@ const ROUTE_LABELS: { path: string; label: string; end?: boolean }[] = [
   { path: '/office/reports', label: 'التقارير' },
   { path: '/office/payments-report', label: 'تقرير المدفوعات' },
   { path: '/office/customers', label: 'العملاء' },
+  { path: '/branch', label: 'لوحة الفرع', end: true },
+  { path: '/branch/offices', label: 'مكاتب الفرع' },
+  { path: '/branch/staff', label: 'موظفو الفرع' },
+  { path: '/branch/bookings', label: 'حجوزات الفرع' },
+  { path: '/branch/statement', label: 'كشف ذمة الفرع' },
 ]
 
 function normalizePath(path: string) {

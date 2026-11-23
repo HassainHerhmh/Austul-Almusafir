@@ -7,6 +7,7 @@ export type AuthUser = {
   username: string
   role: string
   officeId: string | null
+  branchId: string | null
 }
 
 declare global {
@@ -35,7 +36,7 @@ export function authRequired(req: Request, res: Response, next: NextFunction) {
   void prisma.user
     .findUnique({
       where: { id: req.user.id },
-      select: { active: true, role: true, officeId: true, username: true },
+      select: { active: true, role: true, officeId: true, branchId: true, username: true },
     })
     .then((dbUser) => {
       if (!dbUser) {
@@ -50,6 +51,7 @@ export function authRequired(req: Request, res: Response, next: NextFunction) {
         username: dbUser.username,
         role: dbUser.role,
         officeId: dbUser.officeId,
+        branchId: dbUser.branchId,
       }
       next()
     })

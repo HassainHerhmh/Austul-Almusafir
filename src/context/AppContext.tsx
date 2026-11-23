@@ -50,6 +50,8 @@ interface AppContextValue {
   currentUser: User | null
   currentOffice: Office | null
   isAdmin: boolean
+  isBranchAdmin: boolean
+  currentBranch: Branch | null
   login: (username: string, password: string) => Promise<string | null>
   logout: () => void
   refreshAll: () => Promise<void>
@@ -150,6 +152,11 @@ const ROLE_PERMS: Record<Role, Permission[]> = {
     'manage_office_users',
     'view_reports',
   ],
+  branch_admin: [
+    'view_accounts',
+    'manage_office_users',
+    'view_reports',
+  ],
   office_manager: [
     'book',
     'cancel_booking',
@@ -215,6 +222,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   )
 
   const isAdmin = currentUser?.role === 'admin'
+  const isBranchAdmin = currentUser?.role === 'branch_admin'
+
+  const currentBranch = useMemo(() => {
+    if (!currentUser?.branchId) return null
+    return state.branches.find((b) => b.id === currentUser.branchId) ?? null
+  }, [currentUser?.branchId, state.branches])
 
   const resolvedPermissions = useMemo(() => {
     if (!currentUser) return null
@@ -297,6 +310,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
 
     const isAdminUser = meUser.role === 'admin'
+    const isBranchUser = meUser.role === 'branch_admin'
 
     const [
       branchesRes,
@@ -313,7 +327,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     ] = await Promise.all([
       isAdminUser
         ? serverApi.branches.list().catch(() => ({ list: [] as any[] }))
-        : Promise.resolve({ list: [] as any[] }),
+        : isBranchUser
+          ? serverApi.branches.current().catch(() => null)
+          : Promise.resolve(null),
       serverApi.offices.list(),
       serverApi.users.list(),
       serverApi.destinations.list(),
@@ -323,10 +339,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
       serverApi.trips.list(),
       serverApi.bookings.list(),
       serverApi.customers.list(),
-      serverApi.vouchers.list(),
+      isBranchUser
+        ? Promise.resolve({ list: [] as any[] })
+        : serverApi.vouchers.list().catch(() => ({ list: [] as any[] })),
     ])
 
-    const branchList = (branchesRes.list ?? []).map(asBranch)
+    let branchList: Branch[] = []
+    if (isAdminUser && branchesRes && 'list' in branchesRes) {
+      branchList = (branchesRes.list ?? []).map(asBranch)
+    } else if (isBranchUser && branchesRes && 'branch' in branchesRes) {
+      branchList = [asBranch(branchesRes.branch)]
+    }
     const officeList = (offices.list ?? []).map(asOffice)
     const userList = (users.list ?? []).map(asUser)
     if (!userList.find((u) => u.id === meUser.id)) userList.unshift(meUser)
@@ -356,7 +379,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       vouchers: vouchers.list ?? [],
     })
     setApiReady(true)
-    const balanceScope = meUser.role === 'admin' ? undefined : meUser.officeId
+    const balanceScope =
+      meUser.role === 'admin' || meUser.role === 'branch_admin' ? undefined : meUser.officeId
     void refreshBalances(officeList, balanceScope)
   }, [refreshBalances])
 
@@ -634,6 +658,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         phone: (user.phone ?? '').trim(),
         role: user.role,
         officeId,
+        branchId: user.branchId ?? null,
         driverId,
         active: user.active,
       }
@@ -653,6 +678,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         phone: (user.phone ?? '').trim(),
         role: user.role,
         officeId,
+        branchId: user.branchId ?? null,
         driverId,
         active: user.active,
       })
@@ -924,6 +950,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     currentUser,
     currentOffice,
     isAdmin,
+    isBranchAdmin,
+    currentBranch,
     login,
     logout,
     refreshAll,

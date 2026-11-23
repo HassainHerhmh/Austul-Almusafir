@@ -73,7 +73,7 @@ export function createFullAccess(): UserPermissionsMap {
 
 /** صلاحيات الصفحة الافتراضية حسب الدور قبل الحفظ المخصص */
 export function roleDefaultPermissions(role: Role): UserPermissionsMap {
-  if (role === 'admin' || role === 'office_manager') return createFullAccess()
+  if (role === 'admin' || role === 'office_manager' || role === 'branch_admin') return createFullAccess()
 
   const base: UserPermissionsMap = {}
   getAllPageIds().forEach((id) => {

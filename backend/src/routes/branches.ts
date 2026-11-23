@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { prisma } from '../config'
 import { authRequired, requireAdmin } from '../middleware/auth'
+import { getOfficeLedgerStatement } from '../services/ledger'
 import { asyncHandler, fail, ok, paramId } from '../utils/http'
 
 export const branchesRouter = Router()
@@ -29,6 +30,62 @@ branchesRouter.get(
         createdAt: b.createdAt,
         officeCount: b._count.offices,
       })),
+    })
+  }),
+)
+
+branchesRouter.get(
+  '/current',
+  asyncHandler(async (req, res) => {
+    const branchId =
+      req.user!.role === 'branch_admin'
+        ? req.user!.branchId
+        : req.user!.role === 'admin' && typeof req.query.id === 'string'
+          ? req.query.id
+          : null
+    if (!branchId) return fail(res, 'ليس لديك فرع مرتبط', 404)
+    const branch = await prisma.branch.findUnique({ where: { id: branchId } })
+    if (!branch) return fail(res, 'الفرع غير موجود', 404)
+    if (req.user!.role === 'branch_admin' && req.user!.branchId !== branch.id) {
+      return fail(res, 'ليس لديك صلاحية', 403)
+    }
+  return ok(res, { branch })
+  }),
+)
+
+branchesRouter.get(
+  '/:id/statement',
+  asyncHandler(async (req, res) => {
+    const branch = await prisma.branch.findUnique({ where: { id: paramId(req) } })
+    if (!branch) return fail(res, 'الفرع غير موجود', 404)
+    if (req.user!.role === 'branch_admin') {
+      if (req.user!.branchId !== branch.id) return fail(res, 'ليس لديك صلاحية', 403)
+    } else if (req.user!.role !== 'admin') {
+      return fail(res, 'ليس لديك صلاحية', 403)
+    }
+    const ledgerAccountId = branch.ledgerAccountId
+    if (!ledgerAccountId) {
+      return fail(res, 'الفرع غير مربوط بحساب ذمة', 400)
+    }
+    const fromDate = typeof req.query.from === 'string' && req.query.from ? req.query.from : null
+    const toDate = typeof req.query.to === 'string' && req.query.to ? req.query.to : null
+    const typesRaw = typeof req.query.types === 'string' ? req.query.types : ''
+    const types = typesRaw
+      ? typesRaw.split(',').map((t) => t.trim()).filter(Boolean)
+      : null
+    const result = await getOfficeLedgerStatement({
+      ledgerAccountId,
+      fromDate,
+      toDate,
+      types,
+    })
+    return ok(res, {
+      branchId: branch.id,
+      branchName: branch.name,
+      ledgerAccountId,
+      fromDate,
+      toDate,
+      ...result,
     })
   }),
 )

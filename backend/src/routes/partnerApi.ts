@@ -4,13 +4,13 @@ import { prisma } from '../config'
 import { partnerAuthRequired, requirePartnerPerm } from '../middleware/partnerAuth'
 import { allocateBookingNumber } from '../services/bookingNumber'
 import {
-  findOfficeLedgerAccount,
   postBookingCharge,
   postBookingCommission,
   resolveCommissionsTransitAccount,
   resolveTicketRevenueTransitAccount,
   reverseBookingCharge,
 } from '../services/ledger'
+import { resolveOfficeLedgerAccountId } from '../services/officeLedger'
 import { asyncHandler, fail, ok, paramId } from '../utils/http'
 
 export const partnerApiRouter = Router()
@@ -192,22 +192,13 @@ partnerApiRouter.post(
 
     const isCampaign = trip.tripKind === 'campaign'
 
-    let ledgerAccountId = office.ledgerAccountId
+    let ledgerAccountId: number | null = null
     if (!isCampaign) {
+      const resolved = await resolveOfficeLedgerAccountId(office)
+      office = resolved.office
+      ledgerAccountId = resolved.ledgerAccountId
       if (!ledgerAccountId) {
-        ledgerAccountId = await findOfficeLedgerAccount(office.name)
-        if (ledgerAccountId) {
-          office = await prisma.office.update({
-            where: { id: office.id },
-            data: { ledgerAccountId },
-          })
-        }
-      }
-      if (!ledgerAccountId) {
-        return fail(
-          res,
-          `المكتب غير مربوط بحساب ذمة — اربطه من إدارة المكاتب`,
-        )
+        return fail(res, `المكتب غير مربوط بحساب ذمة — اربط المكتب أو الفرع`, 400)
       }
       const ticketTransit = await resolveTicketRevenueTransitAccount()
       if (!ticketTransit) {

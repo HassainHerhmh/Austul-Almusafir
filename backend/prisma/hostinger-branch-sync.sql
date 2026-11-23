@@ -1,5 +1,9 @@
--- مزامنة جداول الفروع (المرحلة 1 + 2) على MySQL / phpMyAdmin
--- نفّذ على قاعدة u608667573_ostool ثم أعد تشغيل تطبيق Node
+-- ============================================================
+-- إصلاح أعمدة الفروع (المرحلة 1 + 2 + 3) — phpMyAdmin
+-- قاعدة: u608667573_ostool (أو قاعدة التطبيق الفعلية)
+-- نفّذ السكربت كاملاً، تجاهل أخطاء «عمود موجود» أو «فهرس موجود»
+-- ثم أعد تشغيل تطبيق Node على Hostinger
+-- ============================================================
 
 CREATE TABLE IF NOT EXISTS `Branch` (
   `id` VARCHAR(191) NOT NULL,
@@ -13,15 +17,9 @@ CREATE TABLE IF NOT EXISTS `Branch` (
   PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
--- Office.branchId (نفّذ مرة واحدة — تجاهل الخطأ إن وُجد العمود)
 ALTER TABLE `Office` ADD COLUMN `branchId` VARCHAR(191) NULL;
-CREATE INDEX `Office_branchId_idx` ON `Office` (`branchId`);
-
--- User.branchId
 ALTER TABLE `User` ADD COLUMN `branchId` VARCHAR(191) NULL;
-CREATE INDEX `User_branchId_idx` ON `User` (`branchId`);
 
--- المرحلة 3 — branchId على الأسطول والحسابات (تجاهل إن وُجد العمود)
 ALTER TABLE `Bus` ADD COLUMN `branchId` VARCHAR(191) NULL;
 ALTER TABLE `Driver` ADD COLUMN `branchId` VARCHAR(191) NULL;
 ALTER TABLE `Trip` ADD COLUMN `branchId` VARCHAR(191) NULL;
@@ -29,5 +27,21 @@ ALTER TABLE `Destination` ADD COLUMN `branchId` VARCHAR(191) NULL;
 ALTER TABLE `VisaType` ADD COLUMN `branchId` VARCHAR(191) NULL;
 ALTER TABLE `Account` ADD COLUMN `branchId` VARCHAR(191) NULL;
 
--- تحقق سريع
-SELECT id, username, branchId FROM `User` WHERE username = 'admin' LIMIT 1;
+CREATE INDEX `Office_branchId_idx` ON `Office` (`branchId`);
+CREATE INDEX `User_branchId_idx` ON `User` (`branchId`);
+CREATE INDEX `Bus_branchId_idx` ON `Bus` (`branchId`);
+CREATE INDEX `Driver_branchId_idx` ON `Driver` (`branchId`);
+CREATE INDEX `Trip_branchId_idx` ON `Trip` (`branchId`);
+CREATE INDEX `Destination_branchId_idx` ON `Destination` (`branchId`);
+CREATE INDEX `VisaType_branchId_idx` ON `VisaType` (`branchId`);
+CREATE INDEX `Account_branchId_idx` ON `Account` (`branchId`);
+
+-- حسابات: من فريد على code فقط → فريد على (code + branchId)
+-- إن فشل DROP جرّب: SHOW INDEX FROM `Account`; واسم الفهرس الفريد على code
+ALTER TABLE `Account` DROP INDEX `Account_code_key`;
+ALTER TABLE `Account` ADD UNIQUE INDEX `Account_code_branchId_key` (`code`, `branchId`);
+
+-- تحقق
+SHOW COLUMNS FROM `Trip` LIKE 'branchId';
+SHOW COLUMNS FROM `Account` LIKE 'branchId';
+SELECT 1 AS ok;

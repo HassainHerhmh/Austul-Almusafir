@@ -51,6 +51,15 @@ export async function catalogListWhere(user: AuthUser) {
   return { branchId: '__none__' }
 }
 
+/**
+ * قائمة الباصات/السائقين للاختيار في الرحلات — مدير الفرع يستخدم أسطول الوكالة (branchId null).
+ */
+export function fleetListWhere(user: AuthUser) {
+  if (user.role === 'admin') return {}
+  if (user.role === 'branch_admin') return { branchId: null }
+  return branchOwnedWhere(user)
+}
+
 /** عند الإنشاء: يُفرض branchId لمدير الفرع */
 export function branchIdOnCreate(user: AuthUser, bodyBranchId?: string | null): string | null {
   if (user.role === 'branch_admin') return user.branchId
@@ -76,20 +85,36 @@ export async function accountsScopeWhere(user: AuthUser) {
   return { branchId: '__none__' }
 }
 
+/**
+ * رحلات الركاب: مشتركة (كل الفروع + الرئيسي).
+ * الحملة: تظهر للوكالة + مدير فرع مكاتبه + المكتب المعيّن لها فقط.
+ */
 export async function tripsListWhere(user: AuthUser) {
   if (user.role === 'admin') return {}
+
   if (user.role === 'branch_admin' && user.branchId) {
-    return { branchId: user.branchId }
-  }
-  if (user.officeId) {
-    const office = await prisma.office.findUnique({
-      where: { id: user.officeId },
-      select: { branchId: true },
-    })
-    if (office?.branchId) {
-      return { OR: [{ branchId: null }, { branchId: office.branchId }] }
+    const scope = await officeIdsForUser(user)
+    const officeIds = scope === 'all' ? [] : scope
+    const campaignClause =
+      officeIds.length > 0
+        ? {
+            tripKind: 'campaign' as const,
+            campaignOfficeId: { in: officeIds },
+          }
+        : null
+    return {
+      OR: [{ tripKind: 'passenger' }, ...(campaignClause ? [campaignClause] : [])],
     }
-    return { branchId: null }
   }
-  return { branchId: '__none__' }
+
+  if (user.officeId) {
+    return {
+      OR: [
+        { tripKind: 'passenger' },
+        { tripKind: 'campaign', campaignOfficeId: user.officeId },
+      ],
+    }
+  }
+
+  return { tripKind: 'passenger' }
 }

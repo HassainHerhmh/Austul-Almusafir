@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { z } from 'zod'
 import { prisma } from '../config'
-import { authRequired, requireAgencyAdmin } from '../middleware/auth'
+import { authRequired, requireAgencyAdmin, type AuthUser } from '../middleware/auth'
 import { branchIdOnCreate, tripsListWhere } from '../utils/branchScope'
 import {
   findOfficeLedgerAccount,
@@ -60,6 +60,17 @@ function mapTrip(t: {
       .sort((a, b) => a.sortOrder - b.sortOrder)
       .map((s) => ({ destinationId: s.destinationId, point: s.point })),
   }
+}
+
+/** مدير الفرع يربط الرحلة بباص/سائق من أسطول الوكالة فقط */
+async function assertBranchTripFleet(user: AuthUser, busId: string, driverId: string) {
+  if (user.role !== 'branch_admin') return true
+  const [bus, driver] = await Promise.all([
+    prisma.bus.findUnique({ where: { id: busId }, select: { branchId: true } }),
+    prisma.driver.findUnique({ where: { id: driverId }, select: { branchId: true } }),
+  ])
+  if (!bus || !driver) return false
+  return bus.branchId === null && driver.branchId === null
 }
 
 /** قيد إجمالي الحملة على الوكيل — يُستدعى عند الفتح أو الإقفال/الاكتمال (idempotent) */
@@ -180,6 +191,9 @@ tripsRouter.post(
     if (!body.success) return fail(res, 'بيانات الرحلة غير صالحة')
 
     const tripKind = body.data.tripKind === 'campaign' ? 'campaign' : 'passenger'
+    if (req.user!.role === 'branch_admin' && tripKind === 'campaign') {
+      return fail(res, 'الحملة تُنشأ من لوحة الوكالة فقط', 403)
+    }
     const campaignOfficeId =
       tripKind === 'campaign' ? body.data.campaignOfficeId?.trim() || null : null
     const pricingMode =
@@ -207,6 +221,10 @@ tripsRouter.post(
       ) {
         return fail(res, 'مكتب الحملة خارج نطاق الفرع', 403)
       }
+    }
+
+    if (!(await assertBranchTripFleet(req.user!, body.data.busId, body.data.driverId))) {
+      return fail(res, 'اختر باصاً وسائقاً من أسطول الوكالة', 400)
     }
 
     const trip = await prisma.trip.create({
@@ -284,6 +302,9 @@ tripsRouter.put(
         : existing.tripKind === 'campaign'
           ? 'campaign'
           : 'passenger'
+    if (req.user!.role === 'branch_admin' && nextKind === 'campaign') {
+      return fail(res, 'الحملة تُدار من لوحة الوكالة فقط', 403)
+    }
     const nextOfficeId =
       nextKind === 'campaign'
         ? campaignOfficeId !== undefined
@@ -315,6 +336,12 @@ tripsRouter.put(
     if (nextOfficeId) {
       const office = await prisma.office.findUnique({ where: { id: nextOfficeId } })
       if (!office) return fail(res, 'مكتب الحملة غير موجود', 404)
+    }
+
+    const nextBusId = rest.busId ?? existing.busId
+    const nextDriverId = rest.driverId ?? existing.driverId
+    if (!(await assertBranchTripFleet(req.user!, nextBusId, nextDriverId))) {
+      return fail(res, 'اختر باصاً وسائقاً من أسطول الوكالة', 400)
     }
 
     const trip = await prisma.trip.update({

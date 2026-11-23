@@ -2,7 +2,12 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { prisma } from '../config'
 import { authRequired, requireAdmin, requireAgencyAdmin } from '../middleware/auth'
-import { branchIdOnCreate, branchOwnedWhere, catalogListWhere } from '../utils/branchScope'
+import {
+  branchIdOnCreate,
+  branchOwnedWhere,
+  catalogListWhere,
+  fleetListWhere,
+} from '../utils/branchScope'
 import { asyncHandler, fail, ok, paramId } from '../utils/http'
 
 function assertBranchEntity(
@@ -159,7 +164,7 @@ busesRouter.get(
   '/',
   asyncHandler(async (req, res) => {
     const list = await prisma.bus.findMany({
-      where: branchOwnedWhere(req.user!),
+      where: fleetListWhere(req.user!),
       orderBy: [{ busNumber: 'asc' }, { plateNumber: 'asc' }],
     })
     return ok(res, { list })
@@ -235,7 +240,7 @@ driversRouter.get(
   '/',
   asyncHandler(async (req, res) => {
     const list = await prisma.driver.findMany({
-      where: branchOwnedWhere(req.user!),
+      where: fleetListWhere(req.user!),
       orderBy: { name: 'asc' },
     })
     return ok(res, { list })

@@ -47,6 +47,7 @@ export function TripsPage() {
     getBus,
     getDriver,
     getOffice,
+    isBranchAdmin,
   } = useApp()
   const [form, setForm] = useState<TripForm>(emptyForm)
   const [editId, setEditId] = useState<string | null>(null)
@@ -528,40 +529,42 @@ export function TripsPage() {
                     inputMode="tel"
                   />
                 </div>
-                <div className="field" style={{ gridColumn: '1 / -1' }}>
-                  <label>نوع الرحلة</label>
-                  <div className="actions" style={{ gap: '0.5rem', flexWrap: 'wrap' }}>
-                    <button
-                      type="button"
-                      className={`btn ${form.tripKind === 'passenger' ? 'btn-primary' : 'btn-ghost'}`}
-                      onClick={() =>
-                        setForm({
-                          ...form,
-                          tripKind: 'passenger',
-                          campaignOfficeId: '',
-                          pricingMode: form.pricingMode || 'trip',
-                        })
-                      }
-                    >
-                      رحلة ركاب
-                    </button>
-                    <button
-                      type="button"
-                      className={`btn ${form.tripKind === 'campaign' ? 'btn-primary' : 'btn-ghost'}`}
-                      onClick={() =>
-                        setForm({
-                          ...form,
-                          tripKind: 'campaign',
-                          pricingMode: 'trip',
-                        })
-                      }
-                    >
-                      حملة
-                    </button>
+                {!isBranchAdmin ? (
+                  <div className="field" style={{ gridColumn: '1 / -1' }}>
+                    <label>نوع الرحلة</label>
+                    <div className="actions" style={{ gap: '0.5rem', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        className={`btn ${form.tripKind === 'passenger' ? 'btn-primary' : 'btn-ghost'}`}
+                        onClick={() =>
+                          setForm({
+                            ...form,
+                            tripKind: 'passenger',
+                            campaignOfficeId: '',
+                            pricingMode: form.pricingMode || 'trip',
+                          })
+                        }
+                      >
+                        رحلة ركاب
+                      </button>
+                      <button
+                        type="button"
+                        className={`btn ${form.tripKind === 'campaign' ? 'btn-primary' : 'btn-ghost'}`}
+                        onClick={() =>
+                          setForm({
+                            ...form,
+                            tripKind: 'campaign',
+                            pricingMode: 'trip',
+                          })
+                        }
+                      >
+                        حملة
+                      </button>
+                    </div>
                   </div>
-                </div>
+                ) : null}
 
-                {form.tripKind === 'campaign' ? (
+                {!isBranchAdmin && form.tripKind === 'campaign' ? (
                   <>
                     <div className="field">
                       <label>السعر الإجمالي للحملة</label>

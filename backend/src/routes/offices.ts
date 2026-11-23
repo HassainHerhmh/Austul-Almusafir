@@ -16,8 +16,16 @@ officesRouter.get(
       const office = await prisma.office.findUnique({ where: { id: req.user!.officeId } })
       return ok(res, { list: office ? [office] : [] })
     }
-    const list = await prisma.office.findMany({ orderBy: { createdAt: 'desc' } })
-    return ok(res, { list })
+    const list = await prisma.office.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: { branch: { select: { id: true, name: true } } },
+    })
+    return ok(res, {
+      list: list.map((o) => ({
+        ...o,
+        branchName: o.branch?.name ?? null,
+      })),
+    })
   }),
 )
 
@@ -88,9 +96,15 @@ officesRouter.post(
         subscription: z.enum(['active', 'expired', 'trial']).optional(),
         ledgerAccountId: z.number().nullable().optional(),
         commissionPercent: z.number().min(0).max(100).optional(),
+        branchId: z.string().nullable().optional(),
       })
       .safeParse(req.body)
     if (!body.success) return fail(res, 'بيانات غير صالحة')
+
+    if (body.data.branchId) {
+      const branch = await prisma.branch.findUnique({ where: { id: body.data.branchId } })
+      if (!branch) return fail(res, 'الفرع غير موجود', 404)
+    }
 
     const office = await prisma.office.create({
       data: {
@@ -99,6 +113,7 @@ officesRouter.post(
         phone: body.data.phone,
         status: body.data.status ?? 'active',
         subscription: body.data.subscription ?? 'trial',
+        branchId: body.data.branchId ?? null,
         ledgerAccountId: body.data.ledgerAccountId ?? null,
         commissionPercent: body.data.commissionPercent ?? 0,
       },
@@ -123,9 +138,15 @@ officesRouter.put(
         subscription: z.enum(['active', 'expired', 'trial']).optional(),
         ledgerAccountId: z.number().nullable().optional(),
         commissionPercent: z.number().min(0).max(100).optional(),
+        branchId: z.string().nullable().optional(),
       })
       .safeParse(req.body)
     if (!body.success) return fail(res, 'بيانات غير صالحة')
+
+    if (body.data.branchId) {
+      const branch = await prisma.branch.findUnique({ where: { id: body.data.branchId } })
+      if (!branch) return fail(res, 'الفرع غير موجود', 404)
+    }
 
     const office = await prisma.office.update({
       where: { id: paramId(req) },

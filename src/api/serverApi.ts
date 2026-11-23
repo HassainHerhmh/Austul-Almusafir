@@ -1,6 +1,7 @@
 import { apiRequest } from './client'
 import type {
   Booking,
+  Branch,
   Bus,
   Customer,
   Destination,
@@ -12,6 +13,20 @@ import type {
   Voucher,
 } from '../types'
 
+function asBranch(b: any): Branch {
+  return {
+    id: b.id,
+    name: b.name,
+    city: b.city ?? '',
+    phone: b.phone ?? '',
+    status: b.status === 'suspended' ? 'suspended' : 'active',
+    ledgerAccountId: b.ledgerAccountId ?? null,
+    commissionPercent: Number(b.commissionPercent) || 0,
+    createdAt: String(b.createdAt).slice(0, 10),
+    officeCount: b.officeCount != null ? Number(b.officeCount) : undefined,
+  }
+}
+
 function asOffice(o: any): Office {
   return {
     id: o.id,
@@ -22,6 +37,8 @@ function asOffice(o: any): Office {
     subscription: o.subscription,
     ledgerAccountId: o.ledgerAccountId ?? null,
     commissionPercent: Number(o.commissionPercent) || 0,
+    branchId: o.branchId ?? null,
+    branchName: o.branchName ?? o.branch?.name ?? null,
     createdAt: String(o.createdAt).slice(0, 10),
   }
 }
@@ -87,6 +104,17 @@ export const serverApi = {
     }),
 
   me: () => apiRequest<{ user: any }>('/api/auth/me'),
+
+  branches: {
+    list: () => apiRequest<{ list: any[] }>('/api/branches'),
+    create: (data: unknown) =>
+      apiRequest<{ branch: any }>('/api/branches', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: unknown) =>
+      apiRequest<{ branch: any }>(`/api/branches/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+  },
 
   offices: {
     list: () => apiRequest<{ list: any[] }>('/api/offices'),
@@ -230,7 +258,13 @@ export const serverApi = {
   },
 
   bookings: {
-    list: () => apiRequest<{ list: any[] }>('/api/bookings'),
+    list: (params?: { branchId?: string; officeId?: string }) => {
+      const q = new URLSearchParams()
+      if (params?.branchId) q.set('branchId', params.branchId)
+      if (params?.officeId) q.set('officeId', params.officeId)
+      const qs = q.toString()
+      return apiRequest<{ list: any[] }>(`/api/bookings${qs ? `?${qs}` : ''}`)
+    },
     tripSeats: (tripId: string) =>
       apiRequest<{
         total: number
@@ -830,4 +864,4 @@ export const serverApi = {
   },
 }
 
-export { asOffice, asUser, asBooking, asDestination, asVisaType }
+export { asBranch, asOffice, asUser, asBooking, asDestination, asVisaType }

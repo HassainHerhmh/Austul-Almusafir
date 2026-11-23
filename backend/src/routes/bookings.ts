@@ -23,9 +23,16 @@ bookingsRouter.get(
       req.user!.role === 'admin'
         ? (req.query.officeId as string | undefined)
         : req.user!.officeId ?? undefined
+    const branchId =
+      req.user!.role === 'admin' && typeof req.query.branchId === 'string' && req.query.branchId
+        ? req.query.branchId
+        : undefined
 
     const list = await prisma.booking.findMany({
-      where: officeId ? { officeId } : undefined,
+      where: {
+        ...(officeId ? { officeId } : {}),
+        ...(branchId ? { office: { branchId } } : {}),
+      },
       orderBy: { bookedAt: 'desc' },
     })
     return ok(res, {

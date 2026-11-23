@@ -1,6 +1,19 @@
 export type Role = 'admin' | 'office_manager' | 'booking_clerk' | 'accountant' | 'driver'
 
 export type OfficeStatus = 'active' | 'suspended'
+export type BranchStatus = 'active' | 'suspended'
+
+export interface Branch {
+  id: string
+  name: string
+  city: string
+  phone: string
+  status: BranchStatus
+  createdAt: string
+  ledgerAccountId: number | null
+  commissionPercent: number
+  officeCount?: number
+}
 export type SubscriptionStatus = 'active' | 'expired' | 'trial'
 export type BusStatus = 'available' | 'maintenance' | 'inactive'
 export type TripStatus = 'scheduled' | 'open' | 'closed' | 'departed' | 'cancelled' | 'completed'
@@ -20,6 +33,9 @@ export interface Office {
   ledgerAccountId: number | null
   /** نسبة عمولة المكتب من سعر التذكرة */
   commissionPercent: number
+  /** فرع تابع له — null = مباشرة للوكالة */
+  branchId: string | null
+  branchName?: string | null
 }
 
 export interface User {
@@ -153,6 +169,7 @@ export interface Voucher {
 }
 
 export interface AppState {
+  branches: Branch[]
   offices: Office[]
   users: User[]
   destinations: Destination[]

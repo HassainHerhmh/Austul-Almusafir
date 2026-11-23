@@ -9,7 +9,15 @@ import {
   type ReactNode,
 } from 'react'
 import { ApiError, getToken, setToken, ACCOUNT_SUSPENDED_EVENT } from '../api/client'
-import { asBooking, asDestination, asOffice, asUser, asVisaType, serverApi } from '../api/serverApi'
+import {
+  asBooking,
+  asBranch,
+  asDestination,
+  asOffice,
+  asUser,
+  asVisaType,
+  serverApi,
+} from '../api/serverApi'
 import {
   LEGACY_ACTION_TO_PAGE,
   normalizePermissions,
@@ -21,6 +29,7 @@ import type {
   Booking,
   Bus,
   Customer,
+  Branch,
   Destination,
   Driver,
   Office,
@@ -52,6 +61,8 @@ interface AppContextValue {
   getBus: (id: string) => Bus | undefined
   getDriver: (id: string) => Driver | undefined
   getOffice: (id: string) => Office | undefined
+  getBranch: (id: string) => Branch | undefined
+  upsertBranch: (branch: Omit<Branch, 'id' | 'createdAt' | 'officeCount'> & { id?: string }) => Promise<void>
   getTripLabel: (trip: Trip) => string
   getTripSeats: (tripId: string) => {
     total: number
@@ -154,6 +165,7 @@ const ROLE_PERMS: Record<Role, Permission[]> = {
 
 const emptyState = (currentUserId: string | null = null): AppState => ({
   currentUserId,
+  branches: [],
   offices: [],
   users: [],
   destinations: [],
@@ -284,7 +296,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return
     }
 
+    const isAdminUser = meUser.role === 'admin'
+
     const [
+      branchesRes,
       offices,
       users,
       destinations,
@@ -296,6 +311,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       customers,
       vouchers,
     ] = await Promise.all([
+      isAdminUser
+        ? serverApi.branches.list().catch(() => ({ list: [] as any[] }))
+        : Promise.resolve({ list: [] as any[] }),
       serverApi.offices.list(),
       serverApi.users.list(),
       serverApi.destinations.list(),
@@ -308,12 +326,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       serverApi.vouchers.list(),
     ])
 
+    const branchList = (branchesRes.list ?? []).map(asBranch)
     const officeList = (offices.list ?? []).map(asOffice)
     const userList = (users.list ?? []).map(asUser)
     if (!userList.find((u) => u.id === meUser.id)) userList.unshift(meUser)
 
     setState({
       currentUserId: meUser.id,
+      branches: branchList,
       offices: officeList,
       users: userList,
       destinations: (destinations.list ?? []).map(asDestination),
@@ -521,6 +541,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const getBus = (id: string) => state.buses.find((b) => b.id === id)
   const getDriver = (id: string) => state.drivers.find((d) => d.id === id)
   const getOffice = (id: string) => state.offices.find((o) => o.id === id)
+  const getBranch = (id: string) => state.branches.find((b) => b.id === id)
 
   const getOfficeAgencyBalance = (officeId?: string) => {
     const id = officeId ?? currentOffice?.id
@@ -584,6 +605,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
       : await serverApi.offices.create(office)
     const saved = asOffice(res.office)
     setState((s) => ({ ...s, offices: upsertById(s.offices, saved) }))
+  }
+
+  const upsertBranch: AppContextValue['upsertBranch'] = async (branch) => {
+    const res = branch.id
+      ? await serverApi.branches.update(branch.id, branch)
+      : await serverApi.branches.create(branch)
+    const saved = asBranch(res.branch)
+    setState((s) => ({ ...s, branches: upsertById(s.branches, saved) }))
+    if (isAdmin) {
+      try {
+        const fresh = await serverApi.branches.list()
+        setState((s) => ({ ...s, branches: (fresh.list ?? []).map(asBranch) }))
+      } catch {
+        /* keep local */
+      }
+    }
   }
 
   const upsertUser: AppContextValue['upsertUser'] = async (user) => {
@@ -897,11 +934,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     getBus,
     getDriver,
     getOffice,
+    getBranch,
     getTripLabel,
     getTripSeats,
     ensureTripSeats,
     getOfficeAgencyBalance,
     upsertOffice,
+    upsertBranch,
     upsertUser,
     deleteUser,
     upsertBus,

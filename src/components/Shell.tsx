@@ -16,6 +16,7 @@ import {
   Users,
   UserCircle2,
   Building2,
+  GitBranch,
   Wallet,
   ScrollText,
   Calculator,
@@ -35,6 +36,7 @@ const SIDEBAR_COLLAPSE_KEY = 'austul-sidebar-collapsed'
 
 const adminLinks: { to: string; end?: boolean; label: string; icon: LucideIcon }[] = [
   { to: '/admin', end: true, label: 'لوحة التحكم', icon: LayoutDashboard },
+  { to: '/admin/branches', label: 'الفروع', icon: GitBranch },
   { to: '/admin/offices', label: 'المكاتب', icon: Building2 },
   { to: '/admin/users', label: 'المستخدمون', icon: Users },
   { to: '/admin/buses', label: 'الباصات', icon: Bus },

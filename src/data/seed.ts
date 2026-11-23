@@ -9,6 +9,7 @@ export const seedData: AppState = {
 
   destinations: [],
   visaTypes: [],
+  branches: [],
   offices: [],
   users: [
     {

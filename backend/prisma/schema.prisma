@@ -8,6 +8,19 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Branch {
+  id                String   @id @default(cuid())
+  name              String
+  city              String   @default("")
+  phone             String   @default("")
+  status            String   @default("active")
+  /** حساب ذمة الفرع في دليل الوكالة */
+  ledgerAccountId   Int?
+  commissionPercent Float    @default(0)
+  createdAt         DateTime @default(now())
+  offices           Office[]
+}
+
 model Office {
   id              String     @id @default(cuid())
   name            String
@@ -15,6 +28,9 @@ model Office {
   phone           String
   status          String     @default("active")
   subscription    String     @default("trial")
+  /** null = مكتب تابع مباشرة للوكالة */
+  branchId        String?
+  branch          Branch?    @relation(fields: [branchId], references: [id], onDelete: SetNull)
   ledgerAccountId Int?
   /** نسبة عمولة المكتب من سعر التذكرة (مثلاً 10 = 10%) */
   commissionPercent Float    @default(0)
@@ -26,6 +42,8 @@ model Office {
   campaignTrips   Trip[]    @relation("CampaignOffice")
   trackingAccess  TripOfficeTrackingAccess[]
   partnerApiKeys  PartnerApiKey[]
+
+  @@index([branchId])
 }
 
 model User {

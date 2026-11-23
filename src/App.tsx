@@ -34,6 +34,7 @@ import { BusesPage } from './pages/admin/BusesPage'
 import { DestinationsPage } from './pages/admin/DestinationsPage'
 import { VisaTypesPage } from './pages/admin/VisaTypesPage'
 import { DriversPage } from './pages/admin/DriversPage'
+import { BranchesPage } from './pages/admin/BranchesPage'
 import { OfficesPage } from './pages/admin/OfficesPage'
 import { TripsPage } from './pages/admin/TripsPage'
 import { UsersPage } from './pages/admin/UsersPage'
@@ -79,6 +80,7 @@ export default function App() {
               }
             >
               <Route index element={<AdminHome />} />
+              <Route path="branches" element={<BranchesPage />} />
               <Route path="offices" element={<OfficesPage />} />
               <Route path="users" element={<UsersPage />} />
               <Route path="buses" element={<BusesPage />} />

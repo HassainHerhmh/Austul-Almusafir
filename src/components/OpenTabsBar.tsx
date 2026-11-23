@@ -8,6 +8,7 @@ const STORAGE_KEY = 'austul-open-tabs'
 
 const ROUTE_LABELS: { path: string; label: string; end?: boolean }[] = [
   { path: '/admin', label: 'لوحة التحكم', end: true },
+  { path: '/admin/branches', label: 'الفروع' },
   { path: '/admin/offices', label: 'المكاتب' },
   { path: '/admin/users', label: 'المستخدمون' },
   { path: '/admin/buses', label: 'الباصات' },

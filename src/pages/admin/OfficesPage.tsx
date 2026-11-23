@@ -9,7 +9,7 @@ type SubAccount = {
   name_ar: string
 }
 
-const empty: Omit<Office, 'id' | 'createdAt'> = {
+const empty: Omit<Office, 'id' | 'createdAt' | 'branchName'> = {
   name: '',
   city: '',
   phone: '',
@@ -17,6 +17,7 @@ const empty: Omit<Office, 'id' | 'createdAt'> = {
   subscription: 'trial',
   ledgerAccountId: null,
   commissionPercent: 0,
+  branchId: null,
 }
 
 export function OfficesPage() {
@@ -81,6 +82,7 @@ export function OfficesPage() {
         subscription: office.subscription,
         ledgerAccountId: office.ledgerAccountId,
         commissionPercent: office.commissionPercent ?? 0,
+        branchId: office.branchId,
       })
     } else {
       setEditId(null)
@@ -120,6 +122,7 @@ export function OfficesPage() {
             <thead>
               <tr>
                 <th>الاسم</th>
+                <th>الفرع</th>
                 <th>المدينة</th>
                 <th>الهاتف</th>
                 <th>الحالة</th>
@@ -133,6 +136,7 @@ export function OfficesPage() {
               {state.offices.map((o) => (
                 <tr key={o.id}>
                   <td>{o.name}</td>
+                  <td>{o.branchId ? state.branches.find((b) => b.id === o.branchId)?.name ?? o.branchName ?? '—' : 'الوكالة'}</td>
                   <td>{o.city}</td>
                   <td>{o.phone}</td>
                   <td>
@@ -187,6 +191,27 @@ export function OfficesPage() {
             <h2>{editId ? 'تعديل مكتب' : 'مكتب جديد'}</h2>
             <form onSubmit={(e) => void save(e)}>
               <div className="form-grid">
+                <div className="field">
+                  <label>الفرع</label>
+                  <select
+                    value={form.branchId ?? ''}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        branchId: e.target.value ? e.target.value : null,
+                      })
+                    }
+                  >
+                    <option value="">— مباشرة للوكالة —</option>
+                    {state.branches
+                      .filter((b) => b.status === 'active')
+                      .map((b) => (
+                        <option key={b.id} value={b.id}>
+                          {b.name}
+                        </option>
+                      ))}
+                  </select>
+                </div>
                 <div className="field">
                   <label>اسم المكتب</label>
                   <input

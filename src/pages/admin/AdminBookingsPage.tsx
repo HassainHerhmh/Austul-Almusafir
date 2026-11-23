@@ -13,6 +13,7 @@ const PRINT_COLUMNS = [
   { key: 'boarding', label: 'منطقة الانطلاق' },
   { key: 'arrival', label: 'منطقة الوصول' },
   { key: 'seat', label: 'المقعد' },
+  { key: 'branch', label: 'الفرع' },
   { key: 'office', label: 'المكتب' },
   { key: 'trip', label: 'الرحلة' },
   { key: 'bookedAt', label: 'تاريخ الحجز' },
@@ -32,10 +33,12 @@ export function AdminBookingsPage() {
     state,
     getTripLabel,
     getOffice,
+    getBranch,
     getDestination,
     updateBooking,
     deleteBooking,
   } = useApp()
+  const [branchFilter, setBranchFilter] = useState<string>('')
   const { name: companyName, logoUrl, phones } = useBrand()
 
   const [editBooking, setEditBooking] = useState<Booking | null>(null)
@@ -150,10 +153,21 @@ export function AdminBookingsPage() {
     if (err) alert(err)
   }
 
-  const sortedBookings = useMemo(
-    () => [...state.bookings].sort((a, b) => b.bookedAt.localeCompare(a.bookedAt)),
-    [state.bookings],
-  )
+  const branchLabelForOffice = (officeId: string) => {
+    const office = getOffice(officeId)
+    if (!office?.branchId) return 'الوكالة'
+    return office.branchName ?? getBranch(office.branchId)?.name ?? '—'
+  }
+
+  const sortedBookings = useMemo(() => {
+    let list = state.bookings
+    if (branchFilter === '__agency__') {
+      list = list.filter((b) => !getOffice(b.officeId)?.branchId)
+    } else if (branchFilter) {
+      list = list.filter((b) => getOffice(b.officeId)?.branchId === branchFilter)
+    }
+    return [...list].sort((a, b) => b.bookedAt.localeCompare(a.bookedAt))
+  }, [state.bookings, branchFilter, getOffice])
 
   const cellValue = (b: Booking, key: PrintColKey): string => {
     const trip = state.trips.find((t) => t.id === b.tripId)
@@ -172,6 +186,8 @@ export function AdminBookingsPage() {
         return getDestination(b.arrivalDestinationId)?.name || '—'
       case 'seat':
         return String(b.seatNumber)
+      case 'branch':
+        return branchLabelForOffice(b.officeId)
       case 'office':
         return getOffice(b.officeId)?.name || '—'
       case 'trip':
@@ -219,6 +235,25 @@ export function AdminBookingsPage() {
       </header>
 
       <div className="panel">
+        <div className="panel-head" style={{ flexWrap: 'wrap', gap: 12 }}>
+          <h2>قائمة الحجوزات</h2>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span>الفرع</span>
+            <select
+              value={branchFilter}
+              onChange={(e) => setBranchFilter(e.target.value)}
+              className="filter-select"
+            >
+              <option value="">الكل</option>
+              <option value="__agency__">مباشرة للوكالة</option>
+              {state.branches.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
         <div className="table-wrap">
           <table className="data">
             <thead>
@@ -230,6 +265,7 @@ export function AdminBookingsPage() {
                 <th>منطقة الانطلاق</th>
                 <th>منطقة الوصول</th>
                 <th>المقعد</th>
+                <th>الفرع</th>
                 <th>المكتب</th>
                 <th>الرحلة</th>
                 <th>تاريخ الحجز</th>
@@ -251,6 +287,7 @@ export function AdminBookingsPage() {
                       <td>{getDestination(b.boardingDestinationId)?.name || '—'}</td>
                       <td>{getDestination(b.arrivalDestinationId)?.name || '—'}</td>
                       <td>{b.seatNumber}</td>
+                      <td>{branchLabelForOffice(b.officeId)}</td>
                       <td>{getOffice(b.officeId)?.name}</td>
                       <td>{trip ? getTripLabel(trip) : '—'}</td>
                       <td>{b.bookedAt.slice(0, 16).replace('T', ' ')}</td>

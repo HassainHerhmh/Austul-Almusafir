@@ -8,6 +8,7 @@ import { authRouter } from './routes/auth'
 import { bookingsRouter } from './routes/bookings'
 import { customersRouter, vouchersRouter } from './routes/customers'
 import { busesRouter, destinationsRouter, driversRouter, visaTypesRouter } from './routes/fleet'
+import { branchesRouter } from './routes/branches'
 import { officesRouter } from './routes/offices'
 import { settingsRouter } from './routes/settings'
 import { tripsRouter } from './routes/trips'
@@ -59,6 +60,7 @@ export function createApp() {
 
   app.use('/api/auth', authRouter)
 
+  app.use('/api/branches', branchesRouter)
   app.use('/api/offices', officesRouter)
   app.use('/api/users', usersRouter)
   app.use('/api/destinations', destinationsRouter)

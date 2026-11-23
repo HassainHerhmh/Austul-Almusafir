@@ -3,13 +3,17 @@
  * without a backend. Persists to localStorage.
  */
 import { extractList } from '../utils/apiHelper'
+import { accountingBranchLabel, accountingStorageKey } from './accountingScope'
 
-const STORAGE_KEY = 'austul-cards-accounting-v3'
+const LEGACY_STORAGE_KEY = 'austul-cards-accounting-v3'
 const TICKET_REVENUE_ACCOUNT_ID = 16
 const OFFICES_RECEIVABLE_PARENT_CODE = '1131'
 const USER_KEY = 'card-platform-user'
-const BRANCH = 'الفرع الرئيسي'
 const USER = 'مدير النظام'
+
+function branchLabel() {
+  return accountingBranchLabel()
+}
 
 type AccountLevel = 'رئيسي' | 'فرعي'
 
@@ -223,130 +227,130 @@ type Store = {
 
 const now = () => new Date().toISOString()
 
-function buildSeed(): Store {
+function buildSeed(branch: string, withSamples: boolean): Store {
   const groups: AccountGroup[] = [
-    { id: 1, code: '1', name_ar: 'الأصول', name_en: 'Assets', user_name: USER, branch: BRANCH },
-    { id: 2, code: '2', name_ar: 'الخصوم', name_en: 'Liabilities', user_name: USER, branch: BRANCH },
-    { id: 3, code: '3', name_ar: 'حقوق الملكية', name_en: 'Equity', user_name: USER, branch: BRANCH },
-    { id: 4, code: '4', name_ar: 'الإيرادات', name_en: 'Revenue', user_name: USER, branch: BRANCH },
-    { id: 5, code: '5', name_ar: 'المصروفات', name_en: 'Expenses', user_name: USER, branch: BRANCH },
+    { id: 1, code: '1', name_ar: 'الأصول', name_en: 'Assets', user_name: USER, branch },
+    { id: 2, code: '2', name_ar: 'الخصوم', name_en: 'Liabilities', user_name: USER, branch: branchLabel() },
+    { id: 3, code: '3', name_ar: 'حقوق الملكية', name_en: 'Equity', user_name: USER, branch: branchLabel() },
+    { id: 4, code: '4', name_ar: 'الإيرادات', name_en: 'Revenue', user_name: USER, branch: branchLabel() },
+    { id: 5, code: '5', name_ar: 'المصروفات', name_en: 'Expenses', user_name: USER, branch: branchLabel() },
   ]
 
   const accounts: Account[] = [
     {
       id: 1, code: '1', name_ar: 'الأصول', name_en: 'Assets', parent_id: null,
       account_group_id: 1, account_level: 'رئيسي', financial_statement: 'الميزانية العمومية',
-      created_at: now(), branch_name: BRANCH, group_name: 'الأصول', parent_name: null,
+      created_at: now(), branch_name: branchLabel(), group_name: 'الأصول', parent_name: null,
     },
     {
       id: 2, code: '11', name_ar: 'الأصول المتداولة', name_en: 'Current Assets', parent_id: 1,
       account_group_id: 1, account_level: 'رئيسي', financial_statement: 'الميزانية العمومية',
-      created_at: now(), branch_name: BRANCH, group_name: 'الأصول', parent_name: 'الأصول',
+      created_at: now(), branch_name: branchLabel(), group_name: 'الأصول', parent_name: 'الأصول',
     },
     {
       id: 3, code: '111', name_ar: 'الصناديق', name_en: 'Cash Boxes', parent_id: 2,
       account_group_id: 1, account_level: 'رئيسي', financial_statement: 'الميزانية العمومية',
-      created_at: now(), branch_name: BRANCH, group_name: 'الأصول', parent_name: 'الأصول المتداولة',
+      created_at: now(), branch_name: branchLabel(), group_name: 'الأصول', parent_name: 'الأصول المتداولة',
     },
     {
       id: 4, code: '11101', name_ar: 'الصندوق الرئيسي', name_en: 'Main Cash', parent_id: 3,
       account_group_id: 1, account_level: 'فرعي', financial_statement: 'الميزانية العمومية',
-      created_at: now(), branch_name: BRANCH, group_name: 'الأصول', parent_name: 'الصناديق',
+      created_at: now(), branch_name: branchLabel(), group_name: 'الأصول', parent_name: 'الصناديق',
     },
     {
       id: 5, code: '11102', name_ar: 'صندوق مكتب صنعاء', name_en: 'Sanaa Cash', parent_id: 3,
       account_group_id: 1, account_level: 'فرعي', financial_statement: 'الميزانية العمومية',
-      created_at: now(), branch_name: BRANCH, group_name: 'الأصول', parent_name: 'الصناديق',
+      created_at: now(), branch_name: branchLabel(), group_name: 'الأصول', parent_name: 'الصناديق',
     },
     {
       id: 6, code: '112', name_ar: 'البنوك', name_en: 'Banks', parent_id: 2,
       account_group_id: 1, account_level: 'رئيسي', financial_statement: 'الميزانية العمومية',
-      created_at: now(), branch_name: BRANCH, group_name: 'الأصول', parent_name: 'الأصول المتداولة',
+      created_at: now(), branch_name: branchLabel(), group_name: 'الأصول', parent_name: 'الأصول المتداولة',
     },
     {
       id: 7, code: '11201', name_ar: 'بنك الكريمي', name_en: 'Al-Kuraimi', parent_id: 6,
       account_group_id: 1, account_level: 'فرعي', financial_statement: 'الميزانية العمومية',
-      created_at: now(), branch_name: BRANCH, group_name: 'الأصول', parent_name: 'البنوك',
+      created_at: now(), branch_name: branchLabel(), group_name: 'الأصول', parent_name: 'البنوك',
     },
     {
       id: 8, code: '11202', name_ar: 'بنك التضامن', name_en: 'Tadhamon', parent_id: 6,
       account_group_id: 1, account_level: 'فرعي', financial_statement: 'الميزانية العمومية',
-      created_at: now(), branch_name: BRANCH, group_name: 'الأصول', parent_name: 'البنوك',
+      created_at: now(), branch_name: branchLabel(), group_name: 'الأصول', parent_name: 'البنوك',
     },
     {
       id: 9, code: '113', name_ar: 'الذمم المدينة', name_en: 'Receivables', parent_id: 2,
       account_group_id: 1, account_level: 'رئيسي', financial_statement: 'الميزانية العمومية',
-      created_at: now(), branch_name: BRANCH, group_name: 'الأصول', parent_name: 'الأصول المتداولة',
+      created_at: now(), branch_name: branchLabel(), group_name: 'الأصول', parent_name: 'الأصول المتداولة',
     },
     {
       id: 10, code: '11301', name_ar: 'عملاء التذاكر', name_en: 'Ticket Customers', parent_id: 9,
       account_group_id: 1, account_level: 'فرعي', financial_statement: 'الميزانية العمومية',
-      created_at: now(), branch_name: BRANCH, group_name: 'الأصول', parent_name: 'الذمم المدينة',
+      created_at: now(), branch_name: branchLabel(), group_name: 'الأصول', parent_name: 'الذمم المدينة',
     },
     {
       id: 11, code: '11302', name_ar: 'حساب وسيط إيرادات', name_en: 'Transit Income', parent_id: 9,
       account_group_id: 1, account_level: 'فرعي', financial_statement: 'الميزانية العمومية',
-      created_at: now(), branch_name: BRANCH, group_name: 'الأصول', parent_name: 'الذمم المدينة',
+      created_at: now(), branch_name: branchLabel(), group_name: 'الأصول', parent_name: 'الذمم المدينة',
     },
     {
       id: 12, code: '2', name_ar: 'الخصوم', name_en: 'Liabilities', parent_id: null,
       account_group_id: 2, account_level: 'رئيسي', financial_statement: 'الميزانية العمومية',
-      created_at: now(), branch_name: BRANCH, group_name: 'الخصوم', parent_name: null,
+      created_at: now(), branch_name: branchLabel(), group_name: 'الخصوم', parent_name: null,
     },
     {
       id: 13, code: '21', name_ar: 'الذمم الدائنة', name_en: 'Payables', parent_id: 12,
       account_group_id: 2, account_level: 'رئيسي', financial_statement: 'الميزانية العمومية',
-      created_at: now(), branch_name: BRANCH, group_name: 'الخصوم', parent_name: 'الخصوم',
+      created_at: now(), branch_name: branchLabel(), group_name: 'الخصوم', parent_name: 'الخصوم',
     },
     {
       id: 14, code: '2101', name_ar: 'موردو الوقود', name_en: 'Fuel Suppliers', parent_id: 13,
       account_group_id: 2, account_level: 'فرعي', financial_statement: 'الميزانية العمومية',
-      created_at: now(), branch_name: BRANCH, group_name: 'الخصوم', parent_name: 'الذمم الدائنة',
+      created_at: now(), branch_name: branchLabel(), group_name: 'الخصوم', parent_name: 'الذمم الدائنة',
     },
     {
       id: 15, code: '4', name_ar: 'الإيرادات', name_en: 'Revenue', parent_id: null,
       account_group_id: 4, account_level: 'رئيسي', financial_statement: 'أرباح وخسائر',
-      created_at: now(), branch_name: BRANCH, group_name: 'الإيرادات', parent_name: null,
+      created_at: now(), branch_name: branchLabel(), group_name: 'الإيرادات', parent_name: null,
     },
     {
       id: 16, code: '41', name_ar: 'إيرادات التذاكر', name_en: 'Ticket Revenue', parent_id: 15,
       account_group_id: 4, account_level: 'فرعي', financial_statement: 'أرباح وخسائر',
-      created_at: now(), branch_name: BRANCH, group_name: 'الإيرادات', parent_name: 'الإيرادات',
+      created_at: now(), branch_name: branchLabel(), group_name: 'الإيرادات', parent_name: 'الإيرادات',
     },
     {
       id: 17, code: '5', name_ar: 'المصروفات', name_en: 'Expenses', parent_id: null,
       account_group_id: 5, account_level: 'رئيسي', financial_statement: 'أرباح وخسائر',
-      created_at: now(), branch_name: BRANCH, group_name: 'المصروفات', parent_name: null,
+      created_at: now(), branch_name: branchLabel(), group_name: 'المصروفات', parent_name: null,
     },
     {
       id: 18, code: '51', name_ar: 'مصروف الوقود', name_en: 'Fuel Expense', parent_id: 17,
       account_group_id: 5, account_level: 'فرعي', financial_statement: 'أرباح وخسائر',
-      created_at: now(), branch_name: BRANCH, group_name: 'المصروفات', parent_name: 'المصروفات',
+      created_at: now(), branch_name: branchLabel(), group_name: 'المصروفات', parent_name: 'المصروفات',
     },
     {
       id: 19, code: '52', name_ar: 'مصروف الرواتب', name_en: 'Salaries', parent_id: 17,
       account_group_id: 5, account_level: 'فرعي', financial_statement: 'أرباح وخسائر',
-      created_at: now(), branch_name: BRANCH, group_name: 'المصروفات', parent_name: 'المصروفات',
+      created_at: now(), branch_name: branchLabel(), group_name: 'المصروفات', parent_name: 'المصروفات',
     },
     {
       id: 21, code: '53', name_ar: 'عمولات المكاتب', name_en: 'Office Commissions', parent_id: 17,
       account_group_id: 5, account_level: 'فرعي', financial_statement: 'أرباح وخسائر',
-      created_at: now(), branch_name: BRANCH, group_name: 'المصروفات', parent_name: 'المصروفات',
+      created_at: now(), branch_name: branchLabel(), group_name: 'المصروفات', parent_name: 'المصروفات',
     },
     {
       id: 20, code: '11303', name_ar: 'حساب مصارفة العملة', name_en: 'FX Account', parent_id: 9,
       account_group_id: 1, account_level: 'فرعي', financial_statement: 'الميزانية العمومية',
-      created_at: now(), branch_name: BRANCH, group_name: 'الأصول', parent_name: 'الذمم المدينة',
+      created_at: now(), branch_name: branchLabel(), group_name: 'الأصول', parent_name: 'الذمم المدينة',
     },
     {
       id: 30, code: '1131', name_ar: 'ذمم مكاتب السفريات', name_en: 'Travel Offices Receivables', parent_id: 9,
       account_group_id: 1, account_level: 'رئيسي', financial_statement: 'الميزانية العمومية',
-      created_at: now(), branch_name: BRANCH, group_name: 'الأصول', parent_name: 'الذمم المدينة',
+      created_at: now(), branch_name: branchLabel(), group_name: 'الأصول', parent_name: 'الذمم المدينة',
     },
     {
       id: 31, code: '1132', name_ar: 'وسيط إيراد التذاكر', name_en: 'Ticket Revenue Transit', parent_id: 9,
       account_group_id: 1, account_level: 'فرعي', financial_statement: 'الميزانية العمومية',
-      created_at: now(), branch_name: BRANCH, group_name: 'الأصول', parent_name: 'الذمم المدينة',
+      created_at: now(), branch_name: branchLabel(), group_name: 'الأصول', parent_name: 'الذمم المدينة',
     },
   ]
 
@@ -366,55 +370,80 @@ function buildSeed(): Store {
   ]
 
   const bankGroups: BankGroup[] = [
-    { id: 1, code: '1', name_ar: 'بنوك محلية', name_en: 'Local Banks', user_name: USER, branch: BRANCH },
-    { id: 2, code: '2', name_ar: 'بنوك تحويل', name_en: 'Transfer Banks', user_name: USER, branch: BRANCH },
+    { id: 1, code: '1', name_ar: 'بنوك محلية', name_en: 'Local Banks', user_name: USER, branch: branchLabel() },
+    { id: 2, code: '2', name_ar: 'بنوك تحويل', name_en: 'Transfer Banks', user_name: USER, branch: branchLabel() },
   ]
 
-  const banks: Bank[] = [
-    {
-      id: 1, name_ar: 'بنك الكريمي', name_en: 'Al-Kuraimi', code: '11201',
-      bank_group_id: 1, bank_group_name: 'بنوك محلية', account_id: 7,
-      account_name: 'بنك الكريمي',
-      parent_account_id: 6, parent_account_name: '112 — البنوك',
-      user_name: USER, branch_name: BRANCH,
-    },
-    {
-      id: 2, name_ar: 'بنك التضامن', name_en: 'Tadhamon', code: '11202',
-      bank_group_id: 1, bank_group_name: 'بنوك محلية', account_id: 8,
-      account_name: 'بنك التضامن',
-      parent_account_id: 6, parent_account_name: '112 — البنوك',
-      user_name: USER, branch_name: BRANCH,
-    },
-  ]
+  const banks: Bank[] = withSamples
+    ? [
+        {
+          id: 1,
+          name_ar: 'بنك الكريمي',
+          name_en: 'Al-Kuraimi',
+          code: '11201',
+          bank_group_id: 1,
+          bank_group_name: 'بنوك محلية',
+          account_id: 7,
+          account_name: 'بنك الكريمي',
+          parent_account_id: 6,
+          parent_account_name: '112 — البنوك',
+          user_name: USER,
+          branch_name: branch,
+        },
+        {
+          id: 2,
+          name_ar: 'بنك التضامن',
+          name_en: 'Tadhamon',
+          code: '11202',
+          bank_group_id: 1,
+          bank_group_name: 'بنوك محلية',
+          account_id: 8,
+          account_name: 'بنك التضامن',
+          parent_account_id: 6,
+          parent_account_name: '112 — البنوك',
+          user_name: USER,
+          branch_name: branch,
+        },
+      ]
+    : []
 
   const cashboxGroups: CashboxGroup[] = [
-    { id: 1, code: 1, name_ar: 'صناديق المكاتب', name_en: 'Office Cash', user_name: USER, branch_name: BRANCH },
-    { id: 2, code: 2, name_ar: 'صناديق الرحلات', name_en: 'Trip Cash', user_name: USER, branch_name: BRANCH },
+    { id: 1, code: 1, name_ar: 'صناديق المكاتب', name_en: 'Office Cash', user_name: USER, branch_name: branchLabel() },
+    { id: 2, code: 2, name_ar: 'صناديق الرحلات', name_en: 'Trip Cash', user_name: USER, branch_name: branchLabel() },
   ]
 
-  const cashBoxes: CashBox[] = [
-    {
-      id: 1, name_ar: 'الصندوق الرئيسي', name_en: 'Main Box', code: '11101',
-      cash_box_group_id: 1, cashbox_group_name: 'صناديق المكاتب',
-      account_id: 4, account_name: 'الصندوق الرئيسي',
-      parent_account_id: 3, parent_account_name: '111 — الصناديق',
-      user_name: USER, branch_name: BRANCH,
-    },
-  ]
+  const cashBoxes: CashBox[] = withSamples
+    ? [
+        {
+          id: 1,
+          name_ar: 'الصندوق الرئيسي',
+          name_en: 'Main Box',
+          code: '11101',
+          cash_box_group_id: 1,
+          cashbox_group_name: 'صناديق المكاتب',
+          account_id: 4,
+          account_name: 'الصندوق الرئيسي',
+          parent_account_id: 3,
+          parent_account_name: '111 — الصناديق',
+          user_name: USER,
+          branch_name: branch,
+        },
+      ]
+    : []
 
   const receiptTypes: NamedType[] = [
-    { id: 1, code: 1, name_ar: 'قبض نقدي', name_en: 'Cash Receipt', sort_order: 1, branch_name: BRANCH },
-    { id: 2, code: 2, name_ar: 'قبض بنكي', name_en: 'Bank Receipt', sort_order: 2, branch_name: BRANCH },
+    { id: 1, code: 1, name_ar: 'قبض نقدي', name_en: 'Cash Receipt', sort_order: 1, branch_name: branchLabel() },
+    { id: 2, code: 2, name_ar: 'قبض بنكي', name_en: 'Bank Receipt', sort_order: 2, branch_name: branchLabel() },
   ]
 
   const paymentTypes: NamedType[] = [
-    { id: 1, code: 1, name_ar: 'صرف نقدي', name_en: 'Cash Payment', sort_order: 1, branch_name: BRANCH },
-    { id: 2, code: 2, name_ar: 'صرف بنكي', name_en: 'Bank Payment', sort_order: 2, branch_name: BRANCH },
+    { id: 1, code: 1, name_ar: 'صرف نقدي', name_en: 'Cash Payment', sort_order: 1, branch_name: branchLabel() },
+    { id: 2, code: 2, name_ar: 'صرف بنكي', name_en: 'Bank Payment', sort_order: 2, branch_name: branchLabel() },
   ]
 
   const journalTypes: NamedType[] = [
-    { id: 1, code: 1, name_ar: 'قيد يومي', name_en: 'Journal', sort_order: 1, branch_name: BRANCH },
-    { id: 2, code: 2, name_ar: 'قيد افتتاحي', name_en: 'Opening', sort_order: 2, branch_name: BRANCH },
+    { id: 1, code: 1, name_ar: 'قيد يومي', name_en: 'Journal', sort_order: 1, branch_name: branchLabel() },
+    { id: 2, code: 2, name_ar: 'قيد افتتاحي', name_en: 'Opening', sort_order: 2, branch_name: branchLabel() },
   ]
 
   const accountCeilings: AccountCeiling[] = []
@@ -468,41 +497,58 @@ function buildSeed(): Store {
 
 /* ========================= Persistence ========================= */
 
-function loadStore(): Store {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) {
-      const parsed = JSON.parse(raw) as Store
-      if (parsed?.accounts?.length) {
-        const t = (parsed.transitAccounts || {}) as Record<string, unknown>
-        parsed.transitAccounts = {
-          office_commissions_account:
-            typeof t.office_commissions_account === 'number'
-              ? t.office_commissions_account
-              : null,
-          ticket_revenue_account:
-            typeof t.ticket_revenue_account === 'number' ? t.ticket_revenue_account : null,
-        }
+function normalizeStoreTransit(parsed: Store): Store {
+  const t = (parsed.transitAccounts || {}) as Record<string, unknown>
+  parsed.transitAccounts = {
+    office_commissions_account:
+      typeof t.office_commissions_account === 'number' ? t.office_commissions_account : null,
+    ticket_revenue_account:
+      typeof t.ticket_revenue_account === 'number' ? t.ticket_revenue_account : null,
+  }
+  return parsed
+}
 
-        // لا نضيف حسابات تلقائياً — الدليل يُدار يدوياً
-        saveStore(parsed)
+function loadStoreForKey(storageKey: string): Store {
+  const withSamples = storageKey.endsWith(':agency')
+  try {
+    let raw = localStorage.getItem(storageKey)
+    if (!raw && withSamples) {
+      raw = localStorage.getItem(LEGACY_STORAGE_KEY)
+      if (raw) localStorage.setItem(storageKey, raw)
+    }
+    if (raw) {
+      const parsed = normalizeStoreTransit(JSON.parse(raw) as Store)
+      if (parsed && typeof parsed.nextIds === 'object') {
         return parsed
       }
     }
-  } catch { /* ignore */ }
-  const seed = buildSeed()
-  saveStore(seed)
+  } catch {
+    /* ignore */
+  }
+  const seed = buildSeed(branchLabel(), withSamples)
+  saveStoreToKey(storageKey, seed)
   return seed
 }
 
-function saveStore(store: Store) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(store))
+function saveStoreToKey(storageKey: string, data: Store) {
+  localStorage.setItem(storageKey, JSON.stringify(data))
 }
 
-let store = loadStore()
+let loadedStorageKey: string | null = null
+let store: Store = loadStoreForKey(accountingStorageKey())
+loadedStorageKey = accountingStorageKey()
+
+export function syncAccountingStore() {
+  const key = accountingStorageKey()
+  if (key !== loadedStorageKey) {
+    loadedStorageKey = key
+    store = loadStoreForKey(key)
+  }
+}
 
 function persist() {
-  saveStore(store)
+  const key = accountingStorageKey()
+  saveStoreToKey(key, store)
 }
 
 function nextId(key: keyof Store['nextIds']): number {
@@ -877,7 +923,7 @@ function handlePost(url: string, body: any = {}): any {
       account_level: body.account_level || (parent_id ? 'فرعي' : 'رئيسي'),
       financial_statement: body.financial_statement ?? 'الميزانية العمومية',
       created_at: now(),
-      branch_name: BRANCH,
+      branch_name: branchLabel(),
       group_name: group?.name_ar ?? null,
       parent_name: accountName(parent_id) || null,
       created_by: USER,
@@ -895,7 +941,7 @@ function handlePost(url: string, body: any = {}): any {
       name_ar: body.name_ar,
       name_en: body.name_en ?? null,
       user_name: USER,
-      branch: BRANCH,
+      branch: branchLabel(),
     }
     store.accountGroups.push(g)
     persist()
@@ -931,7 +977,7 @@ function handlePost(url: string, body: any = {}): any {
       name_ar: body.name_ar,
       name_en: body.name_en ?? null,
       user_name: USER,
-      branch: BRANCH,
+      branch: branchLabel(),
     }
     store.bankGroups.push(g)
     persist()
@@ -965,7 +1011,7 @@ function handlePost(url: string, body: any = {}): any {
         account_level: 'فرعي',
         financial_statement: 'الميزانية العمومية',
         created_at: now(),
-        branch_name: BRANCH,
+        branch_name: branchLabel(),
         group_name: 'الأصول',
         parent_name: parent?.name_ar ?? null,
       }
@@ -986,7 +1032,7 @@ function handlePost(url: string, body: any = {}): any {
       parent_account_id: parentId || null,
       parent_account_name: parentLabel,
       user_name: USER,
-      branch_name: BRANCH,
+      branch_name: branchLabel(),
     }
     store.banks.push(bank)
     persist()
@@ -1000,7 +1046,7 @@ function handlePost(url: string, body: any = {}): any {
       name_ar: body.name_ar,
       name_en: body.name_en ?? null,
       user_name: USER,
-      branch_name: BRANCH,
+      branch_name: branchLabel(),
     }
     store.cashboxGroups.push(g)
     persist()
@@ -1033,7 +1079,7 @@ function handlePost(url: string, body: any = {}): any {
         account_level: 'فرعي',
         financial_statement: 'الميزانية العمومية',
         created_at: now(),
-        branch_name: BRANCH,
+        branch_name: branchLabel(),
         group_name: 'الأصول',
         parent_name: parent?.name_ar ?? null,
       }
@@ -1054,7 +1100,7 @@ function handlePost(url: string, body: any = {}): any {
       parent_account_id: parentId || null,
       parent_account_name: parentLabel,
       user_name: USER,
-      branch_name: BRANCH,
+      branch_name: branchLabel(),
     }
     store.cashBoxes.push(box)
     persist()
@@ -1069,7 +1115,7 @@ function handlePost(url: string, body: any = {}): any {
       name_ar: body.name_ar,
       name_en: body.name_en ?? null,
       sort_order: body.sort_order != null ? Number(body.sort_order) : maxCode + 1,
-      branch_name: BRANCH,
+      branch_name: branchLabel(),
     }
     store.receiptTypes.push(row)
     persist()
@@ -1084,7 +1130,7 @@ function handlePost(url: string, body: any = {}): any {
       name_ar: body.name_ar,
       name_en: body.name_en ?? null,
       sort_order: body.sort_order != null ? Number(body.sort_order) : maxCode + 1,
-      branch_name: BRANCH,
+      branch_name: branchLabel(),
     }
     store.paymentTypes.push(row)
     persist()
@@ -1099,7 +1145,7 @@ function handlePost(url: string, body: any = {}): any {
       name_ar: body.name_ar,
       name_en: body.name_en ?? null,
       sort_order: body.sort_order != null ? Number(body.sort_order) : maxCode + 1,
-      branch_name: BRANCH,
+      branch_name: branchLabel(),
     }
     store.journalTypes.push(row)
     persist()
@@ -1122,7 +1168,7 @@ function handlePost(url: string, body: any = {}): any {
       ceiling_amount: Number(body.ceiling_amount) || 0,
       account_type: (body.account_nature || body.account_type || 'debit') as 'debit' | 'credit',
       limit_action: (body.exceed_action || body.limit_action || 'block') as 'block' | 'allow' | 'warn',
-      branch_name: BRANCH,
+      branch_name: branchLabel(),
     }
     store.accountCeilings.push(ceiling)
     persist()
@@ -1156,7 +1202,7 @@ function handlePost(url: string, body: any = {}): any {
       created_by: body.created_by || 1,
       branch_id: body.branch_id || 1,
       user_name: USER,
-      branch_name: BRANCH,
+      branch_name: branchLabel(),
       created_at: now(),
       journal_reference_id: body.journal_reference_id ?? null,
     }
@@ -1173,14 +1219,14 @@ function handlePost(url: string, body: any = {}): any {
         journal_date: v.voucher_date.slice(0, 10), currency_id: v.currency_id,
         account_id: cashOrBankAcc, debit: v.amount, credit: 0, notes: v.notes,
         journal_type_id: v.journal_type_id || 1, cost_center_id: null,
-        user_name: USER, branch_name: BRANCH, created_at: now(),
+        user_name: USER, branch_name: branchLabel(), created_at: now(),
       })
       store.journalEntries.push({
         id: nextId('journalEntries'), reference_id: ref, reference_type: 'receipt',
         journal_date: v.voucher_date.slice(0, 10), currency_id: v.currency_id,
         account_id: v.account_id, debit: 0, credit: v.amount, notes: v.notes,
         journal_type_id: v.journal_type_id || 1, cost_center_id: null,
-        user_name: USER, branch_name: BRANCH, created_at: now(),
+        user_name: USER, branch_name: branchLabel(), created_at: now(),
       })
     }
     persist()
@@ -1215,7 +1261,7 @@ function handlePost(url: string, body: any = {}): any {
       created_by: body.created_by || 1,
       branch_id: body.branch_id || 1,
       user_name: USER,
-      branch_name: BRANCH,
+      branch_name: branchLabel(),
       created_at: now(),
       cash_box_name: cashBox?.name_ar,
       bank_name: bank?.name_ar,
@@ -1231,14 +1277,14 @@ function handlePost(url: string, body: any = {}): any {
         journal_date: v.voucher_date.slice(0, 10), currency_id: v.currency_id,
         account_id: v.account_id, debit: v.amount, credit: 0, notes: v.notes,
         journal_type_id: v.journal_type_id || 1, cost_center_id: null,
-        user_name: USER, branch_name: BRANCH, created_at: now(),
+        user_name: USER, branch_name: branchLabel(), created_at: now(),
       })
       store.journalEntries.push({
         id: nextId('journalEntries'), reference_id: ref, reference_type: 'payment',
         journal_date: v.voucher_date.slice(0, 10), currency_id: v.currency_id,
         account_id: cashOrBankAcc, debit: 0, credit: v.amount, notes: v.notes,
         journal_type_id: v.journal_type_id || 1, cost_center_id: null,
-        user_name: USER, branch_name: BRANCH, created_at: now(),
+        user_name: USER, branch_name: branchLabel(), created_at: now(),
       })
     }
     persist()
@@ -1259,7 +1305,7 @@ function handlePost(url: string, body: any = {}): any {
       journal_type_id: Number(body.journal_type_id) || 1,
       cost_center_id: body.cost_center_id ?? null,
       user_name: USER,
-      branch_name: BRANCH,
+      branch_name: branchLabel(),
       created_at: now(),
     }
     store.journalEntries.push(line)
@@ -1355,13 +1401,13 @@ function handlePost(url: string, body: any = {}): any {
       id: nextId('journalEntries'), reference_id: ref, reference_type: 'currency_exchange',
       journal_date: date, currency_id: Number(body.from_currency) || 1,
       account_id: fromAcc, debit: 0, credit: fromAmt, notes,
-      journal_type_id: 1, cost_center_id: null, user_name: USER, branch_name: BRANCH, created_at: now(),
+      journal_type_id: 1, cost_center_id: null, user_name: USER, branch_name: branchLabel(), created_at: now(),
     })
     store.journalEntries.push({
       id: nextId('journalEntries'), reference_id: ref, reference_type: 'currency_exchange',
       journal_date: date, currency_id: Number(body.to_currency) || 1,
       account_id: toAcc, debit: toAmt, credit: 0, notes,
-      journal_type_id: 1, cost_center_id: null, user_name: USER, branch_name: BRANCH, created_at: now(),
+      journal_type_id: 1, cost_center_id: null, user_name: USER, branch_name: branchLabel(), created_at: now(),
     })
     persist()
     return ok({ reference: ref })
@@ -1734,6 +1780,7 @@ async function request(
   bodyOrConfig?: any,
   maybeConfig?: any
 ): Promise<ApiResponse> {
+  syncAccountingStore()
   await Promise.resolve() // microtask — async feel
   try {
     let data: any
@@ -1946,7 +1993,7 @@ export function postBookingCharge(input: {
     journal_type_id: 1,
     cost_center_id: null,
     user_name: USER,
-    branch_name: BRANCH,
+    branch_name: branchLabel(),
     created_at: now(),
   })
   store.journalEntries.push({
@@ -1962,7 +2009,7 @@ export function postBookingCharge(input: {
     journal_type_id: 1,
     cost_center_id: null,
     user_name: USER,
-    branch_name: BRANCH,
+    branch_name: branchLabel(),
     created_at: now(),
   })
   persist()

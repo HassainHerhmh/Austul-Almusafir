@@ -9,6 +9,8 @@ import {
   type ReactNode,
 } from 'react'
 import { ApiError, getToken, setToken, ACCOUNT_SUSPENDED_EVENT } from '../api/client'
+import { clearAccountingScope, setAccountingScopeFromUser } from '../api/accountingScope'
+import { syncAccountingStore } from '../api/accountingApi'
 import {
   asBooking,
   asBranch,
@@ -362,6 +364,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const userList = (users.list ?? []).map(asUser)
     if (!userList.find((u) => u.id === meUser.id)) userList.unshift(meUser)
 
+    setAccountingScopeFromUser({
+      role: meUser.role,
+      branchId: meUser.branchId,
+      branchName: branchList[0]?.name ?? null,
+    })
+    syncAccountingStore()
+
     setState({
       currentUserId: meUser.id,
       branches: branchList,
@@ -455,6 +464,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     setToken(null)
+    clearAccountingScope()
+    syncAccountingStore()
     setState(emptyState())
     setBalances({})
     setApiReady(false)

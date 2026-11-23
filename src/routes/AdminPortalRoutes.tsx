@@ -81,8 +81,8 @@ export function renderAdminPortalRoutes(showAgencyOnly: boolean) {
 
       <Route path="reports" element={<AdminReportsPage />} />
       {showAgencyOnly && <Route path="partner-api" element={<PartnerApiPage />} />}
-      <Route path="settings" element={<SettingsPage />} />
-      <Route path="print-settings" element={<PrintSettingsPage />} />
+      {showAgencyOnly && <Route path="settings" element={<SettingsPage />} />}
+      {showAgencyOnly && <Route path="print-settings" element={<PrintSettingsPage />} />}
     </>
   )
 }

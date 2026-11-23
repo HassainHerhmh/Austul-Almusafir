@@ -81,7 +81,13 @@ const officeLinks: {
   },
 ]
 
-const BRANCH_HIDDEN_SUFFIXES = ['/buses', '/drivers', '/tracking'] as const
+const BRANCH_HIDDEN_SUFFIXES = [
+  '/buses',
+  '/drivers',
+  '/tracking',
+  '/settings',
+  '/print-settings',
+] as const
 
 function buildPortalAdminLinks(base: '/admin' | '/branch', includeAgencyOnly: boolean) {
   return adminLinks

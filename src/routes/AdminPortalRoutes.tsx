@@ -44,13 +44,13 @@ export function renderAdminPortalRoutes(showAgencyOnly: boolean) {
       {showAgencyOnly && <Route path="branches" element={<BranchesPage />} />}
       <Route path="offices" element={<OfficesPage />} />
       <Route path="users" element={<UsersPage />} />
-      <Route path="buses" element={<BusesPage />} />
-      <Route path="drivers" element={<DriversPage />} />
+      {showAgencyOnly && <Route path="buses" element={<BusesPage />} />}
+      {showAgencyOnly && <Route path="drivers" element={<DriversPage />} />}
       <Route path="destinations" element={<DestinationsPage />} />
       <Route path="visa-types" element={<VisaTypesPage />} />
       <Route path="trips" element={<TripsPage />} />
       <Route path="bookings" element={<AdminBookingsPage />} />
-      <Route path="tracking" element={<AdminTrackingPage />} />
+      {showAgencyOnly && <Route path="tracking" element={<AdminTrackingPage />} />}
 
       <Route path="accounts" element={<Accounting />}>
         <Route index element={<Navigate to="setup/accounts" replace />} />

@@ -336,11 +336,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
           : Promise.resolve(null),
       serverApi.offices.list(),
       serverApi.users.list(),
-      serverApi.destinations.list(),
+      serverApi.destinations.list().catch(() => ({ list: [] as any[] })),
       serverApi.visaTypes.list().catch(() => ({ list: [] as any[] })),
-      serverApi.buses.list(),
-      serverApi.drivers.list(),
-      serverApi.trips.list(),
+      isBranchUser
+        ? Promise.resolve({ list: [] as any[] })
+        : serverApi.buses.list().catch(() => ({ list: [] as any[] })),
+      isBranchUser
+        ? Promise.resolve({ list: [] as any[] })
+        : serverApi.drivers.list().catch(() => ({ list: [] as any[] })),
+      serverApi.trips.list().catch(() => ({ list: [] as any[] })),
       serverApi.bookings.list(),
       serverApi.customers.list(),
       isBranchUser

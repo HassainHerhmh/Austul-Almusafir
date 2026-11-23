@@ -21,5 +21,13 @@ CREATE INDEX `Office_branchId_idx` ON `Office` (`branchId`);
 ALTER TABLE `User` ADD COLUMN `branchId` VARCHAR(191) NULL;
 CREATE INDEX `User_branchId_idx` ON `User` (`branchId`);
 
+-- المرحلة 3 — branchId على الأسطول والحسابات (تجاهل إن وُجد العمود)
+ALTER TABLE `Bus` ADD COLUMN `branchId` VARCHAR(191) NULL;
+ALTER TABLE `Driver` ADD COLUMN `branchId` VARCHAR(191) NULL;
+ALTER TABLE `Trip` ADD COLUMN `branchId` VARCHAR(191) NULL;
+ALTER TABLE `Destination` ADD COLUMN `branchId` VARCHAR(191) NULL;
+ALTER TABLE `VisaType` ADD COLUMN `branchId` VARCHAR(191) NULL;
+ALTER TABLE `Account` ADD COLUMN `branchId` VARCHAR(191) NULL;
+
 -- تحقق سريع
 SELECT id, username, branchId FROM `User` WHERE username = 'admin' LIMIT 1;

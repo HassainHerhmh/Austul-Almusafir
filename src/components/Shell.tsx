@@ -81,11 +81,19 @@ const officeLinks: {
   },
 ]
 
+const BRANCH_HIDDEN_SUFFIXES = ['/buses', '/drivers', '/tracking'] as const
+
 function buildPortalAdminLinks(base: '/admin' | '/branch', includeAgencyOnly: boolean) {
   return adminLinks
     .filter((l) => {
       if (!includeAgencyOnly && l.to.includes('/branches')) return false
       if (!includeAgencyOnly && l.to.includes('/partner-api')) return false
+      if (
+        !includeAgencyOnly &&
+        BRANCH_HIDDEN_SUFFIXES.some((s) => l.to === `/admin${s}`)
+      ) {
+        return false
+      }
       return true
     })
     .map((l) => ({

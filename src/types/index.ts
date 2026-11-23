@@ -123,9 +123,13 @@ export interface Trip {
   /** تسعيرة هذه الرحلة: سعر الرحلة أو سعر منطقة الصعود (للركاب) */
   pricingMode: PricingMode
   date: string
+  /** وقت حضور الركاب (HH:mm) */
+  checkInTime: string
   departureTime: string
   /** سعر التذكرة أو إجمالي الحملة */
   price: number
+  /** سعر الطفل — null يعني نفس سعر البالغ */
+  childPrice: number | null
   status: TripStatus
   /** محطات متسلسلة: عدن ← عتق ← شرورة ← مكة */
   stops: TripStop[]

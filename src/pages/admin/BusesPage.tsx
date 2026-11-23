@@ -265,13 +265,16 @@ export function BusesPage() {
                   />
                 </div>
                 <div className="field">
-                  <label>النوع</label>
-                  <input
+                  <label>نوع الباص</label>
+                  <select
                     required
-                    value={form.type}
+                    value={form.type || 'عادي'}
                     onChange={(e) => setForm({ ...form, type: e.target.value })}
-                    placeholder="مثال: زونج تونج"
-                  />
+                  >
+                    <option value="عادي">عادي</option>
+                    <option value="سياحي">سياحي</option>
+                    <option value="سياحي (VIP)">سياحي (VIP)</option>
+                  </select>
                 </div>
                 <div className="field">
                   <label>موديل الحافلة</label>

@@ -1,0 +1,107 @@
+import type { ReactNode } from 'react'
+import type { Trip } from '../types'
+import { formatDateAr, formatMoney, formatTimeAr } from './utils'
+import { busTypeLabel } from '../utils/busDisplay'
+import { tripRoutePoints } from '../utils/trip'
+
+type SeatInfo = { remaining: number; booked: number; total: number }
+
+type Props = {
+  trip: Trip
+  title: string
+  busType?: string
+  seats?: SeatInfo
+  badges?: ReactNode
+  action?: ReactNode
+  footer?: ReactNode
+}
+
+export function TripOfferCard({ trip, title, busType, seats, badges, action, footer }: Props) {
+  const route = tripRoutePoints(trip) || title
+  const isCampaign = trip.tripKind === 'campaign'
+  const childPrice =
+    !isCampaign && trip.childPrice != null && trip.childPrice >= 0 ? trip.childPrice : trip.price
+  const adultLabel = isCampaign
+    ? 'حملة'
+    : trip.pricingMode === 'boarding'
+      ? 'حسب الصعود'
+      : formatMoney(trip.price)
+
+  const stops = trip.stops?.map((s) => s.point).filter(Boolean) ?? []
+  const fromStop = stops[0] ?? '—'
+  const toStop = stops.length > 1 ? stops[stops.length - 1] : '—'
+
+  return (
+    <article className="trip-offer-card">
+      <header className="trip-offer-head">
+        <h3 className="trip-offer-title">{title}</h3>
+        {badges ? <div className="trip-offer-badges">{badges}</div> : null}
+      </header>
+
+      <div className="trip-offer-body">
+        <div className="trip-offer-route">
+          <div aria-hidden className="trip-offer-timeline">
+            <span className="trip-offer-dot" />
+            <span className="trip-offer-line" />
+            <span className="trip-offer-dot" />
+          </div>
+          <div className="trip-offer-stops">
+            <span>{fromStop}</span>
+            <span>{toStop}</span>
+          </div>
+          <p className="trip-offer-route-detail">{route}</p>
+        </div>
+
+        <div className="trip-offer-schedule">
+          <div className="trip-offer-time-row">
+            <span className="trip-offer-time-label">وقت الحضور</span>
+            <strong className="trip-offer-time-value">
+              {formatTimeAr(trip.checkInTime || trip.departureTime)}
+            </strong>
+          </div>
+          <p className="trip-offer-date">{formatDateAr(trip.date)}</p>
+          <div className="trip-offer-time-row">
+            <span className="trip-offer-time-label">وقت الانطلاق</span>
+            <strong className="trip-offer-time-value accent">
+              {formatTimeAr(trip.departureTime)}
+            </strong>
+          </div>
+          {seats ? (
+            <p className="trip-offer-seats">
+              المقاعد المتبقية <strong>{seats.remaining}</strong>
+              <span className="trip-offer-seats-sub">
+                {' '}
+                (محجوز {seats.booked} / {seats.total})
+              </span>
+            </p>
+          ) : null}
+          <span className="trip-offer-bus badge badge-info">{busTypeLabel(busType)}</span>
+        </div>
+
+        <div className="trip-offer-pricing">
+          {!isCampaign ? (
+            <>
+              <div className="trip-offer-price-row">
+                <span aria-hidden>👤</span>
+                <span>بالغ</span>
+                <strong>{adultLabel}</strong>
+              </div>
+              <div className="trip-offer-price-row child">
+                <span aria-hidden>🧒</span>
+                <span>طفل</span>
+                <strong>{formatMoney(childPrice)}</strong>
+              </div>
+            </>
+          ) : (
+            <div className="trip-offer-price-row">
+              <strong>{adultLabel}</strong>
+            </div>
+          )}
+          {action ? <div className="trip-offer-action">{action}</div> : null}
+        </div>
+      </div>
+
+      {footer ? <footer className="trip-offer-foot">{footer}</footer> : null}
+    </article>
+  )
+}

@@ -45,6 +45,18 @@ export function formatTimeAr(time: string | null | undefined) {
 }
 
 /** تاريخ محلي YYYY-MM-DD (يتجنب فرق توقيت UTC) */
+export function formatDateAr(isoDate: string | null | undefined) {
+  if (!isoDate) return '—'
+  const d = new Date(`${isoDate}T12:00:00`)
+  if (Number.isNaN(d.getTime())) return isoDate
+  return d.toLocaleDateString('ar-SA', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  })
+}
+
 export function todayStr() {
   const d = new Date()
   const y = d.getFullYear()

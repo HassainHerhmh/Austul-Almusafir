@@ -807,8 +807,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
             ? 'boarding'
             : 'trip',
       date: trip.date,
+      checkInTime: trip.checkInTime ?? '',
       departureTime: trip.departureTime,
       price: trip.price,
+      childPrice: trip.tripKind === 'passenger' ? trip.childPrice ?? null : null,
       status: trip.status,
       stops: trip.stops,
     }

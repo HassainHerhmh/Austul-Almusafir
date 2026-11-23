@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { TripOfferCard } from '../../components/TripOfferCard'
 import { SeatMap } from '../../components/SeatMap'
 import { TicketView } from '../../components/TicketView'
 import { PAYMENT_LABELS, formatMoney, formatTimeAr, todayStr } from '../../components/utils'
@@ -39,6 +40,7 @@ export function OfficeBookingsPage() {
     can,
     getTripLabel,
     getTripSeats,
+    getBus,
     getDestination,
     getDriver,
     createBooking,
@@ -441,6 +443,15 @@ export function OfficeBookingsPage() {
               </div>
             )}
           </div>
+
+          {selectedTrip && (
+            <TripOfferCard
+              trip={selectedTrip}
+              title={getTripLabel(selectedTrip)}
+              busType={getBus(selectedTrip.busId)?.type}
+              seats={seats ?? undefined}
+            />
+          )}
 
           <form onSubmit={(e) => void submit(e)}>
             <div className="form-grid">

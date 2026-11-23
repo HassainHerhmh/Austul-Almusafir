@@ -151,9 +151,13 @@ model Trip {
   /** trip = سعر الرحلة · boarding = سعر منطقة الصعود (لرحلات الركاب) */
   pricingMode        String     @default("trip")
   date               String
+  /** وقت حضور الركاب قبل الانطلاق (HH:mm) */
+  checkInTime        String     @default("")
   departureTime      String
   /** سعر التذكرة (ركاب) أو إجمالي سعر الحملة */
   price              Float
+  /** سعر تذكرة الطفل — null = نفس سعر البالغ */
+  childPrice         Float?
   status             String     @default("scheduled")
   stops              TripStop[]
   bookings           Booking[]

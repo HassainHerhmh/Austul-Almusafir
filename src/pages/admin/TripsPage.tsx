@@ -13,8 +13,10 @@ type TripForm = {
   campaignOfficeId: string
   pricingMode: PricingMode
   date: string
+  checkInTime: string
   departureTime: string
   price: number
+  childPrice: number | null
   status: TripStatus
   stops: TripStop[]
 }
@@ -28,8 +30,10 @@ const emptyForm = (): TripForm => ({
   campaignOfficeId: '',
   pricingMode: 'trip',
   date: todayStr(),
+  checkInTime: '07:00',
   departureTime: '08:00',
   price: 10000,
+  childPrice: null,
   status: 'scheduled',
   stops: [emptyStop(), emptyStop()],
 })
@@ -148,8 +152,10 @@ export function TripsPage() {
       campaignOfficeId: t.campaignOfficeId ?? '',
       pricingMode: t.pricingMode === 'boarding' ? 'boarding' : 'trip',
       date: t.date,
+      checkInTime: t.checkInTime || t.departureTime,
       departureTime: t.departureTime,
       price: t.price,
+      childPrice: t.childPrice ?? null,
       status: t.status,
       stops: t.stops.map((s) => ({ ...s })),
     })
@@ -470,6 +476,15 @@ export function TripsPage() {
                   />
                 </div>
                 <div className="field">
+                  <label>وقت الحضور</label>
+                  <input
+                    type="time"
+                    required
+                    value={form.checkInTime}
+                    onChange={(e) => setForm({ ...form, checkInTime: e.target.value })}
+                  />
+                </div>
+                <div className="field">
                   <label>وقت الانطلاق</label>
                   <input
                     type="time"
@@ -621,16 +636,34 @@ export function TripsPage() {
                       </div>
                     </div>
                     {form.pricingMode === 'trip' && (
-                      <div className="field">
-                        <label>سعر التذكرة</label>
-                        <input
-                          type="number"
-                          min={0}
-                          required
-                          value={form.price}
-                          onChange={(e) => setForm({ ...form, price: Number(e.target.value) })}
-                        />
-                      </div>
+                      <>
+                        <div className="field">
+                          <label>سعر التذكرة (بالغ)</label>
+                          <input
+                            type="number"
+                            min={0}
+                            required
+                            value={form.price}
+                            onChange={(e) => setForm({ ...form, price: Number(e.target.value) })}
+                          />
+                        </div>
+                        <div className="field">
+                          <label>سعر الطفل</label>
+                          <input
+                            type="number"
+                            min={0}
+                            placeholder="فارغ = نفس البالغ"
+                            value={form.childPrice ?? ''}
+                            onChange={(e) => {
+                              const v = e.target.value.trim()
+                              setForm({
+                                ...form,
+                                childPrice: v === '' ? null : Number(v),
+                              })
+                            }}
+                          />
+                        </div>
+                      </>
                     )}
                   </>
                 )}

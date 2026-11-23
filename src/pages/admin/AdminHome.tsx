@@ -1,10 +1,19 @@
 import { useEffect } from 'react'
+import { TripOfferCard } from '../../components/TripOfferCard'
 import { useApp } from '../../context/AppContext'
-import { formatMoney, formatTimeAr, todayStr } from '../../components/utils'
+import { formatMoney, todayStr } from '../../components/utils'
 
 export function AdminHome() {
-  const { state, getTripLabel, getTripSeats, getOffice, isBranchAdmin, currentBranch, ensureTripSeats } =
-    useApp()
+  const {
+    state,
+    getTripLabel,
+    getTripSeats,
+    getOffice,
+    getBus,
+    isBranchAdmin,
+    currentBranch,
+    ensureTripSeats,
+  } = useApp()
   const today = todayStr()
   const todayTrips = state.trips.filter((t) => t.date === today && t.status === 'open')
 
@@ -59,25 +68,16 @@ export function AdminHome() {
           {todayTrips.length === 0 && <div className="empty">لا توجد رحلات اليوم</div>}
           {todayTrips.map((trip) => {
             const seats = getTripSeats(trip.id)
+            const bus = getBus(trip.busId)
             return (
-              <div key={trip.id} className="trip-row">
-                <div>
-                  <h3>{getTripLabel(trip)}</h3>
-                  <div className="trip-meta">
-                    <span>{formatTimeAr(trip.departureTime)}</span>
-                    <span>{trip.stops.map((s) => s.point).filter(Boolean).join(' ← ')}</span>
-                    <span>{formatMoney(trip.price)}</span>
-                  </div>
-                </div>
-                <div style={{ textAlign: 'left' }}>
-                  <div>
-                    <span className="badge badge-ok">متبقي {seats.remaining}</span>
-                  </div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--muted)', marginTop: 4 }}>
-                    محجوز {seats.booked} / {seats.total}
-                  </div>
-                </div>
-              </div>
+              <TripOfferCard
+                key={trip.id}
+                trip={trip}
+                title={getTripLabel(trip)}
+                busType={bus?.type}
+                seats={seats}
+                badges={<span className="badge badge-ok">مفتوحة</span>}
+              />
             )
           })}
         </div>

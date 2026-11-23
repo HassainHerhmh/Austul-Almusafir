@@ -37,8 +37,10 @@ function mapTrip(t: {
   campaignOfficeId: string | null
   pricingMode: string
   date: string
+  checkInTime: string
   departureTime: string
   price: number
+  childPrice: number | null
   status: string
   stops: { destinationId: string; point: string; sortOrder: number }[]
 }) {
@@ -52,8 +54,10 @@ function mapTrip(t: {
     campaignOfficeId: t.campaignOfficeId ?? null,
     pricingMode: t.pricingMode === 'boarding' ? 'boarding' : 'trip',
     date: t.date,
+    checkInTime: t.checkInTime ?? '',
     departureTime: t.departureTime,
     price: t.price,
+    childPrice: t.childPrice ?? null,
     status: t.status,
     stops: [...t.stops]
       .sort((a, b) => a.sortOrder - b.sortOrder)
@@ -172,8 +176,10 @@ tripsRouter.post(
         campaignOfficeId: z.string().nullable().optional(),
         pricingMode: z.enum(['trip', 'boarding']).optional(),
         date: z.string().min(1),
+        checkInTime: z.string().optional(),
         departureTime: z.string().min(1),
         price: z.number().min(0),
+        childPrice: z.number().min(0).nullable().optional(),
         status: TRIP_STATUS.optional(),
         stops: z.array(stopSchema).min(2),
       })
@@ -228,8 +234,11 @@ tripsRouter.post(
         campaignOfficeId,
         pricingMode,
         date: body.data.date,
+        checkInTime: body.data.checkInTime?.trim() ?? '',
         departureTime: body.data.departureTime,
         price: body.data.price,
+        childPrice:
+          tripKind === 'passenger' && body.data.childPrice != null ? body.data.childPrice : null,
         status: body.data.status ?? 'scheduled',
         stops: {
           create: body.data.stops.map((s, i) => ({
@@ -262,16 +271,26 @@ tripsRouter.put(
         campaignOfficeId: z.string().nullable().optional(),
         pricingMode: z.enum(['trip', 'boarding']).optional(),
         date: z.string().min(1).optional(),
+        checkInTime: z.string().optional(),
         departureTime: z.string().min(1).optional(),
         price: z.number().min(0).optional(),
+        childPrice: z.number().min(0).nullable().optional(),
         status: TRIP_STATUS.optional(),
         stops: z.array(stopSchema).min(2).optional(),
       })
       .safeParse(req.body)
     if (!body.success) return fail(res, 'بيانات غير صالحة')
 
-    const { stops, assistantName, assistantPhone, pricingMode, tripKind, campaignOfficeId, ...rest } =
-      body.data
+    const {
+      stops,
+      assistantName,
+      assistantPhone,
+      pricingMode,
+      tripKind,
+      campaignOfficeId,
+      childPrice,
+      ...rest
+    } = body.data
     if (stops) {
       await prisma.tripStop.deleteMany({ where: { tripId: paramId(req) } })
       await prisma.tripStop.createMany({
@@ -338,6 +357,10 @@ tripsRouter.put(
       where: { id: paramId(req) },
       data: {
         ...rest,
+        ...(rest.checkInTime !== undefined ? { checkInTime: rest.checkInTime.trim() } : {}),
+        ...(childPrice !== undefined
+          ? { childPrice: nextKind === 'passenger' ? childPrice : null }
+          : {}),
         ...(assistantName !== undefined ? { assistantName: assistantName.trim() } : {}),
         ...(assistantPhone !== undefined ? { assistantPhone: assistantPhone.trim() } : {}),
         ...(tripKind !== undefined ? { tripKind: nextKind } : {}),

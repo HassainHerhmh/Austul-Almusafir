@@ -62,8 +62,13 @@ export function normalizeTrip(trip: LegacyTrip): Trip {
     campaignOfficeId: trip.campaignOfficeId?.trim() ? trip.campaignOfficeId : null,
     pricingMode: trip.pricingMode === 'boarding' ? 'boarding' : 'trip',
     date: trip.date,
+    checkInTime: trip.checkInTime ?? '',
     departureTime: trip.departureTime,
     price: trip.price,
+    childPrice:
+      trip.childPrice != null && Number.isFinite(Number(trip.childPrice))
+        ? Number(trip.childPrice)
+        : null,
     status: (['scheduled', 'open', 'closed', 'departed', 'cancelled', 'completed'] as const).includes(
       trip.status as never,
     )

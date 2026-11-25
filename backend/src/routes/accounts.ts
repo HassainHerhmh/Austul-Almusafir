@@ -185,6 +185,8 @@ accountsRouter.get(
           return 'سند قبض'
         case 'payment':
           return 'سند صرف'
+        case 'bus_maintenance':
+          return 'صيانة حافلة'
         default:
           return t
       }

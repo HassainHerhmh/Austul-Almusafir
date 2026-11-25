@@ -201,6 +201,7 @@ settingsRouter.post(
 type TransitValue = {
   office_commissions_account: number | null
   ticket_revenue_account: number | null
+  bus_maintenance_account: number | null
 }
 
 async function validateSubAccount(accountId: number | null) {
@@ -224,6 +225,7 @@ async function validateSubAccount(accountId: number | null) {
 async function saveTransit(input: {
   office_commissions_account?: number | null
   ticket_revenue_account?: number | null
+  bus_maintenance_account?: number | null
 }) {
   const existing = await prisma.appSetting.findUnique({ where: { key: TRANSIT_KEY } })
   const prev = (existing?.value as Partial<TransitValue> | null) ?? {}
@@ -236,6 +238,10 @@ async function saveTransit(input: {
     input.ticket_revenue_account !== undefined
       ? input.ticket_revenue_account
       : (prev.ticket_revenue_account ?? null)
+  let maintenanceId =
+    input.bus_maintenance_account !== undefined
+      ? input.bus_maintenance_account
+      : (prev.bus_maintenance_account ?? null)
 
   if (input.office_commissions_account !== undefined) {
     const v = await validateSubAccount(commissionsId)
@@ -249,9 +255,16 @@ async function saveTransit(input: {
     ticketId = v.accountId
   }
 
+  if (input.bus_maintenance_account !== undefined) {
+    const v = await validateSubAccount(maintenanceId)
+    if (!v.ok) return v
+    maintenanceId = v.accountId
+  }
+
   const value: TransitValue = {
     office_commissions_account: commissionsId,
     ticket_revenue_account: ticketId,
+    bus_maintenance_account: maintenanceId,
   }
   await prisma.appSetting.upsert({
     where: { key: TRANSIT_KEY },
@@ -270,6 +283,7 @@ settingsRouter.get(
       data: {
         office_commissions_account: raw?.office_commissions_account ?? null,
         ticket_revenue_account: raw?.ticket_revenue_account ?? null,
+        bus_maintenance_account: raw?.bus_maintenance_account ?? null,
       },
     })
   }),
@@ -278,6 +292,7 @@ settingsRouter.get(
 const transitBody = z.object({
   office_commissions_account: z.number().int().positive().nullable().optional(),
   ticket_revenue_account: z.number().int().positive().nullable().optional(),
+  bus_maintenance_account: z.number().int().positive().nullable().optional(),
 })
 
 settingsRouter.put(

@@ -466,16 +466,19 @@ export const serverApi = {
           data: {
             office_commissions_account: number | null
             ticket_revenue_account: number | null
+            bus_maintenance_account: number | null
           }
         }>('/api/settings/transit-accounts'),
       save: (data: {
         office_commissions_account?: number | null
         ticket_revenue_account?: number | null
+        bus_maintenance_account?: number | null
       }) =>
         apiRequest<{
           data: {
             office_commissions_account: number | null
             ticket_revenue_account: number | null
+            bus_maintenance_account: number | null
           }
         }>('/api/settings/transit-accounts', {
           method: 'POST',
@@ -818,6 +821,87 @@ export const serverApi = {
         speed?: number | null
         heading?: number | null
       }>(`/api/tracking/public/${encodeURIComponent(token)}`),
+  },
+
+  maintenance: {
+    stats: {
+      get: () =>
+        apiRequest<{ repairTypes: number; spareParts: number; expenses: number }>(
+          '/api/maintenance/stats',
+        ),
+    },
+    repairTypes: {
+      list: () => apiRequest<{ list: { id: string; name: string }[] }>('/api/maintenance/repair-types'),
+      create: (data: { name: string }) =>
+        apiRequest<{ repairType: { id: string; name: string } }>('/api/maintenance/repair-types', {
+          method: 'POST',
+          body: JSON.stringify(data),
+        }),
+      update: (id: string, data: { name: string }) =>
+        apiRequest<{ repairType: { id: string; name: string } }>(
+          `/api/maintenance/repair-types/${id}`,
+          { method: 'PUT', body: JSON.stringify(data) },
+        ),
+      remove: (id: string) =>
+        apiRequest<{ deleted: boolean }>(`/api/maintenance/repair-types/${id}`, {
+          method: 'DELETE',
+        }),
+    },
+    spareParts: {
+      list: () => apiRequest<{ list: any[] }>('/api/maintenance/spare-parts'),
+      create: (data: { name: string; partCode?: string; unitPrice?: number }) =>
+        apiRequest<{ sparePart: any }>('/api/maintenance/spare-parts', {
+          method: 'POST',
+          body: JSON.stringify(data),
+        }),
+      update: (id: string, data: { name: string; partCode?: string; unitPrice?: number }) =>
+        apiRequest<{ sparePart: any }>(`/api/maintenance/spare-parts/${id}`, {
+          method: 'PUT',
+          body: JSON.stringify(data),
+        }),
+      remove: (id: string) =>
+        apiRequest<{ deleted: boolean }>(`/api/maintenance/spare-parts/${id}`, {
+          method: 'DELETE',
+        }),
+    },
+    expenses: {
+      list: () => apiRequest<{ list: any[] }>('/api/maintenance/expenses'),
+      create: (data: {
+        busId: string
+        repairTypeId: string
+        maintenanceDate: string
+        costBeforeDiscount: number
+        discountType?: 'none' | 'percent' | 'fixed'
+        discountValue?: number
+        notes?: string
+        creditAccountId?: number | null
+      }) =>
+        apiRequest<{ expense: any }>('/api/maintenance/expenses', {
+          method: 'POST',
+          body: JSON.stringify(data),
+        }),
+      update: (
+        id: string,
+        data: {
+          busId: string
+          repairTypeId: string
+          maintenanceDate: string
+          costBeforeDiscount: number
+          discountType?: 'none' | 'percent' | 'fixed'
+          discountValue?: number
+          notes?: string
+          creditAccountId?: number | null
+        },
+      ) =>
+        apiRequest<{ expense: any }>(`/api/maintenance/expenses/${id}`, {
+          method: 'PUT',
+          body: JSON.stringify(data),
+        }),
+      remove: (id: string) =>
+        apiRequest<{ deleted: boolean }>(`/api/maintenance/expenses/${id}`, {
+          method: 'DELETE',
+        }),
+    },
   },
 
   partnerKeys: {

@@ -35,7 +35,10 @@ const COMMISSION_EXPENSE_NAME = 'عمولات المكاتب'
 type TransitSettings = {
   office_commissions_account?: number | null
   ticket_revenue_account?: number | null
+  bus_maintenance_account?: number | null
 }
+
+const BUS_MAINTENANCE_TRANSIT_NAME = 'وسيط صيانات الحافلات'
 
 async function readTransitSettings(): Promise<TransitSettings> {
   const setting = await prisma.appSetting.findUnique({ where: { key: 'transit_accounts' } })
@@ -88,6 +91,90 @@ export async function ensureCommissionsTransitAccount() {
     throw new Error('حساب عمولات المكاتب غير موجود — أضفه يدوياً من دليل الحسابات أو الحسابات الوسيطة')
   }
   return id
+}
+
+/** حساب وسيط/مصروف صيانات الحافلات — يُضبط من الحسابات الوسيطة */
+export async function resolveBusMaintenanceTransitAccount(): Promise<number | null> {
+  const configuredId = (await readTransitSettings()).bus_maintenance_account
+  if (configuredId) {
+    const configured = await prisma.account.findUnique({ where: { id: configuredId } })
+    if (configured) return configured.id
+  }
+
+  const existing = await prisma.account.findFirst({
+    where: { nameAr: BUS_MAINTENANCE_TRANSIT_NAME },
+  })
+
+  return existing?.id ?? null
+}
+
+export function busMaintenanceJournalRef(maintenanceId: string): number {
+  let h = 3141592653
+  for (let i = 0; i < maintenanceId.length; i++) {
+    h ^= maintenanceId.charCodeAt(i)
+    h = Math.imul(h, 2246822519)
+  }
+  return Math.abs(h) || 1
+}
+
+export async function postBusMaintenanceJournal(input: {
+  maintenanceId: string
+  creditAccountId: number
+  amount: number
+  maintenanceDate: string
+  busLabel: string
+  repairTypeName: string
+  notes: string
+}) {
+  if (input.amount <= 0) return null
+
+  const debitId = await resolveBusMaintenanceTransitAccount()
+  if (!debitId) {
+    throw new Error(
+      'حساب وسيط صيانات الحافلات غير موجود — أنشئه من دليل الحسابات واضبطه من الحسابات الوسيطة',
+    )
+  }
+
+  const ref = busMaintenanceJournalRef(input.maintenanceId)
+  const noteText =
+    `صيانة حافلة ${input.busLabel} — ${input.repairTypeName}` +
+    (input.notes?.trim() ? ` — ${input.notes.trim()}` : '')
+
+  await prisma.journalLine.deleteMany({
+    where: { referenceType: 'bus_maintenance', referenceId: ref },
+  })
+
+  await prisma.journalLine.createMany({
+    data: [
+      {
+        referenceId: ref,
+        referenceType: 'bus_maintenance',
+        journalDate: input.maintenanceDate,
+        accountId: debitId,
+        debit: input.amount,
+        credit: 0,
+        notes: noteText,
+      },
+      {
+        referenceId: ref,
+        referenceType: 'bus_maintenance',
+        journalDate: input.maintenanceDate,
+        accountId: input.creditAccountId,
+        debit: 0,
+        credit: input.amount,
+        notes: noteText,
+      },
+    ],
+  })
+
+  return ref
+}
+
+export async function removeBusMaintenanceJournal(maintenanceId: string) {
+  const ref = busMaintenanceJournalRef(maintenanceId)
+  await prisma.journalLine.deleteMany({
+    where: { referenceType: 'bus_maintenance', referenceId: ref },
+  })
 }
 
 /** ربط ذمة مكتب موجود بالاسم فقط — بدون إنشاء */

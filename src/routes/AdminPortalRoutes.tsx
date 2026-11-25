@@ -35,6 +35,10 @@ import { UsersPage } from '../pages/admin/UsersPage'
 import { SettingsPage } from '../pages/admin/SettingsPage'
 import { PartnerApiPage } from '../pages/admin/PartnerApiPage'
 import { PrintSettingsPage } from '../pages/admin/PrintSettingsPage'
+import { MaintenanceLayout } from '../pages/admin/maintenance/MaintenanceLayout'
+import { RepairTypesPage } from '../pages/admin/maintenance/RepairTypesPage'
+import { SparePartsPage } from '../pages/admin/maintenance/SparePartsPage'
+import { BusMaintenanceExpensesPage } from '../pages/admin/maintenance/BusMaintenanceExpensesPage'
 
 /** مسارات لوحة الإدارة — يجب استدعاؤها كـ {renderAdminPortalRoutes(...)} داخل <Route> وليس كمكوّن */
 export function renderAdminPortalRoutes(showAgencyOnly: boolean) {
@@ -51,6 +55,15 @@ export function renderAdminPortalRoutes(showAgencyOnly: boolean) {
       <Route path="trips" element={<TripsPage />} />
       <Route path="bookings" element={<AdminBookingsPage />} />
       {showAgencyOnly && <Route path="tracking" element={<AdminTrackingPage />} />}
+
+      {showAgencyOnly && (
+        <Route path="maintenance" element={<MaintenanceLayout />}>
+          <Route index element={<Navigate to="expenses" replace />} />
+          <Route path="repair-types" element={<RepairTypesPage />} />
+          <Route path="spare-parts" element={<SparePartsPage />} />
+          <Route path="expenses" element={<BusMaintenanceExpensesPage />} />
+        </Route>
+      )}
 
       <Route path="accounts" element={<Accounting />}>
         <Route index element={<Navigate to="setup/accounts" replace />} />

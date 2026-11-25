@@ -24,6 +24,7 @@ import {
   Banknote,
   Stamp,
   Link2,
+  Wrench,
   X,
   type LucideIcon,
 } from 'lucide-react'
@@ -41,6 +42,7 @@ const adminLinks: { to: string; end?: boolean; label: string; icon: LucideIcon }
   { to: '/admin/offices', label: 'المكاتب', icon: Building2 },
   { to: '/admin/users', label: 'المستخدمون', icon: Users },
   { to: '/admin/buses', label: 'الباصات', icon: Bus },
+  { to: '/admin/maintenance', label: 'صيانات الحافلات', icon: Wrench },
   { to: '/admin/drivers', label: 'السائقون', icon: UserCircle2 },
   { to: '/admin/destinations', label: 'الوجهات', icon: MapPin },
   { to: '/admin/visa-types', label: 'أنواع التأشيرات', icon: Stamp },
@@ -84,6 +86,7 @@ const officeLinks: {
 
 const BRANCH_HIDDEN_SUFFIXES = [
   '/buses',
+  '/maintenance',
   '/drivers',
   '/tracking',
   '/settings',

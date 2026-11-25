@@ -26,6 +26,9 @@ model Branch {
   destinations      Destination[]
   visaTypes         VisaType[]
   accounts          Account[]
+  repairTypes       RepairType[]
+  spareParts        SparePart[]
+  busMaintenances   BusMaintenanceExpense[]
 }
 
 model Office {
@@ -112,8 +115,56 @@ model Bus {
   branchId    String?
   branch      Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
   trips       Trip[]
+  maintenances BusMaintenanceExpense[]
 
   @@index([branchId])
+}
+
+model RepairType {
+  id           String                  @id @default(cuid())
+  name         String
+  branchId     String?
+  branch       Branch?                 @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  createdAt    DateTime                @default(now())
+  maintenances BusMaintenanceExpense[]
+
+  @@index([branchId])
+}
+
+model SparePart {
+  id        String   @id @default(cuid())
+  name      String
+  partCode  String   @default("")
+  unitPrice Float    @default(0)
+  branchId  String?
+  branch    Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+
+  @@index([branchId])
+}
+
+model BusMaintenanceExpense {
+  id                   String     @id @default(cuid())
+  busId                String
+  bus                  Bus        @relation(fields: [busId], references: [id])
+  repairTypeId         String
+  repairType           RepairType @relation(fields: [repairTypeId], references: [id])
+  maintenanceDate      String
+  costBeforeDiscount   Float      @default(0)
+  discountType         String     @default("none")
+  discountValue        Float      @default(0)
+  finalCost            Float      @default(0)
+  notes                String     @default("") @db.VarChar(500)
+  creditAccountId      Int?
+  branchId             String?
+  branch               Branch?    @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  journalReferenceId   Int?
+  createdAt            DateTime   @default(now())
+
+  @@index([branchId])
+  @@index([busId])
+  @@index([repairTypeId])
+  @@index([maintenanceDate])
 }
 
 model Driver {

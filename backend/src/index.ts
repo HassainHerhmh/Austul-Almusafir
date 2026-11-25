@@ -4,6 +4,7 @@ import { config, prisma } from './config'
 import { ensureBookingNumbers } from './services/bookingNumber'
 import { ensureDatabaseSchema } from './services/ensureSchema'
 import { ensureBranchColumnsRaw } from './services/ensureSchemaColumns'
+import { ensurePrismaConnected } from './services/dbBootstrap'
 import { logger } from './utils/logger'
 
 async function migrateLegacyBookableTrips() {
@@ -26,16 +27,21 @@ const app = createApp()
 
 async function bootstrap() {
   ensureDatabaseSchema()
-  try {
-    await ensureBranchColumnsRaw()
-  } catch (err) {
-    logger.error('db-columns', err)
-  }
-  try {
-    await migrateLegacyBookableTrips()
-    await ensureBookingNumbers()
-  } catch (err) {
-    logger.error('migration', err)
+  const dbOk = await ensurePrismaConnected()
+  if (dbOk) {
+    try {
+      await ensureBranchColumnsRaw()
+    } catch (err) {
+      logger.error('db-columns', err)
+    }
+    try {
+      await migrateLegacyBookableTrips()
+      await ensureBookingNumbers()
+    } catch (err) {
+      logger.error('migration', err)
+    }
+  } else {
+    logger.warn('db-bootstrap', 'API يعمل بدون قاعدة بيانات حتى يُصلح الاتصال')
   }
   app.listen(config.port, '0.0.0.0', () => {
     if (config.isProduction) logger.info('API ready')

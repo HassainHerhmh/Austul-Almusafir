@@ -41,6 +41,48 @@ CREATE INDEX `Account_branchId_idx` ON `Account` (`branchId`);
 ALTER TABLE `Account` DROP INDEX `Account_code_key`;
 ALTER TABLE `Account` ADD UNIQUE INDEX `Account_code_branchId_key` (`code`, `branchId`);
 
+-- صيانات الحافلات (إن لم يُنشئها prisma db push)
+CREATE TABLE IF NOT EXISTS `RepairType` (
+  `id` VARCHAR(191) NOT NULL,
+  `name` VARCHAR(191) NOT NULL,
+  `branchId` VARCHAR(191) NULL,
+  `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (`id`),
+  INDEX `RepairType_branchId_idx` (`branchId`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `SparePart` (
+  `id` VARCHAR(191) NOT NULL,
+  `name` VARCHAR(191) NOT NULL,
+  `partCode` VARCHAR(191) NOT NULL DEFAULT '',
+  `unitPrice` DOUBLE NOT NULL DEFAULT 0,
+  `branchId` VARCHAR(191) NULL,
+  `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (`id`),
+  INDEX `SparePart_branchId_idx` (`branchId`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `BusMaintenanceExpense` (
+  `id` VARCHAR(191) NOT NULL,
+  `busId` VARCHAR(191) NOT NULL,
+  `repairTypeId` VARCHAR(191) NOT NULL,
+  `maintenanceDate` VARCHAR(191) NOT NULL,
+  `costBeforeDiscount` DOUBLE NOT NULL DEFAULT 0,
+  `discountType` VARCHAR(191) NOT NULL DEFAULT 'none',
+  `discountValue` DOUBLE NOT NULL DEFAULT 0,
+  `finalCost` DOUBLE NOT NULL DEFAULT 0,
+  `notes` VARCHAR(500) NOT NULL DEFAULT '',
+  `creditAccountId` INT NULL,
+  `branchId` VARCHAR(191) NULL,
+  `journalReferenceId` INT NULL,
+  `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (`id`),
+  INDEX `BusMaintenanceExpense_branchId_idx` (`branchId`),
+  INDEX `BusMaintenanceExpense_busId_idx` (`busId`),
+  INDEX `BusMaintenanceExpense_repairTypeId_idx` (`repairTypeId`),
+  INDEX `BusMaintenanceExpense_maintenanceDate_idx` (`maintenanceDate`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
 -- تحقق
 SHOW COLUMNS FROM `Trip` LIKE 'branchId';
 SHOW COLUMNS FROM `Account` LIKE 'branchId';

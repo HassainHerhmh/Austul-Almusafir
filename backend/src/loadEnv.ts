@@ -9,20 +9,32 @@ export function ensureDatabaseUrl() {
   const isBuildPlaceholder = (url?: string) =>
     !!url && /mysql:\/\/build:/.test(url)
 
+  const hasMysqlParts = () =>
+    !!(process.env.MYSQLHOST || process.env.MYSQL_HOST) &&
+    !!(process.env.MYSQLUSER || process.env.MYSQL_USER) &&
+    !!(process.env.MYSQLPASSWORD || process.env.MYSQL_PASSWORD || process.env.MYSQL_ROOT_PASSWORD)
+
   const withPool = (url: string) => {
+    let normalized = url
+    if (hasMysqlParts()) {
+      const host = process.env.MYSQLHOST || process.env.MYSQL_HOST || ''
+      if (/^localhost$/i.test(host)) {
+        normalized = normalized.replace(/@localhost(:|\/)/i, '@127.0.0.1$1')
+      }
+    }
     const params = new URLSearchParams()
-    if (!/[?&]connection_limit=/.test(url)) params.set('connection_limit', '5')
-    // Hostinger remote MySQL يتطلب SSL أحياناً
+    if (!/[?&]connection_limit=/.test(normalized)) params.set('connection_limit', '5')
+    // Hostinger / MySQL مشترك: SSL أو شهادة ذاتية
     if (
-      !/[?&]sslaccept=/.test(url) &&
-      /hstgr\.io|hostinger/i.test(url) &&
-      !/localhost|127\.0\.0\.1/.test(url)
+      !/[?&]sslaccept=/.test(normalized) &&
+      (hasMysqlParts() ||
+        /hstgr\.io|hostinger|mysql\.database\.azure/i.test(normalized))
     ) {
       params.set('sslaccept', 'accept_invalid_certs')
     }
     const qs = params.toString()
-    if (!qs) return url
-    return url.includes('?') ? `${url}&${qs}` : `${url}?${qs}`
+    if (!qs) return normalized
+    return normalized.includes('?') ? `${normalized}&${qs}` : `${normalized}?${qs}`
   }
 
   const fromParts = (host: string, port?: string) => {
@@ -32,11 +44,6 @@ export function ensureDatabaseUrl() {
     const db = process.env.MYSQLDATABASE || process.env.MYSQL_DATABASE || 'railway'
     return `mysql://${user}:${pass}@${host}:${port || '3306'}/${db}`
   }
-
-  const hasMysqlParts = () =>
-    !!(process.env.MYSQLHOST || process.env.MYSQL_HOST) &&
-    !!(process.env.MYSQLUSER || process.env.MYSQL_USER) &&
-    !!(process.env.MYSQLPASSWORD || process.env.MYSQL_PASSWORD || process.env.MYSQL_ROOT_PASSWORD)
 
   let chosen: string | undefined
   let via = 'unknown'

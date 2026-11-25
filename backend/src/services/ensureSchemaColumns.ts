@@ -107,6 +107,13 @@ async function runSqlBatch(label: string, statements: string[]) {
 
 /** يُكمّل prisma db push عند فشله — أعمدة branchId + جداول الصيانات */
 export async function ensureBranchColumnsRaw(): Promise<void> {
+  try {
+    await prisma.$queryRawUnsafe('SELECT 1')
+  } catch {
+    logger.warn('db-schema', 'تخطي SQL الاحتياطي — لا اتصال بقاعدة البيانات')
+    return
+  }
+
   const cols = await runSqlBatch('db-columns', ADD_COLUMNS)
   const tables = await runSqlBatch('db-schema', CREATE_TABLES)
   await runSqlBatch('db-schema', MAINTENANCE_FKS)

@@ -39,6 +39,10 @@ import { MaintenanceLayout } from '../pages/admin/maintenance/MaintenanceLayout'
 import { RepairTypesPage } from '../pages/admin/maintenance/RepairTypesPage'
 import { SparePartsPage } from '../pages/admin/maintenance/SparePartsPage'
 import { BusMaintenanceExpensesPage } from '../pages/admin/maintenance/BusMaintenanceExpensesPage'
+import { FleetLayout } from '../pages/admin/fleet/FleetLayout'
+import { BusTypesCatalogPage } from '../pages/admin/fleet/BusTypesCatalogPage'
+import { BusModelsCatalogPage } from '../pages/admin/fleet/BusModelsCatalogPage'
+import { InsuranceCompaniesPage } from '../pages/admin/fleet/InsuranceCompaniesPage'
 
 /** مسارات لوحة الإدارة — يجب استدعاؤها كـ {renderAdminPortalRoutes(...)} داخل <Route> وليس كمكوّن */
 export function renderAdminPortalRoutes(showAgencyOnly: boolean) {
@@ -48,7 +52,16 @@ export function renderAdminPortalRoutes(showAgencyOnly: boolean) {
       {showAgencyOnly && <Route path="branches" element={<BranchesPage />} />}
       <Route path="offices" element={<OfficesPage />} />
       <Route path="users" element={<UsersPage />} />
-      {showAgencyOnly && <Route path="buses" element={<BusesPage />} />}
+      {showAgencyOnly && <Route path="buses" element={<Navigate to="/admin/fleet/buses" replace />} />}
+      {showAgencyOnly && (
+        <Route path="fleet" element={<FleetLayout />}>
+          <Route index element={<Navigate to="buses" replace />} />
+          <Route path="buses" element={<BusesPage />} />
+          <Route path="types" element={<BusTypesCatalogPage />} />
+          <Route path="models" element={<BusModelsCatalogPage />} />
+        </Route>
+      )}
+      {showAgencyOnly && <Route path="insurance-companies" element={<InsuranceCompaniesPage />} />}
       {showAgencyOnly && <Route path="drivers" element={<DriversPage />} />}
       <Route path="destinations" element={<DestinationsPage />} />
       <Route path="visa-types" element={<VisaTypesPage />} />

@@ -253,6 +253,56 @@ export const serverApi = {
       }),
   },
 
+  busTypes: {
+    list: () => apiRequest<{ list: { id: string; name: string }[] }>('/api/bus-types'),
+    create: (data: { name: string }) =>
+      apiRequest<{ item: { id: string; name: string } }>('/api/bus-types', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    update: (id: string, data: { name: string }) =>
+      apiRequest<{ item: { id: string; name: string } }>(`/api/bus-types/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    remove: (id: string) =>
+      apiRequest<{ deleted: boolean }>(`/api/bus-types/${id}`, { method: 'DELETE' }),
+  },
+
+  busModels: {
+    list: () => apiRequest<{ list: { id: string; name: string }[] }>('/api/bus-models'),
+    create: (data: { name: string }) =>
+      apiRequest<{ item: { id: string; name: string } }>('/api/bus-models', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    update: (id: string, data: { name: string }) =>
+      apiRequest<{ item: { id: string; name: string } }>(`/api/bus-models/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    remove: (id: string) =>
+      apiRequest<{ deleted: boolean }>(`/api/bus-models/${id}`, { method: 'DELETE' }),
+  },
+
+  insuranceCompanies: {
+    list: () => apiRequest<{ list: { id: string; name: string; phone: string }[] }>(
+      '/api/insurance-companies',
+    ),
+    create: (data: { name: string; phone?: string }) =>
+      apiRequest<{ item: { id: string; name: string; phone: string } }>('/api/insurance-companies', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    update: (id: string, data: { name: string; phone?: string }) =>
+      apiRequest<{ item: { id: string; name: string; phone: string } }>(
+        `/api/insurance-companies/${id}`,
+        { method: 'PUT', body: JSON.stringify(data) },
+      ),
+    remove: (id: string) =>
+      apiRequest<{ deleted: boolean }>(`/api/insurance-companies/${id}`, { method: 'DELETE' }),
+  },
+
   drivers: {
     list: () => apiRequest<{ list: Driver[] }>('/api/drivers'),
     create: (data: unknown) =>

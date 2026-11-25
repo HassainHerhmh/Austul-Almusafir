@@ -29,6 +29,9 @@ model Branch {
   repairTypes       RepairType[]
   spareParts        SparePart[]
   busMaintenances   BusMaintenanceExpense[]
+  busTypes          BusType[]
+  busModels         BusModelCatalog[]
+  insuranceCompanies InsuranceCompany[]
 }
 
 model Office {
@@ -102,22 +105,73 @@ model VisaType {
   @@index([branchId])
 }
 
+model BusType {
+  id        String   @id @default(cuid())
+  name      String
+  branchId  String?
+  branch    Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+  buses     Bus[]
+
+  @@index([branchId])
+}
+
+/** كتالوج موديلات الحافلات (سنة أو اسم موديل) */
+model BusModelCatalog {
+  id        String   @id @default(cuid())
+  name      String
+  branchId  String?
+  branch    Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+  buses     Bus[]
+
+  @@index([branchId])
+}
+
+model InsuranceCompany {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String   @default("")
+  branchId  String?
+  branch    Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+  buses     Bus[]
+
+  @@index([branchId])
+}
+
 model Bus {
   id          String @id @default(cuid())
   /** رقم الحافلة الداخلي (مثل 101) */
   busNumber   String @default("")
   plateNumber String @unique
   type        String
-  /** سنة الموديل */
+  /** سنة الموديل — يُزامَن مع كتالوج الموديل */
   year        String @default("")
   seats       Int
   status      String @default("available")
+  chassisNumber       String @default("")
+  operatingNumber     String @default("")
+  busTypeId           String?
+  busType             BusType? @relation(fields: [busTypeId], references: [id], onDelete: SetNull)
+  busModelId          String?
+  busModel            BusModelCatalog? @relation(fields: [busModelId], references: [id], onDelete: SetNull)
+  insuranceCompanyId  String?
+  insuranceCompany    InsuranceCompany? @relation(fields: [insuranceCompanyId], references: [id], onDelete: SetNull)
+  insuranceExpiry     String @default("")
+  registrationExpiry  String @default("")
+  operatingCardExpiry String @default("")
+  initialOdometer     String @default("")
+  notes               String @default("") @db.VarChar(500)
   branchId    String?
   branch      Branch? @relation(fields: [branchId], references: [id], onDelete: SetNull)
   trips       Trip[]
   maintenances BusMaintenanceExpense[]
 
   @@index([branchId])
+  @@index([busTypeId])
+  @@index([busModelId])
+  @@index([insuranceCompanyId])
 }
 
 model RepairType {

@@ -87,6 +87,16 @@ export interface Bus {
   year: string
   seats: number
   status: BusStatus
+  chassisNumber?: string
+  operatingNumber?: string
+  busTypeId?: string | null
+  busModelId?: string | null
+  insuranceCompanyId?: string | null
+  insuranceExpiry?: string
+  registrationExpiry?: string
+  operatingCardExpiry?: string
+  initialOdometer?: string
+  notes?: string
 }
 
 export type DriverRole = 'primary' | 'assistant'

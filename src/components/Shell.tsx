@@ -25,6 +25,9 @@ import {
   Stamp,
   Link2,
   Wrench,
+  Shield,
+  Cog,
+  Layers,
   X,
   type LucideIcon,
 } from 'lucide-react'
@@ -41,7 +44,10 @@ const adminLinks: { to: string; end?: boolean; label: string; icon: LucideIcon }
   { to: '/admin/branches', label: 'الفروع', icon: GitBranch },
   { to: '/admin/offices', label: 'المكاتب', icon: Building2 },
   { to: '/admin/users', label: 'المستخدمون', icon: Users },
-  { to: '/admin/buses', label: 'الباصات', icon: Bus },
+  { to: '/admin/fleet/buses', label: 'الحافلات', icon: Bus },
+  { to: '/admin/fleet/types', label: 'أنواع الحافلات', icon: Cog },
+  { to: '/admin/fleet/models', label: 'موديلات الحافلات', icon: Layers },
+  { to: '/admin/insurance-companies', label: 'شركات التأمين', icon: Shield },
   { to: '/admin/maintenance', label: 'صيانات الحافلات', icon: Wrench },
   { to: '/admin/drivers', label: 'السائقون', icon: UserCircle2 },
   { to: '/admin/destinations', label: 'الوجهات', icon: MapPin },
@@ -85,7 +91,8 @@ const officeLinks: {
 ]
 
 const BRANCH_HIDDEN_SUFFIXES = [
-  '/buses',
+  '/fleet',
+  '/insurance-companies',
   '/maintenance',
   '/drivers',
   '/tracking',
@@ -100,7 +107,7 @@ function buildPortalAdminLinks(base: '/admin' | '/branch', includeAgencyOnly: bo
       if (!includeAgencyOnly && l.to.includes('/partner-api')) return false
       if (
         !includeAgencyOnly &&
-        BRANCH_HIDDEN_SUFFIXES.some((s) => l.to === `/admin${s}`)
+        BRANCH_HIDDEN_SUFFIXES.some((s) => l.to.startsWith(`/admin${s}`))
       ) {
         return false
       }

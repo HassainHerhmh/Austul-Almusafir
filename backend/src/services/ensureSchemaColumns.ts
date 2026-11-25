@@ -27,6 +27,16 @@ const ADD_COLUMNS = [
   'ALTER TABLE `User` ADD COLUMN `branchId` VARCHAR(191) NULL',
   'ALTER TABLE `Trip` ADD COLUMN `checkInTime` VARCHAR(191) NOT NULL DEFAULT \'\'',
   'ALTER TABLE `Trip` ADD COLUMN `childPrice` DOUBLE NULL',
+  'ALTER TABLE `Bus` ADD COLUMN `chassisNumber` VARCHAR(191) NOT NULL DEFAULT \'\'',
+  'ALTER TABLE `Bus` ADD COLUMN `operatingNumber` VARCHAR(191) NOT NULL DEFAULT \'\'',
+  'ALTER TABLE `Bus` ADD COLUMN `busTypeId` VARCHAR(191) NULL',
+  'ALTER TABLE `Bus` ADD COLUMN `busModelId` VARCHAR(191) NULL',
+  'ALTER TABLE `Bus` ADD COLUMN `insuranceCompanyId` VARCHAR(191) NULL',
+  'ALTER TABLE `Bus` ADD COLUMN `insuranceExpiry` VARCHAR(191) NOT NULL DEFAULT \'\'',
+  'ALTER TABLE `Bus` ADD COLUMN `registrationExpiry` VARCHAR(191) NOT NULL DEFAULT \'\'',
+  'ALTER TABLE `Bus` ADD COLUMN `operatingCardExpiry` VARCHAR(191) NOT NULL DEFAULT \'\'',
+  'ALTER TABLE `Bus` ADD COLUMN `initialOdometer` VARCHAR(191) NOT NULL DEFAULT \'\'',
+  'ALTER TABLE `Bus` ADD COLUMN `notes` VARCHAR(500) NOT NULL DEFAULT \'\'',
 ]
 
 const INDEXES = [
@@ -79,6 +89,31 @@ const CREATE_TABLES = [
     INDEX \`BusMaintenanceExpense_busId_idx\` (\`busId\`),
     INDEX \`BusMaintenanceExpense_repairTypeId_idx\` (\`repairTypeId\`),
     INDEX \`BusMaintenanceExpense_maintenanceDate_idx\` (\`maintenanceDate\`)
+  ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`,
+  `CREATE TABLE IF NOT EXISTS \`BusType\` (
+    \`id\` VARCHAR(191) NOT NULL,
+    \`name\` VARCHAR(191) NOT NULL,
+    \`branchId\` VARCHAR(191) NULL,
+    \`createdAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (\`id\`),
+    INDEX \`BusType_branchId_idx\` (\`branchId\`)
+  ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`,
+  `CREATE TABLE IF NOT EXISTS \`BusModelCatalog\` (
+    \`id\` VARCHAR(191) NOT NULL,
+    \`name\` VARCHAR(191) NOT NULL,
+    \`branchId\` VARCHAR(191) NULL,
+    \`createdAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (\`id\`),
+    INDEX \`BusModelCatalog_branchId_idx\` (\`branchId\`)
+  ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`,
+  `CREATE TABLE IF NOT EXISTS \`InsuranceCompany\` (
+    \`id\` VARCHAR(191) NOT NULL,
+    \`name\` VARCHAR(191) NOT NULL,
+    \`phone\` VARCHAR(191) NOT NULL DEFAULT '',
+    \`branchId\` VARCHAR(191) NULL,
+    \`createdAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (\`id\`),
+    INDEX \`InsuranceCompany_branchId_idx\` (\`branchId\`)
   ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`,
 ]
 

@@ -8,7 +8,15 @@ import { accountsRouter } from './routes/accounts'
 import { authRouter } from './routes/auth'
 import { bookingsRouter } from './routes/bookings'
 import { customersRouter, vouchersRouter } from './routes/customers'
-import { busesRouter, destinationsRouter, driversRouter, visaTypesRouter } from './routes/fleet'
+import {
+  busesRouter,
+  busTypesRouter,
+  busModelsRouter,
+  insuranceCompaniesRouter,
+  destinationsRouter,
+  driversRouter,
+  visaTypesRouter,
+} from './routes/fleet'
 import { branchesRouter } from './routes/branches'
 import { officesRouter } from './routes/offices'
 import { settingsRouter } from './routes/settings'
@@ -91,6 +99,9 @@ export function createApp() {
   app.use('/api/destinations', destinationsRouter)
   app.use('/api/visa-types', visaTypesRouter)
   app.use('/api/buses', busesRouter)
+  app.use('/api/bus-types', busTypesRouter)
+  app.use('/api/bus-models', busModelsRouter)
+  app.use('/api/insurance-companies', insuranceCompaniesRouter)
   app.use('/api/drivers', driversRouter)
   app.use('/api/trips', tripsRouter)
   app.use('/api/bookings', bookingsRouter)

@@ -1,5 +1,6 @@
-import { useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useApp } from '../../context/AppContext'
+import { serverApi } from '../../api/serverApi'
 import type { Bus, BusStatus } from '../../types'
 import {
   downloadExcel,
@@ -8,9 +9,29 @@ import {
   readExcelRows,
 } from '../../utils/importExport'
 
+type Catalog = { id: string; name: string }
+
+function defaultExpiryIso() {
+  const d = new Date()
+  d.setFullYear(d.getFullYear() + 1)
+  return d.toISOString().slice(0, 10)
+}
+
+const expiryDefault = defaultExpiryIso()
+
 const empty = {
   busNumber: '',
   plateNumber: '',
+  chassisNumber: '',
+  operatingNumber: '',
+  busTypeId: '',
+  busModelId: '',
+  insuranceCompanyId: '',
+  insuranceExpiry: expiryDefault,
+  registrationExpiry: expiryDefault,
+  operatingCardExpiry: expiryDefault,
+  initialOdometer: '',
+  notes: '',
   type: '',
   year: '',
   seats: 50,
@@ -33,15 +54,82 @@ export function BusesPage() {
   const [editId, setEditId] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [saveErr, setSaveErr] = useState<string | null>(null)
   const [importMsg, setImportMsg] = useState<string | null>(null)
+  const [busTypes, setBusTypes] = useState<Catalog[]>([])
+  const [busModels, setBusModels] = useState<Catalog[]>([])
+  const [insurers, setInsurers] = useState<Catalog[]>([])
   const fileRef = useRef<HTMLInputElement>(null)
 
-  const save = (e: React.FormEvent) => {
-    e.preventDefault()
-    upsertBus(editId ? { ...form, id: editId } : form)
-    setOpen(false)
-    setForm(empty)
+  const loadCatalogs = useCallback(async () => {
+    const [typesRes, modelsRes, insRes] = await Promise.all([
+      serverApi.busTypes.list().catch(() => ({ list: [] })),
+      serverApi.busModels.list().catch(() => ({ list: [] })),
+      serverApi.insuranceCompanies.list().catch(() => ({ list: [] })),
+    ])
+    setBusTypes((typesRes.list ?? []).map((r) => ({ id: r.id, name: r.name })))
+    setBusModels((modelsRes.list ?? []).map((r) => ({ id: r.id, name: r.name })))
+    setInsurers((insRes.list ?? []).map((r) => ({ id: r.id, name: r.name })))
+  }, [])
+
+  useEffect(() => {
+    if (open) void loadCatalogs()
+  }, [open, loadCatalogs])
+
+  const resetForm = () => {
+    setForm({ ...empty, insuranceExpiry: defaultExpiryIso(), registrationExpiry: defaultExpiryIso(), operatingCardExpiry: defaultExpiryIso() })
     setEditId(null)
+    setSaveErr(null)
+  }
+
+  const buildPayload = () => ({
+    busNumber: form.busNumber.trim(),
+    plateNumber: form.plateNumber.trim(),
+    chassisNumber: form.chassisNumber.trim(),
+    operatingNumber: form.operatingNumber.trim(),
+    busTypeId: form.busTypeId || null,
+    busModelId: form.busModelId || null,
+    insuranceCompanyId: form.insuranceCompanyId || null,
+    insuranceExpiry: form.insuranceExpiry,
+    registrationExpiry: form.registrationExpiry,
+    operatingCardExpiry: form.operatingCardExpiry,
+    initialOdometer: form.initialOdometer.trim(),
+    notes: form.notes.trim(),
+    type: form.type,
+    year: form.year,
+    seats: form.seats,
+    status: form.status,
+  })
+
+  const persist = async (andMore: boolean) => {
+    if (!form.plateNumber.trim()) return
+    if (!form.busTypeId || !form.busModelId) {
+      setSaveErr('اختر النوع والموديل')
+      return
+    }
+    setBusy(true)
+    setSaveErr(null)
+    try {
+      const payload = buildPayload()
+      if (editId) {
+        await upsertBus({ ...payload, id: editId })
+        setOpen(false)
+        resetForm()
+      } else {
+        await upsertBus(payload)
+        if (andMore) {
+          resetForm()
+          setOpen(true)
+        } else {
+          setOpen(false)
+          resetForm()
+        }
+      }
+    } catch (ex) {
+      setSaveErr(ex instanceof Error ? ex.message : 'فشل الحفظ')
+    } finally {
+      setBusy(false)
+    }
   }
 
   const startEdit = (b: Bus) => {
@@ -49,22 +137,35 @@ export function BusesPage() {
     setForm({
       busNumber: b.busNumber || '',
       plateNumber: b.plateNumber,
+      chassisNumber: b.chassisNumber ?? '',
+      operatingNumber: b.operatingNumber ?? '',
+      busTypeId: b.busTypeId ?? '',
+      busModelId: b.busModelId ?? '',
+      insuranceCompanyId: b.insuranceCompanyId ?? '',
+      insuranceExpiry: b.insuranceExpiry?.slice(0, 10) || defaultExpiryIso(),
+      registrationExpiry: b.registrationExpiry?.slice(0, 10) || defaultExpiryIso(),
+      operatingCardExpiry: b.operatingCardExpiry?.slice(0, 10) || defaultExpiryIso(),
+      initialOdometer: b.initialOdometer ?? '',
+      notes: b.notes ?? '',
       type: b.type,
       year: b.year || '',
       seats: b.seats,
       status: b.status,
     })
+    setSaveErr(null)
     setOpen(true)
   }
 
   const exportExcel = () => {
     downloadExcel(
-      'الباصات.xlsx',
+      'الحافلات.xlsx',
       state.buses.map((b) => ({
         'رقم الحافلة': b.busNumber || '',
         'رقم اللوحة': b.plateNumber,
+        'رقم الشاصي': b.chassisNumber || '',
+        'رقم التشغيل': b.operatingNumber || '',
         النوع: b.type,
-        'موديل الحافلة': b.year || '',
+        الموديل: b.year || '',
         المقاعد: b.seats,
         الحالة: statusLabel(b.status),
       })),
@@ -73,8 +174,8 @@ export function BusesPage() {
 
   const exportPdf = () => {
     exportTablePdf(
-      'قائمة الباصات',
-      ['رقم الحافلة', 'رقم اللوحة', 'النوع', 'موديل الحافلة', 'المقاعد', 'الحالة'],
+      'قائمة الحافلات',
+      ['رقم الحافلة', 'رقم اللوحة', 'النوع', 'الموديل', 'المقاعد', 'الحالة'],
       state.buses.map((b) => [
         b.busNumber || '—',
         b.plateNumber,
@@ -87,7 +188,7 @@ export function BusesPage() {
   }
 
   const downloadTemplate = () => {
-    downloadExcel('نموذج_استيراد_باصات.xlsx', [
+    downloadExcel('نموذج_استيراد_حافلات.xlsx', [
       {
         'رقم الحافلة': '101',
         'رقم اللوحة': 'أ ص ح 2234',
@@ -144,7 +245,7 @@ export function BusesPage() {
         byPlate.set(plateNumber, saved.id)
         ok++
       }
-      setImportMsg(`تم استيراد ${ok} باص${skipped ? ` · تخطي ${skipped}` : ''}`)
+      setImportMsg(`تم استيراد ${ok} حافلة${skipped ? ` · تخطي ${skipped}` : ''}`)
     } catch {
       setImportMsg('فشل قراءة ملف Excel')
     } finally {
@@ -157,7 +258,7 @@ export function BusesPage() {
     <div>
       <header className="page-header">
         <div>
-          <h1>إدارة الباصات</h1>
+          <h1>إدارة الحافلات</h1>
         </div>
         <div className="actions">
           <button type="button" className="btn btn-ghost" onClick={downloadTemplate}>
@@ -183,12 +284,11 @@ export function BusesPage() {
             type="button"
             className="btn btn-amber"
             onClick={() => {
-              setEditId(null)
-              setForm(empty)
+              resetForm()
               setOpen(true)
             }}
           >
-            إضافة باص
+            إضافة حافلة
           </button>
         </div>
       </header>
@@ -203,7 +303,7 @@ export function BusesPage() {
                 <th>رقم الحافلة</th>
                 <th>رقم اللوحة</th>
                 <th>النوع</th>
-                <th>موديل الحافلة</th>
+                <th>الموديل</th>
                 <th>المقاعد</th>
                 <th>الحالة</th>
                 <th></th>
@@ -244,20 +344,33 @@ export function BusesPage() {
 
       {open && (
         <div className="modal-backdrop" onClick={() => setOpen(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h2>{editId ? 'تعديل باص' : 'باص جديد'}</h2>
-            <form onSubmit={save}>
+          <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
+            <h2>{editId ? 'تعديل حافلة' : 'إضافة حافلة'}</h2>
+            {saveErr && <p className="error-msg">{saveErr}</p>}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                void persist(false)
+              }}
+            >
               <div className="form-grid">
                 <div className="field">
-                  <label>رقم الحافلة</label>
+                  <label>رقم الحافلة *</label>
                   <input
                     value={form.busNumber}
                     onChange={(e) => setForm({ ...form, busNumber: e.target.value })}
-                    placeholder="مثال: 101"
                   />
                 </div>
                 <div className="field">
-                  <label>رقم اللوحة</label>
+                  <label>رقم الشاصي *</label>
+                  <input
+                    required
+                    value={form.chassisNumber}
+                    onChange={(e) => setForm({ ...form, chassisNumber: e.target.value })}
+                  />
+                </div>
+                <div className="field">
+                  <label>رقم اللوحة *</label>
                   <input
                     required
                     value={form.plateNumber}
@@ -265,27 +378,93 @@ export function BusesPage() {
                   />
                 </div>
                 <div className="field">
-                  <label>نوع الباص</label>
-                  <select
-                    required
-                    value={form.type || 'عادي'}
-                    onChange={(e) => setForm({ ...form, type: e.target.value })}
-                  >
-                    <option value="عادي">عادي</option>
-                    <option value="سياحي">سياحي</option>
-                    <option value="سياحي (VIP)">سياحي (VIP)</option>
-                  </select>
-                </div>
-                <div className="field">
-                  <label>موديل الحافلة</label>
+                  <label>رقم التشغيل *</label>
                   <input
-                    value={form.year}
-                    onChange={(e) => setForm({ ...form, year: e.target.value })}
-                    placeholder="مثال: 2025"
+                    required
+                    value={form.operatingNumber}
+                    onChange={(e) => setForm({ ...form, operatingNumber: e.target.value })}
                   />
                 </div>
                 <div className="field">
-                  <label>عدد المقاعد</label>
+                  <label>النوع *</label>
+                  <select
+                    required
+                    value={form.busTypeId}
+                    onChange={(e) => setForm({ ...form, busTypeId: e.target.value })}
+                  >
+                    <option value="">اختر</option>
+                    {busTypes.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="field">
+                  <label>الموديل *</label>
+                  <select
+                    required
+                    value={form.busModelId}
+                    onChange={(e) => setForm({ ...form, busModelId: e.target.value })}
+                  >
+                    <option value="">اختر</option>
+                    {busModels.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="field">
+                  <label>شركة التأمين *</label>
+                  <select
+                    value={form.insuranceCompanyId}
+                    onChange={(e) => setForm({ ...form, insuranceCompanyId: e.target.value })}
+                  >
+                    <option value="">اختر</option>
+                    {insurers.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="field">
+                  <label>تاريخ انتهاء التأمين *</label>
+                  <input
+                    type="date"
+                    required
+                    value={form.insuranceExpiry}
+                    onChange={(e) => setForm({ ...form, insuranceExpiry: e.target.value })}
+                  />
+                </div>
+                <div className="field">
+                  <label>تاريخ انتهاء الاستمارة *</label>
+                  <input
+                    type="date"
+                    required
+                    value={form.registrationExpiry}
+                    onChange={(e) => setForm({ ...form, registrationExpiry: e.target.value })}
+                  />
+                </div>
+                <div className="field">
+                  <label>تاريخ انتهاء كارت التشغيل *</label>
+                  <input
+                    type="date"
+                    required
+                    value={form.operatingCardExpiry}
+                    onChange={(e) => setForm({ ...form, operatingCardExpiry: e.target.value })}
+                  />
+                </div>
+                <div className="field">
+                  <label>العداد الابتدائي *</label>
+                  <input
+                    value={form.initialOdometer}
+                    onChange={(e) => setForm({ ...form, initialOdometer: e.target.value })}
+                  />
+                </div>
+                <div className="field">
+                  <label>عدد المقاعد *</label>
                   <input
                     type="number"
                     min={1}
@@ -306,10 +485,28 @@ export function BusesPage() {
                   </select>
                 </div>
               </div>
+              <div className="field" style={{ marginTop: '0.75rem' }}>
+                <label>ملاحظات</label>
+                <textarea
+                  rows={4}
+                  value={form.notes}
+                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                />
+              </div>
               <div className="actions" style={{ marginTop: '1rem' }}>
-                <button type="submit" className="btn btn-primary">
-                  حفظ
+                <button type="submit" className="btn btn-primary" disabled={busy}>
+                  {editId ? 'حفظ' : 'إضافة'}
                 </button>
+                {!editId && (
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    disabled={busy}
+                    onClick={() => void persist(true)}
+                  >
+                    إضافة وبدء إضافة المزيد
+                  </button>
+                )}
                 <button type="button" className="btn btn-ghost" onClick={() => setOpen(false)}>
                   إلغاء
                 </button>

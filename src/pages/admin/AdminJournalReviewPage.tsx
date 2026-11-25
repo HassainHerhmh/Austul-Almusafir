@@ -117,14 +117,6 @@ export function AdminJournalReviewPage() {
         </div>
       </header>
 
-      <div className="panel" style={{ marginBottom: '1rem' }}>
-        <p style={{ margin: 0, color: 'var(--muted)', lineHeight: 1.6 }}>
-          هذه الصفحة تعرض القيود الفعلية من قاعدة البيانات (نفس مصدر كشف حساب الوكيل). كشف
-          الحساب داخل وحدة الحسابات كان يجلب حسابات محلية قديمة — لذلك قد تظهر حسابات غير موجودة
-          في التهيئة.
-        </p>
-      </div>
-
       <div className="panel">
         <form onSubmit={(e) => void run(e)}>
           <div className="form-grid">
@@ -259,7 +251,7 @@ export function AdminJournalReviewPage() {
                   {rows.length === 0 ? (
                     <tr>
                       <td colSpan={8} className="empty">
-                        لا توجد قيود في هذه الفترة — إن ظهرت عند الوكيل فتحقق من المكتب والفترة
+                        لا توجد بيانات
                       </td>
                     </tr>
                   ) : (

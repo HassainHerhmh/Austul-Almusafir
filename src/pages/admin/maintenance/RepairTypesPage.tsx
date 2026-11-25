@@ -110,7 +110,7 @@ export function RepairTypesPage() {
               {list.length === 0 && (
                 <tr>
                   <td colSpan={2} className="empty">
-                    لا توجد أنواع — اضغط «إضافة نوع»
+                    لا توجد بيانات
                   </td>
                 </tr>
               )}

@@ -310,11 +310,6 @@ export function OfficesPage() {
                       </option>
                     ))}
                   </select>
-                  {accountOptions.length === 0 && (
-                    <p style={{ fontSize: '0.85rem', color: 'var(--muted)', margin: '0.35rem 0 0' }}>
-                      لا توجد حسابات فرعية — أنشئ حساباً تحت «ذمم مكاتب السفريات» في دليل الحسابات أولاً.
-                    </p>
-                  )}
                 </div>
                 <div className="field">
                   <label>نسبة العمولة %</label>

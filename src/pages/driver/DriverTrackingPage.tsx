@@ -225,11 +225,6 @@ export function DriverTrackingPage() {
       </header>
 
       <div className="driver-track-card">
-        <p className="driver-track-note">
-          من المتصفح: التتبع يعمل طالما الصفحة مفتوحة. إذا أردت الإرسال بعد قفل الشاشة أو مغادرة المتصفح،
-          استخدم تطبيق التتبع (APK) — يظهر إشعار «تتبع الرحلة شغال» ويمكن إيقافه من شريط الإشعارات.
-        </p>
-
         {status && <p className="success-msg">{status}</p>}
         {error && <p className="error-msg">{error}</p>}
         {lastPing && (
@@ -292,7 +287,7 @@ export function DriverTrackingPage() {
             )
           })}
           {trips.length === 0 && (
-            <p className="empty">لا توجد رحلات متاحة — تأكد أن السائق مربوط برحلة مفتوحة</p>
+            <p className="empty">لا توجد بيانات</p>
           )}
         </div>
       </div>

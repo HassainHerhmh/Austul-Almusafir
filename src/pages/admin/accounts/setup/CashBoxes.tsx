@@ -399,10 +399,6 @@ const CashBoxes: React.FC = () => {
 
             {!editId && (
               <>
-                <div className="rounded border border-dashed border-gray-300 bg-white px-3 py-2 text-right text-sm text-gray-500">
-                  الرقم يتولد تلقائيًا من تسلسل الحسابات عند الحفظ، ويظهر الصندوق في الدليل تحت حساب الأب
-                </div>
-
                 <select
                   className="border p-2 w-full rounded"
                   value={form.parent_account_id}

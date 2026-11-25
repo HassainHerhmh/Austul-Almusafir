@@ -780,10 +780,6 @@ export function OfficeBookingsPage() {
         <div className="modal-backdrop" onClick={() => setPrintOpen(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h2>{printFormat === 'excel' ? 'تصدير Excel' : 'طباعة PDF'}</h2>
-            <p style={{ color: 'var(--muted)', marginTop: 0 }}>
-              اختر الأعمدة {printFormat === 'excel' ? 'للتصدير' : 'للطباعة'} (حسب فلتر التاريخ
-              المحدد).
-            </p>
             <div className="actions" style={{ marginBottom: '0.5rem' }}>
               <button
                 type="button"

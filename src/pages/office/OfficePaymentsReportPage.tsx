@@ -77,7 +77,6 @@ export function OfficePaymentsReportPage() {
       <header className="page-header">
         <div>
           <h1>تقرير المدفوعات</h1>
-          <p>نقدي · حوالة · آجل — مع فلترة بالعميل والفترة</p>
         </div>
       </header>
 

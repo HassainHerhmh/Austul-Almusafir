@@ -103,7 +103,6 @@ export function BranchStatementPage() {
       <header className="page-header">
         <div>
           <h1>كشف ذمة الفرع</h1>
-          <p>حجوزات المكاتب التي لا تملك حساب ذمة خاصاً تُرحَّل هنا</p>
         </div>
       </header>
 

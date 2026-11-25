@@ -22,7 +22,6 @@ export function BranchBookingsPage() {
       <header className="page-header">
         <div>
           <h1>حجوزات الفرع</h1>
-          <p>عرض فقط — الحجز يتم من مكاتب الفرع</p>
         </div>
         <h3 className="field" style={{ margin: 0, minWidth: 200 }}>
           <label className="sr-only">المكتب</label>

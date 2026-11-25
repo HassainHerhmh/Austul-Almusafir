@@ -133,7 +133,7 @@ export function SparePartsPage() {
               {list.length === 0 && (
                 <tr>
                   <td colSpan={4} className="empty">
-                    لا توجد قطع — اضغط «إضافة قطع غيار»
+                    لا توجد بيانات
                   </td>
                 </tr>
               )}

@@ -93,7 +93,6 @@ export function SettingsPage() {
       <header className="page-header">
         <div>
           <h1>إعدادات المنصة</h1>
-          <p>الشعار واسم الشركة وأرقام التواصل تُحفظ على السيرفر وتظهر في الدخول والطباعة لكل الأجهزة</p>
         </div>
       </header>
 

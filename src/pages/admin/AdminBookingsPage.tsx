@@ -266,7 +266,6 @@ export function AdminBookingsPage() {
       <header className="page-header">
         <div>
           <h1>متابعة الحجوزات</h1>
-          <p>تعديل · إلغاء · حذف — الإلغاء والحذف يحذفان قيود المحاسبة</p>
         </div>
         <button type="button" className="btn btn-primary" onClick={() => setPrintOpen(true)}>
           طباعة
@@ -485,9 +484,6 @@ export function AdminBookingsPage() {
         <div className="modal-backdrop" onClick={() => setPrintOpen(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h2>طباعة الحجوزات</h2>
-            <p style={{ color: 'var(--muted)', marginTop: 0 }}>
-              اختر الأعمدة التي تريد طباعتها. الكليشة (الشعار والاسم والأرقام) من الإعدادات.
-            </p>
             <div className="actions" style={{ marginBottom: '0.5rem' }}>
               <button
                 type="button"

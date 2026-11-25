@@ -143,9 +143,6 @@ export function PrintSettingsPage() {
       <header className="page-header">
         <div>
           <h1>إعدادات الطباعة</h1>
-          <p>
-            كليشة السندات بنسق الإشعار — شعار خاص بالطباعة (منفصل عن المنصة) مع ألوان وحواف ناعمة
-          </p>
         </div>
       </header>
 
@@ -262,9 +259,6 @@ export function PrintSettingsPage() {
                   )}
                 </div>
               </div>
-              <p style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--muted)' }}>
-                إن لم ترفع شعاراً هنا يُستخدم شعار المنصة كاحتياطي. الحواف ناعمة تلقائياً في الطباعة.
-              </p>
             </div>
 
             {COLOR_FIELDS.map((f) => (

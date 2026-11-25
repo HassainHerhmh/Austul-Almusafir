@@ -23,7 +23,6 @@ export function BranchHome() {
       <header className="page-header">
         <div>
           <h1>{currentBranch?.name ?? 'الفرع'}</h1>
-          <p>الرحلات مركزية من الوكالة — مكاتبك تحجز عليها</p>
         </div>
         <Link to="/branch/offices" className="btn btn-primary">
           إدارة المكاتب

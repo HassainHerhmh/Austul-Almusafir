@@ -2,7 +2,7 @@ import { formatMoney, todayStr } from '../../components/utils'
 import { useApp } from '../../context/AppContext'
 
 export function AdminReportsPage() {
-  const { state, getTripLabel, getOffice } = useApp()
+  const { state, getTripLabel } = useApp()
   const today = todayStr()
   const month = today.slice(0, 7)
 
@@ -158,9 +158,6 @@ export function AdminReportsPage() {
             </tbody>
           </table>
         </div>
-        <p style={{ fontSize: '0.85rem', color: 'var(--muted)', marginTop: '0.75rem' }}>
-          المكاتب المعروضة: {state.offices.map((o) => getOffice(o.id)?.name).join(' · ')}
-        </p>
       </div>
     </div>
   )

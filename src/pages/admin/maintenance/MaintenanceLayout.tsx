@@ -34,7 +34,6 @@ export function MaintenanceLayout() {
       <header className="page-header">
         <div>
           <h1>عمليات مصاريف الصيانات</h1>
-          <p>أنواع الإصلاح، قطع الغيار، وتقرير مصاريف الحافلات مع الترحيل المحاسبي</p>
         </div>
       </header>
 

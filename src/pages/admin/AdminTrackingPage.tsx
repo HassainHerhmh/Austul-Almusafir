@@ -302,21 +302,6 @@ export function AdminTrackingPage() {
     [mapList],
   )
 
-  const counts = useMemo(() => {
-    let live = 0
-    let interrupted = 0
-    let stopped = 0
-    let problem = 0
-    for (const item of list) {
-      const s = trackStatus(item)
-      if (s === 'live') live += 1
-      else if (s === 'interrupted') interrupted += 1
-      else if (s === 'problem') problem += 1
-      else stopped += 1
-    }
-    return { live, interrupted, stopped, problem }
-  }, [list])
-
   const center: [number, number] = points[0]
     ? [points[0].lat, points[0].lng]
     : [15.3694, 44.191]
@@ -326,10 +311,6 @@ export function AdminTrackingPage() {
       <header className="page-header">
         <div>
           <h1>تتبع الباصات</h1>
-          <p>
-            كل الرحلات على الخريطة · مباشر {counts.live} · انقطع {counts.interrupted} · مشكلة سماح{' '}
-            {counts.problem} · متوقف {counts.stopped}
-          </p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <button type="button" className="btn btn-primary" onClick={openAccessModal}>
@@ -451,7 +432,7 @@ export function AdminTrackingPage() {
               {list.length === 0 && !loading && (
                 <tr>
                   <td colSpan={6} className="empty">
-                    لا توجد مواقع خلال آخر 24 ساعة — يبدأ التتبع من تطبيق السائق
+                    لا توجد بيانات
                   </td>
                 </tr>
               )}
@@ -612,7 +593,7 @@ export function AdminTrackingPage() {
                   {shares.length === 0 && (
                     <tr>
                       <td colSpan={4} className="empty">
-                        لا توجد روابط بعد — أنشئ رابطاً من القائمة أعلاه
+                        لا توجد بيانات
                       </td>
                     </tr>
                   )}
@@ -739,7 +720,7 @@ export function AdminTrackingPage() {
                   {accessList.length === 0 && (
                     <tr>
                       <td colSpan={4} className="empty">
-                        لا يوجد سماح بعد — أضف رحلة ومكتباً أعلاه
+                        لا توجد بيانات
                       </td>
                     </tr>
                   )}

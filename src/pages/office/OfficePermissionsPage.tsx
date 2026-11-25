@@ -82,9 +82,6 @@ export function OfficePermissionsPage() {
 
   const filteredUsers = roleFilter ? staff.filter((u) => u.role === roleFilter) : staff
   const selectedUser = staff.find((u) => u.id === selectedUserId)
-  const hasSavedPermissions = !!(
-    selectedUser?.permissions && Object.keys(selectedUser.permissions).length
-  )
 
   const currentPermissions = useMemo(() => {
     if (!selectedUser) return createFullAccess()
@@ -242,14 +239,6 @@ export function OfficePermissionsPage() {
             </select>
           </div>
         </div>
-      </div>
-
-      <div className="perm-notice">
-        {!selectedUser
-          ? 'أضف موظفاً أولاً من صفحة الموظفين.'
-          : !hasSavedPermissions
-            ? 'لم تُحفظ صلاحيات لهذا المستخدم بعد — الجدول يعرض الافتراضي حسب الدور. عدّل واضغط حفظ لتطبيق التقييد.'
-            : 'تم حفظ صلاحيات مخصصة لهذا المستخدم. يمكنك تعديلها وحفظ التغييرات.'}
       </div>
 
       {selectedUser && (

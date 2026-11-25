@@ -181,10 +181,6 @@ export function PartnerApiPage() {
       <header className="page-header">
         <div>
           <h1>ربط API</h1>
-          <p>
-            أنشئ مفتاحاً سرياً لجهة خارجية مربوطة بمكتب — تستدعي به واجهات الحجوزات فقط حسب الصلاحيات
-            المحددة.
-          </p>
         </div>
         <button type="button" className="btn btn-amber" onClick={openCreate}>
           رابط جديد
@@ -201,9 +197,6 @@ export function PartnerApiPage() {
             نسخ
           </button>
         </div>
-        <p style={{ color: 'var(--muted)', fontSize: '0.9rem', marginTop: 8 }}>
-          المصادقة: <code style={{ direction: 'ltr' }}>Authorization: Bearer &lt;apiKey&gt;</code>
-        </p>
       </div>
 
       {error && !open && <p className="error-msg">{error}</p>}
@@ -273,7 +266,7 @@ export function PartnerApiPage() {
               {!loading && list.length === 0 && (
                 <tr>
                   <td colSpan={7} className="empty">
-                    لا توجد روابط بعد — أنشئ رابطاً للجهة الخارجية
+                    لا توجد بيانات
                   </td>
                 </tr>
               )}

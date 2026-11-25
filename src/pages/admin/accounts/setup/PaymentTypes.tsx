@@ -223,12 +223,6 @@ const PaymentTypes: React.FC = () => {
               {editId ? "تعديل نوع سند صرف" : "إضافة نوع سند صرف"}
             </h2>
 
-            {!editId && (
-              <div className="rounded border border-dashed border-gray-300 bg-white px-3 py-2 text-right text-sm text-gray-500">
-                الرقم يتولد تلقائيًا عند الحفظ
-              </div>
-            )}
-
             <input
               className="border p-2 w-full rounded"
               placeholder="الاسم"

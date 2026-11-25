@@ -489,11 +489,7 @@ const AccountStatement: React.FC = () => {
               </select>
             )}
           </div>
-        ) : (
-          <div className="acc-filter-inner p-3 text-xs font-bold acc-muted">
-            الوضع التجميعي فقط — يعرض كل الحسابات الفرعية تحت الأب المختار (مثل صناديق وبنوك تحت الأصول)، وليس الحسابات الرئيسية الوسيطة.
-          </div>
-        )}
+        ) : null}
       </div>
 
       <div className="w-full space-y-8">

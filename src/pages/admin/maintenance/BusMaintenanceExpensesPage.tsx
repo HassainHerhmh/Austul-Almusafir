@@ -149,7 +149,7 @@ export function BusMaintenanceExpensesPage() {
       reset()
       await load()
     } catch (ex) {
-      setErr(ex instanceof Error ? ex.message : 'فشل الحفظ — تأكد من حساب الوسيط في الحسابات الوسيطة')
+      setErr(ex instanceof Error ? ex.message : 'فشل الحفظ')
     } finally {
       setBusy(false)
     }
@@ -187,9 +187,6 @@ export function BusMaintenanceExpensesPage() {
       <header className="page-header">
         <div>
           <h2>مصاريف صيانات الحافلات</h2>
-          <p className="text-muted" style={{ marginTop: '0.25rem', fontSize: '0.9rem' }}>
-            يُرحَّل المبلغ تلقائياً: مدين حساب وسيط الصيانات · دائن حساب الصرف المختار
-          </p>
         </div>
         <div className="actions">
           <button type="button" className="btn btn-ghost" onClick={exportRows} disabled={!filtered.length}>
@@ -257,7 +254,7 @@ export function BusMaintenanceExpensesPage() {
               {filtered.length === 0 && (
                 <tr>
                   <td colSpan={9} className="empty">
-                    لا توجد سجلات صيانة — اضغط «إضافة صيانة»
+                    لا توجد بيانات
                   </td>
                 </tr>
               )}
@@ -387,9 +384,6 @@ export function BusMaintenanceExpensesPage() {
                   />
                 </div>
               </div>
-              <p className="text-muted" style={{ fontSize: '0.85rem', marginTop: '0.75rem' }}>
-                عيّن «وسيط صيانات الحافلات» من الحسابات → التهيئة → الحسابات الوسيطة قبل أول ترحيل.
-              </p>
               <div className="actions" style={{ marginTop: '1rem' }}>
                 <button type="submit" className="btn btn-primary" disabled={busy}>
                   {busy ? 'جاري الحفظ…' : 'حفظ وترحيل'}

@@ -87,7 +87,6 @@ export function BranchesPage() {
       <header className="page-header">
         <div>
           <h1>إدارة الفروع</h1>
-          <p>كل فرع يمكن ربط مكاتب تحته وحساب ذمّة مستقل. الرحلات تبقى مركزية عند الوكالة.</p>
         </div>
         <button type="button" className="btn btn-amber" onClick={() => void openModal()}>
           إضافة فرع

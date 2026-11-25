@@ -127,7 +127,6 @@ export function OfficeTrackingPage() {
       <header className="page-header">
         <div>
           <h1>تتبع الباصات</h1>
-          <p>رحلات مكتبك على الخريطة</p>
         </div>
         <button type="button" className="btn btn-ghost" onClick={() => void refresh()}>
           تحديث الآن

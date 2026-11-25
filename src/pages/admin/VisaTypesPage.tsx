@@ -23,7 +23,6 @@ export function VisaTypesPage() {
       <header className="page-header">
         <div>
           <h1>أنواع التأشيرات</h1>
-          <p>قائمة أنواع التأشيرة التي تظهر عند الحجز</p>
         </div>
       </header>
 
@@ -93,7 +92,7 @@ export function VisaTypesPage() {
               {state.visaTypes.length === 0 && (
                 <tr>
                   <td colSpan={2} className="empty">
-                    لا توجد أنواع تأشيرات بعد — أضف أنواعاً من الأعلى
+                    لا توجد بيانات
                   </td>
                 </tr>
               )}

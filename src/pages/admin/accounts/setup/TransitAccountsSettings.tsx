@@ -153,9 +153,6 @@ const TransitAccountsSettings = () => {
               </option>
             ))}
           </select>
-          <p className="text-xs text-[var(--muted)]">
-            يُستخدم عند تسجيل مصاريف الصيانة (مدين) مقابل حساب الصرف المختار (دائن).
-          </p>
         </div>
       </div>
 

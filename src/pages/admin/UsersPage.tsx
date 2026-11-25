@@ -148,7 +148,6 @@ export function UsersPage() {
       <header className="page-header">
         <div>
           <h1>إدارة المستخدمين</h1>
-          <p>حسابات السائقين تُستخدم لتطبيق تتبع الباص (APK)</p>
         </div>
         <button
           type="button"

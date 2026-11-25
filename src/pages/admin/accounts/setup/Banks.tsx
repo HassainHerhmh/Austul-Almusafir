@@ -336,10 +336,6 @@ const Banks: React.FC = () => {
               onChange={(e) => setForm({ ...form, name_en: e.target.value })}
             />
 
-            <div className="rounded border border-dashed border-gray-300 bg-white px-3 py-2 mb-2 text-right text-sm text-gray-500">
-              الرقم يتولد تلقائيًا من تسلسل الحسابات، ويظهر البنك في الدليل تحت حساب الأب
-            </div>
-
             <select
               className="border p-2 w-full mb-2 rounded"
               value={form.bank_group_id}

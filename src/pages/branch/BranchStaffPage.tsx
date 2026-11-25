@@ -108,7 +108,6 @@ export function BranchStaffPage() {
       <header className="page-header">
         <div>
           <h1>موظفو الفرع</h1>
-          <p>إدارة موظفي مكاتب الفرع — الحجز من المكاتب على الرحلات المركزية</p>
         </div>
         <button type="button" className="btn btn-amber" onClick={openAdd} disabled={!branchOffices.length}>
           موظف جديد

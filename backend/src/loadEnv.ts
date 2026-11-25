@@ -24,11 +24,15 @@ export function ensureDatabaseUrl() {
     }
     const params = new URLSearchParams()
     if (!/[?&]connection_limit=/.test(normalized)) params.set('connection_limit', '5')
-    // Hostinger / MySQL مشترك: SSL أو شهادة ذاتية
+    const hostInUrl = normalized.match(/@([^/:]+)/)?.[1] ?? ''
+    const localMysql = /^(localhost|127\.0\.0\.1)$/i.test(hostInUrl)
+    // SSL فقط للمضيف البعيد — localhost على Hostinger غالباً بدون TLS (وإلا يظهر Authentication failed)
     if (
+      !localMysql &&
       !/[?&]sslaccept=/.test(normalized) &&
-      (hasMysqlParts() ||
-        /hstgr\.io|hostinger|mysql\.database\.azure/i.test(normalized))
+      (/hstgr\.io|hostinger|mysql\.database\.azure/i.test(normalized) ||
+        (hasMysqlParts() &&
+          !/^(localhost|127\.0\.0\.1)$/i.test(process.env.MYSQLHOST || process.env.MYSQL_HOST || '')))
     ) {
       params.set('sslaccept', 'accept_invalid_certs')
     }

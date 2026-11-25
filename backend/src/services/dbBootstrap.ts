@@ -22,8 +22,14 @@ export async function ensurePrismaConnected(): Promise<boolean> {
         'db-bootstrap',
         'شغّل على السيرفر: cd backend && npm install && npx prisma generate && npm run build',
       )
-    } else if (/credentials|access denied|ECONNREFUSED|ENOTFOUND|TLS/i.test(msg)) {
-      logger.error('db-bootstrap', 'تحقق من MYSQLHOST / MYSQLUSER / MYSQLPASSWORD في لوحة Hostinger')
+    } else if (/Authentication failed|credentials|access denied|ECONNREFUSED|ENOTFOUND|TLS/i.test(msg)) {
+      const host = process.env.MYSQLHOST || process.env.MYSQL_HOST || '(من DATABASE_URL)'
+      const user = process.env.MYSQLUSER || process.env.MYSQL_USER || '—'
+      const db = process.env.MYSQLDATABASE || process.env.MYSQL_DATABASE || '—'
+      logger.error(
+        'db-bootstrap',
+        `فشل الدخول — تحقق من كلمة مرور MySQL للمستخدم ${user} والقاعدة ${db} على المضيف ${host} (لوحة Hostinger → قواعد البيانات). استخدم MYSQLHOST من اللوحة وليس localhost إن كان المضيف بعيداً.`,
+      )
     }
     return false
   }

@@ -10,6 +10,11 @@ import { useBrand } from '../../context/BrandContext'
 import { serverApi } from '../../api/serverApi'
 import type { Booking, PaymentMethod, TlbPassengerInput } from '../../types'
 import { printTableReport, downloadExcelReport } from '../../utils/importExport'
+import {
+  TLB_FIELD_LABELS,
+  buildPassengerDisplayName,
+  emptyTlbPassengerInput,
+} from '../../utils/tlbFields'
 
 const PRINT_COLUMNS = [
   { key: 'passenger', label: 'الراكب' },
@@ -94,30 +99,13 @@ export function OfficeBookingsPage() {
 
   const [tripId, setTripId] = useState(params.get('trip') ?? trips[0]?.id ?? '')
   const [seat, setSeat] = useState<number | null>(null)
-  const [passengerName, setPassengerName] = useState('')
   const [ticketNumber, setTicketNumber] = useState('')
-  const [phone, setPhone] = useState('')
-  const [passportNumber, setPassportNumber] = useState('')
   const [visaTypeId, setVisaTypeId] = useState('')
   const [boardingDestinationId, setBoardingDestinationId] = useState('')
   const [arrivalDestinationId, setArrivalDestinationId] = useState('')
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
   const [notes, setNotes] = useState('')
-  const [tlb, setTlb] = useState<TlbPassengerInput>({
-    TransltName: '',
-    TransltScondName: '',
-    TransltThreeName: '',
-    TransltLastName: '',
-    NumberPaspport: '',
-    TransltNationlity: '',
-    numbervisa: '',
-    MobileTranslt: '',
-    SexTranslte: '',
-    PlaceAcess: '',
-    DateCard: '',
-    PlaceCard: '',
-    typevisa2: '',
-  })
+  const [tlb, setTlb] = useState<TlbPassengerInput>(emptyTlbPassengerInput)
   const [error, setError] = useState<string | null>(null)
   const [ticketBooking, setTicketBooking] = useState<Booking | null>(null)
   const [editBooking, setEditBooking] = useState<Booking | null>(null)
@@ -141,27 +129,16 @@ export function OfficeBookingsPage() {
   const [bookingBusy, setBookingBusy] = useState(false)
 
   useEffect(() => {
-    if (!passengerName.trim()) return
-    const parts = passengerName.trim().split(/\s+/).filter(Boolean)
-    setTlb((prev) => ({
-      ...prev,
-      TransltName: prev.TransltName || parts[0] || '',
-      TransltScondName: prev.TransltScondName || parts[1] || '',
-      TransltThreeName: prev.TransltThreeName || parts[2] || '',
-      TransltLastName:
-        prev.TransltLastName ||
-        (parts.length > 3 ? parts.slice(3).join(' ') : parts[3] || parts[2] || ''),
-    }))
-  }, [passengerName])
+    const visaName = state.visaTypes.find((v) => v.id === visaTypeId)?.name ?? ''
+    if (!visaName) return
+    setTlb((prev) => ({ ...prev, typevisa2: visaName }))
+  }, [visaTypeId, state.visaTypes])
 
   useEffect(() => {
-    setTlb((prev) => ({
-      ...prev,
-      NumberPaspport: passportNumber || prev.NumberPaspport,
-      MobileTranslt: phone || prev.MobileTranslt,
-      typevisa2: state.visaTypes.find((v) => v.id === visaTypeId)?.name ?? prev.typevisa2,
-    }))
-  }, [passportNumber, phone, visaTypeId, state.visaTypes])
+    const arrivalName = getDestination(arrivalDestinationId)?.name ?? ''
+    if (!arrivalName) return
+    setTlb((prev) => ({ ...prev, PlaceAcess: arrivalName }))
+  }, [arrivalDestinationId, state.destinations, getDestination])
 
   const selectedTrip = useMemo(
     () => state.trips.find((t) => t.id === tripId) ?? null,
@@ -353,25 +330,50 @@ export function OfficeBookingsPage() {
       setError('اختر منطقة الوصول')
       return
     }
+    const passengerName = buildPassengerDisplayName(tlb)
+    if (!passengerName.trim()) {
+      setError('أدخل اسم المسافر (الاسم الأول واللقب على الأقل)')
+      return
+    }
+    if (!(tlb.TransltName ?? '').trim() || !(tlb.TransltLastName ?? '').trim()) {
+      setError('الهيئة تطلب الاسم الأول واللقب')
+      return
+    }
+    if (!(tlb.NumberPaspport ?? '').trim()) {
+      setError('أدخل رقم جواز السفر')
+      return
+    }
+    if (!(tlb.MobileTranslt ?? '').trim()) {
+      setError('أدخل رقم الهاتف')
+      return
+    }
+    if (!(tlb.SexTranslte ?? '').trim()) {
+      setError('اختر الجنس')
+      return
+    }
+    if (!(tlb.DateCard ?? '').trim() || !(tlb.PlaceCard ?? '').trim()) {
+      setError('أدخل تاريخ ومكان إصدار الجواز')
+      return
+    }
+
     setBookingBusy(true)
     setError(null)
     try {
       const arrivalName = getDestination(arrivalDestinationId)?.name ?? ''
+      const visaName = state.visaTypes.find((v) => v.id === visaTypeId)?.name ?? ''
       const result = await createBooking({
         tripId,
         officeId,
         passengerName,
         ticketNumber,
-        phone,
-        passportNumber,
+        phone: (tlb.MobileTranslt ?? '').trim(),
+        passportNumber: (tlb.NumberPaspport ?? '').trim(),
         visaTypeId,
         boardingDestinationId,
         arrivalDestinationId,
         ...tlb,
-        NumberPaspport: tlb.NumberPaspport || passportNumber,
-        MobileTranslt: tlb.MobileTranslt || phone,
-        PlaceAcess: tlb.PlaceAcess || arrivalName,
-        typevisa2: tlb.typevisa2 || state.visaTypes.find((v) => v.id === visaTypeId)?.name || '',
+        PlaceAcess: (tlb.PlaceAcess ?? '').trim() || arrivalName,
+        typevisa2: (tlb.typevisa2 ?? '').trim() || visaName,
         seatNumber: seat,
         paymentMethod,
         notes,
@@ -381,10 +383,8 @@ export function OfficeBookingsPage() {
         setError(result)
         return
       }
-      setPassengerName('')
+      setTlb(emptyTlbPassengerInput())
       setTicketNumber('')
-      setPhone('')
-      setPassportNumber('')
       setVisaTypeId('')
       setNotes('')
       setSeat(null)
@@ -523,38 +523,84 @@ export function OfficeBookingsPage() {
                   })}
                 </select>
               </div>
+              <div className="field" style={{ gridColumn: '1 / -1' }}>
+                <p className="field-hint" style={{ margin: 0 }}>
+                  بيانات الحجز والرفع للهيئة (PassengerApi) في نموذج واحد — تُرفع التذكرة لاحقاً من
+                  «تأكيد الرفع».
+                </p>
+              </div>
               <div className="field">
-                <label>اسم الراكب</label>
+                <label>{TLB_FIELD_LABELS.TransltName}</label>
                 <input
                   required
-                  value={passengerName}
-                  onChange={(e) => setPassengerName(e.target.value)}
+                  value={tlb.TransltName ?? ''}
+                  onChange={(e) => setTlb((p) => ({ ...p, TransltName: e.target.value }))}
                 />
               </div>
               <div className="field">
-                <label>رقم التذكرة</label>
+                <label>{TLB_FIELD_LABELS.TransltScondName}</label>
+                <input
+                  value={tlb.TransltScondName ?? ''}
+                  onChange={(e) => setTlb((p) => ({ ...p, TransltScondName: e.target.value }))}
+                />
+              </div>
+              <div className="field">
+                <label>{TLB_FIELD_LABELS.TransltThreeName}</label>
+                <input
+                  value={tlb.TransltThreeName ?? ''}
+                  onChange={(e) => setTlb((p) => ({ ...p, TransltThreeName: e.target.value }))}
+                />
+              </div>
+              <div className="field">
+                <label>{TLB_FIELD_LABELS.TransltLastName}</label>
+                <input
+                  required
+                  value={tlb.TransltLastName ?? ''}
+                  onChange={(e) => setTlb((p) => ({ ...p, TransltLastName: e.target.value }))}
+                />
+              </div>
+              <div className="field">
+                <label>رقم التذكرة (IDTiktex)</label>
                 <input
                   required
                   value={ticketNumber}
                   onChange={(e) => setTicketNumber(e.target.value)}
-                  placeholder="مثال: T-1001"
+                  placeholder="مثال: 10025"
                 />
               </div>
               <div className="field">
-                <label>الهاتف</label>
-                <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="اختياري" />
-              </div>
-              <div className="field">
-                <label>رقم الجواز</label>
+                <label>{TLB_FIELD_LABELS.NumberPaspport}</label>
                 <input
                   required
-                  value={passportNumber}
-                  onChange={(e) => setPassportNumber(e.target.value)}
-                  placeholder="مثال: P-1234567"
+                  value={tlb.NumberPaspport ?? ''}
+                  onChange={(e) => setTlb((p) => ({ ...p, NumberPaspport: e.target.value }))}
                 />
               </div>
               <div className="field">
-                <label>نوع التأشيرة</label>
+                <label>{TLB_FIELD_LABELS.MobileTranslt}</label>
+                <input
+                  required
+                  value={tlb.MobileTranslt ?? ''}
+                  onChange={(e) => setTlb((p) => ({ ...p, MobileTranslt: e.target.value }))}
+                />
+              </div>
+              <div className="field">
+                <label>{TLB_FIELD_LABELS.TransltNationlity}</label>
+                <input
+                  value={tlb.TransltNationlity ?? ''}
+                  onChange={(e) => setTlb((p) => ({ ...p, TransltNationlity: e.target.value }))}
+                  placeholder="مثال: Yemeni"
+                />
+              </div>
+              <div className="field">
+                <label>{TLB_FIELD_LABELS.numbervisa}</label>
+                <input
+                  value={tlb.numbervisa ?? ''}
+                  onChange={(e) => setTlb((p) => ({ ...p, numbervisa: e.target.value }))}
+                />
+              </div>
+              <div className="field">
+                <label>نوع التأشيرة (قائمة المكتب)</label>
                 <select
                   required
                   value={visaTypeId}
@@ -567,6 +613,36 @@ export function OfficeBookingsPage() {
                     </option>
                   ))}
                 </select>
+              </div>
+              <div className="field">
+                <label>{TLB_FIELD_LABELS.SexTranslte}</label>
+                <select
+                  required
+                  value={tlb.SexTranslte ?? ''}
+                  onChange={(e) => setTlb((p) => ({ ...p, SexTranslte: e.target.value }))}
+                >
+                  <option value="">اختر</option>
+                  <option value="Male">ذكر (Male)</option>
+                  <option value="Female">أنثى (Female)</option>
+                </select>
+              </div>
+              <div className="field">
+                <label>{TLB_FIELD_LABELS.DateCard}</label>
+                <input
+                  type="date"
+                  required
+                  value={tlb.DateCard ?? ''}
+                  onChange={(e) => setTlb((p) => ({ ...p, DateCard: e.target.value }))}
+                />
+              </div>
+              <div className="field">
+                <label>{TLB_FIELD_LABELS.PlaceCard}</label>
+                <input
+                  required
+                  value={tlb.PlaceCard ?? ''}
+                  onChange={(e) => setTlb((p) => ({ ...p, PlaceCard: e.target.value }))}
+                  placeholder="مثال: عدن"
+                />
               </div>
               <div className="field">
                 <label>منطقة الانطلاق</label>
@@ -601,6 +677,14 @@ export function OfficeBookingsPage() {
                 </select>
               </div>
               <div className="field">
+                <label>{TLB_FIELD_LABELS.PlaceAcess}</label>
+                <input
+                  value={tlb.PlaceAcess ?? ''}
+                  onChange={(e) => setTlb((p) => ({ ...p, PlaceAcess: e.target.value }))}
+                  placeholder="يُملأ تلقائياً من منطقة الوصول"
+                />
+              </div>
+              <div className="field">
                 <label>طريقة الدفع</label>
                 <select
                   value={paymentMethod}
@@ -612,95 +696,12 @@ export function OfficeBookingsPage() {
                 </select>
               </div>
               <div className="field" style={{ gridColumn: '1 / -1' }}>
-                <label>الملاحظات</label>
+                <label>ملاحظات داخلية (لا تُرسل للهيئة)</label>
                 <input
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="اختياري"
                 />
-              </div>
-            </div>
-
-            <div className="panel" style={{ marginTop: '1rem', padding: '0.75rem' }}>
-              <h3 style={{ margin: '0 0 0.75rem' }}>
-                بيانات الهيئة (PassengerApi) — تُرفع يدوياً من «تأكيد الرفع»
-              </h3>
-              <div className="form-grid">
-                <div className="field">
-                  <label>TransltName</label>
-                  <input
-                    value={tlb.TransltName ?? ''}
-                    onChange={(e) => setTlb((p) => ({ ...p, TransltName: e.target.value }))}
-                  />
-                </div>
-                <div className="field">
-                  <label>TransltScondName</label>
-                  <input
-                    value={tlb.TransltScondName ?? ''}
-                    onChange={(e) => setTlb((p) => ({ ...p, TransltScondName: e.target.value }))}
-                  />
-                </div>
-                <div className="field">
-                  <label>TransltThreeName</label>
-                  <input
-                    value={tlb.TransltThreeName ?? ''}
-                    onChange={(e) => setTlb((p) => ({ ...p, TransltThreeName: e.target.value }))}
-                  />
-                </div>
-                <div className="field">
-                  <label>TransltLastName</label>
-                  <input
-                    value={tlb.TransltLastName ?? ''}
-                    onChange={(e) => setTlb((p) => ({ ...p, TransltLastName: e.target.value }))}
-                  />
-                </div>
-                <div className="field">
-                  <label>TransltNationlity</label>
-                  <input
-                    value={tlb.TransltNationlity ?? ''}
-                    onChange={(e) => setTlb((p) => ({ ...p, TransltNationlity: e.target.value }))}
-                  />
-                </div>
-                <div className="field">
-                  <label>numbervisa</label>
-                  <input
-                    value={tlb.numbervisa ?? ''}
-                    onChange={(e) => setTlb((p) => ({ ...p, numbervisa: e.target.value }))}
-                  />
-                </div>
-                <div className="field">
-                  <label>SexTranslte</label>
-                  <select
-                    value={tlb.SexTranslte ?? ''}
-                    onChange={(e) => setTlb((p) => ({ ...p, SexTranslte: e.target.value }))}
-                  >
-                    <option value="">اختر</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                  </select>
-                </div>
-                <div className="field">
-                  <label>DateCard</label>
-                  <input
-                    type="date"
-                    value={tlb.DateCard ?? ''}
-                    onChange={(e) => setTlb((p) => ({ ...p, DateCard: e.target.value }))}
-                  />
-                </div>
-                <div className="field">
-                  <label>PlaceCard</label>
-                  <input
-                    value={tlb.PlaceCard ?? ''}
-                    onChange={(e) => setTlb((p) => ({ ...p, PlaceCard: e.target.value }))}
-                  />
-                </div>
-                <div className="field">
-                  <label>PlaceAcess</label>
-                  <input
-                    value={tlb.PlaceAcess ?? ''}
-                    onChange={(e) => setTlb((p) => ({ ...p, PlaceAcess: e.target.value }))}
-                  />
-                </div>
               </div>
             </div>
 

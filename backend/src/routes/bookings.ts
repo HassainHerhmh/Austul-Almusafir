@@ -124,13 +124,7 @@ bookingsRouter.post(
       .safeParse(req.body)
     if (!body.success) return fail(res, 'بيانات الحجز غير صالحة')
 
-    const tlbFields = mergeTlbPassengerFields({
-      passengerName: body.data.passengerName,
-      passportNumber: body.data.passportNumber,
-      phone: body.data.phone,
-      notes: body.data.notes,
-      ...body.data,
-    })
+    const tlbFields = mergeTlbPassengerFields(body.data)
 
     const officeId =
       req.user!.role === 'admin'

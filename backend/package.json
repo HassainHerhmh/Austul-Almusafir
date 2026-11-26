@@ -16,7 +16,8 @@
     "db:sync": "prisma db push --accept-data-loss --skip-generate",
     "db:seed": "tsx prisma/seed.ts",
     "setup": "prisma generate && prisma db push --accept-data-loss && tsx prisma/seed.ts",
-    "setup:hostinger": "prisma generate && prisma db push --accept-data-loss && npm run build"
+    "setup:hostinger": "prisma generate && prisma db push --accept-data-loss && npm run build",
+    "tlb:upsert-key": "tsx scripts/upsert-tlb-key.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.19.0",

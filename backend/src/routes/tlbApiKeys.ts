@@ -4,6 +4,7 @@ import { prisma } from '../config'
 import { authRequired, requireAdmin } from '../middleware/auth'
 import {
   DEFAULT_TLB_PERMISSIONS,
+  formatTlbAuthorityError,
   getActiveTlbApiKey,
   normalizeTlbPermissions,
   sendTlbPassengerForBooking,
@@ -156,13 +157,13 @@ tlbApiKeysRouter.post(
   const result = await sendTlbPassengerForBooking(body.data.bookingId, { force: true })
     if (result.skipped) return fail(res, `تخطي الإرسال: ${result.reason}`, 400)
     if (!result.ok) {
-      const detail =
+      const raw =
         'responseBody' in result && result.responseBody
-          ? String(result.responseBody).slice(0, 400)
-          : 'error' in result
+          ? String(result.responseBody)
+          : 'error' in result && result.error
             ? result.error
-            : 'رفض السيرفر'
-      return fail(res, detail ?? 'رفض السيرفر', 502)
+            : ''
+      return fail(res, raw ? formatTlbAuthorityError(raw) : 'رفض السيرفر', 502)
     }
     return ok(res, result)
   }),

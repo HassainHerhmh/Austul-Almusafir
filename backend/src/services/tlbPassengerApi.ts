@@ -31,6 +31,31 @@ function defaultBaseUrl() {
   return 'https://apicomny-001-site1.htempurl.com/'
 }
 
+/** رسالة عربية من استجابة JSON لسيرفر الهيئة */
+export function formatTlbAuthorityError(raw: string): string {
+  const t = raw.trim()
+  if (!t) return 'رفض سيرفر الهيئة بدون تفاصيل'
+  try {
+    const j = JSON.parse(t) as { message?: string; stage?: string }
+    const stage = (j.stage ?? '').trim()
+    const message = (j.message ?? '').trim()
+    if (stage === 'API_KEY_NOT_MATCHED') {
+      return (
+        'مفتاح API غير مطابق عند الهيئة — تحقق من CompanyId و ApiKey و ApiSecret في إعدادات PassengerApi ' +
+        '(نفس القيم التي زودتكم بها الهيئة)، وأن السجل «فعال» وعنوان apiBaseUrl هو رابط الإنتاج إن وُجد.'
+      )
+    }
+    if (stage === 'COMPANY_CODE_NOT_MATCHED' || stage === 'COMPANY_ID_NOT_MATCHED') {
+      return 'كود الشركة (CompanyId) غير مطابق — يجب أن يطابق المسجل لدى الهيئة في الرأس والـ JSON.'
+    }
+    if (message && stage) return `${message} (${stage})`
+    if (message) return message
+  } catch {
+    /* ليس JSON */
+  }
+  return t.length > 400 ? `${t.slice(0, 400)}…` : t
+}
+
 export async function getActiveTlbApiKey() {
   const row = await prisma.tlbApiKey.findFirst({
     where: { isActive: 1 },
@@ -100,7 +125,7 @@ export function buildTlbPassengerPayload(input: {
     IDLocalex: idLocalex,
     IDTiktex: booking.ticketNumber.trim(),
     Ticketamountex: booking.price,
-    CompanyId: companyId,
+    CompanyId: companyId.trim(),
     daterg,
     typevisa2: (booking.typevisa2 || visaTypeName || '').trim(),
     NumberChck2: String(booking.seatNumber),
@@ -195,6 +220,10 @@ async function postPassenger(
     'Content-Type': 'application/json; charset=utf-8',
   }
 
+  const companyId = config.companyId.trim()
+  const apiKey = config.apiKey.trim()
+  const apiSecret = config.apiSecret.trim()
+
   if (config.useHmacSignature) {
     const body = Buffer.from(jsonBody, 'utf8')
     const timestamp = Math.floor(Date.now() / 1000).toString()
@@ -203,16 +232,16 @@ async function postPassenger(
     const bodyHash = toHex(crypto.createHash('sha256').update(body).digest())
     const canonical = `POST\n/api/passenger\n${timestamp}\n${nonce}\n${bodyHash}`
     const signature = crypto
-      .createHmac('sha256', Buffer.from(config.apiSecret, 'utf8'))
+      .createHmac('sha256', Buffer.from(apiSecret, 'utf8'))
       .update(canonical, 'utf8')
       .digest('base64')
-    headers['X-Company-Code'] = config.companyId
-    headers['X-Api-Key'] = config.apiKey
+    headers['X-Company-Code'] = companyId
+    headers['X-Api-Key'] = apiKey
     headers['X-Timestamp'] = timestamp
     headers['X-Nonce'] = nonce
     headers['X-Signature'] = signature
   } else {
-    headers['X-API-KEY'] = config.apiKey
+    headers['X-API-KEY'] = apiKey
   }
 
   const res = await fetch(url, { method: 'POST', headers, body: jsonBody })
@@ -302,9 +331,9 @@ export async function sendTlbPassengerForBooking(bookingId: string, opts?: { for
     const result = await postPassenger(
       baseUrl,
       {
-        companyId: keyRow.companyId,
-        apiKey: keyRow.apiKey,
-        apiSecret: keyRow.apiSecret,
+        companyId: keyRow.companyId.trim(),
+        apiKey: keyRow.apiKey.trim(),
+        apiSecret: keyRow.apiSecret.trim(),
         useHmacSignature: keyRow.permissions.useHmacSignature,
       },
       jsonBody,
@@ -326,7 +355,7 @@ export async function sendTlbPassengerForBooking(bookingId: string, opts?: { for
       data: {
         tlbSyncStatus: result.ok ? 'sent' : 'failed',
         tlbSyncAt: new Date(),
-        tlbSyncError: result.ok ? '' : result.responseBody.slice(0, 500),
+        tlbSyncError: result.ok ? '' : formatTlbAuthorityError(result.responseBody).slice(0, 500),
       },
     })
 

@@ -14,6 +14,7 @@ import { resolveOfficeLedgerAccountId } from '../services/officeLedger'
 import { allocateBookingNumber } from '../services/bookingNumber'
 import { officeIdsForUser, officeIdWhere } from '../utils/branchScope'
 import {
+  formatTlbAuthorityError,
   mergeTlbPassengerFields,
   sendTlbPassengerForBooking,
 } from '../services/tlbPassengerApi'
@@ -349,14 +350,13 @@ bookingsRouter.post(
     })
     if (result.skipped) return fail(res, `تخطي الإرسال: ${result.reason}`, 400)
     if (!result.ok) {
-      const detail =
+      const raw =
         'responseBody' in result && result.responseBody
-          ? String(result.responseBody).slice(0, 400)
-          : 'error' in result
+          ? String(result.responseBody)
+          : 'error' in result && result.error
             ? result.error
-            : 'رفض سيرفر الهيئة'
-      const msg =
-        'error' in result && result.error ? result.error : (detail ?? 'رفض سيرفر الهيئة')
+            : ''
+      const msg = raw ? formatTlbAuthorityError(raw) : 'رفض سيرفر الهيئة'
       return fail(res, msg, result.error ? 400 : 502)
     }
     const updated = await prisma.booking.findUnique({ where: { id: booking.id } })

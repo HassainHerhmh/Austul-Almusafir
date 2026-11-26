@@ -24,7 +24,10 @@ type TlbRow = {
 const PERM_LABELS: { key: keyof TlbPerms; label: string }[] = [
   { key: 'passengerSend', label: 'إرسال passenger' },
   { key: 'autoOnBooking', label: 'إرسال تلقائي عند التذكرة (غير موصى به)' },
-  { key: 'useHmacSignature', label: 'توقيع HMAC (X-Signature)' },
+  {
+    key: 'useHmacSignature',
+    label: 'توقيع HMAC (X-Signature) — مطلوب على سيرفر الهيئة',
+  },
 ]
 
 const DEFAULT_PERMS: TlbPerms = {

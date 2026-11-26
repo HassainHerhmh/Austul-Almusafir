@@ -27,6 +27,14 @@ function toHex(bytes: Buffer) {
   return bytes.toString('hex')
 }
 
+/** إزالة مسافات/أسطر زائدة من نسخ الهيئة */
+export function normalizeTlbCredential(value: string) {
+  return value
+    .replace(/\uFEFF/g, '')
+    .replace(/\r/g, '')
+    .trim()
+}
+
 function defaultBaseUrl() {
   return 'https://apicomny-001-site1.htempurl.com/'
 }
@@ -43,6 +51,10 @@ export type TlbSendDiagnostics = {
   rawResponseBody: string
   hintAr: string
   tlbApiKeyId?: number
+  /** للمطابقة مع الهيئة — SHA256 لجسم JSON (hex) */
+  bodySha256Hex?: string
+  /** نص التوقيع المعتمد (بدون السر) */
+  canonicalString?: string
 }
 
 function maskApiKeySuffix(key: string) {
@@ -67,6 +79,15 @@ export function formatTlbAuthorityError(raw: string): string {
     }
     if (stage === 'COMPANY_CODE_NOT_MATCHED' || stage === 'COMPANY_ID_NOT_MATCHED') {
       return 'كود الشركة (CompanyId) غير مطابق — يجب أن يطابق المسجل لدى الهيئة في الرأس والـ JSON.'
+    }
+    if (stage === 'SIGNATURE_MISMATCH') {
+      return (
+        'التوقيع HMAC غير مطابق — المفتاح (ApiKey) مقبول غالباً لكن ApiSecret خطأ أو مقترن بمفتاح آخر. ' +
+        'أعد إدخال ApiSecret حرفياً كما في خطاب الهيئة (بدون مسافات زائدة)، واترك خيار HMAC مفعّلاً.'
+      )
+    }
+    if (stage === 'MISSING_HEADERS') {
+      return 'الهيئة تتطلب رؤوس HMAC (X-Company-Code, X-Api-Key, X-Timestamp, X-Nonce, X-Signature) — فعّل توقيع HMAC.'
     }
     if (message && stage) return `${message} (${stage})`
     if (message) return message
@@ -240,9 +261,12 @@ async function postPassenger(
     'Content-Type': 'application/json; charset=utf-8',
   }
 
-  const companyId = config.companyId.trim()
-  const apiKey = config.apiKey.trim()
-  const apiSecret = config.apiSecret.trim()
+  const companyId = normalizeTlbCredential(config.companyId)
+  const apiKey = normalizeTlbCredential(config.apiKey)
+  const apiSecret = normalizeTlbCredential(config.apiSecret)
+
+  let bodySha256Hex: string | undefined
+  let canonicalString: string | undefined
 
   if (config.useHmacSignature) {
     const body = Buffer.from(jsonBody, 'utf8')
@@ -250,7 +274,9 @@ async function postPassenger(
     const nonceBytes = crypto.randomBytes(32)
     const nonce = toHex(nonceBytes)
     const bodyHash = toHex(crypto.createHash('sha256').update(body).digest())
+    bodySha256Hex = bodyHash
     const canonical = `POST\n/api/passenger\n${timestamp}\n${nonce}\n${bodyHash}`
+    canonicalString = canonical
     const signature = crypto
       .createHmac('sha256', Buffer.from(apiSecret, 'utf8'))
       .update(canonical, 'utf8')
@@ -273,6 +299,8 @@ async function postPassenger(
     ok: res.ok,
     requestUrl,
     authMode: config.useHmacSignature ? ('hmac' as const) : ('api_key_header' as const),
+    bodySha256Hex,
+    canonicalString,
   }
 }
 
@@ -354,9 +382,9 @@ export async function sendTlbPassengerForBooking(bookingId: string, opts?: { for
   const jsonBody = JSON.stringify(payload)
   const baseUrl = (keyRow.apiBaseUrl || defaultBaseUrl()).trim() || defaultBaseUrl()
   const authConfig = {
-    companyId: keyRow.companyId.trim(),
-    apiKey: keyRow.apiKey.trim(),
-    apiSecret: keyRow.apiSecret.trim(),
+    companyId: normalizeTlbCredential(keyRow.companyId),
+    apiKey: normalizeTlbCredential(keyRow.apiKey),
+    apiSecret: normalizeTlbCredential(keyRow.apiSecret),
     useHmacSignature: keyRow.permissions.useHmacSignature,
   }
 
@@ -376,12 +404,16 @@ export async function sendTlbPassengerForBooking(bookingId: string, opts?: { for
 
   try {
     const result = await postPassenger(baseUrl, authConfig, jsonBody)
-    const diagnostics = buildDiagnostics({
-      requestUrl: result.requestUrl,
-      httpStatus: result.statusCode,
-      reachedAuthority: true,
-      rawResponseBody: result.responseBody,
-    })
+    const diagnostics: TlbSendDiagnostics = {
+      ...buildDiagnostics({
+        requestUrl: result.requestUrl,
+        httpStatus: result.statusCode,
+        reachedAuthority: true,
+        rawResponseBody: result.responseBody,
+      }),
+      bodySha256Hex: result.bodySha256Hex,
+      canonicalString: result.canonicalString,
+    }
 
     logger.warn('tlb-passenger', {
       bookingId,

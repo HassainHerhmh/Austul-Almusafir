@@ -19,6 +19,11 @@ export function formatTlbUploadError(err: unknown): string {
       `التوثيق: ${d.authMode === 'hmac' ? 'HMAC (X-Signature)' : 'X-API-KEY فقط'}`,
     )
     if (d.tlbApiKeyId != null) lines.push(`سجل المفتاح في النظام: ApiID ${d.tlbApiKeyId}`)
+    const diag = d as { bodySha256Hex?: string; canonicalString?: string }
+    if (diag.bodySha256Hex) lines.push(`SHA256 للجسم (hex): ${diag.bodySha256Hex}`)
+    if (diag.canonicalString) {
+      lines.push('', 'نص التوقيع المعتمد (للهيئة):', diag.canonicalString.slice(0, 500))
+    }
   }
   const raw = err.tlb?.responseBody?.trim() || d?.rawResponseBody?.trim()
   if (raw) {

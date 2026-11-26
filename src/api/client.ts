@@ -33,6 +33,8 @@ export type TlbApiDiagnostics = {
   rawResponseBody: string
   hintAr: string
   tlbApiKeyId?: number
+  bodySha256Hex?: string
+  canonicalString?: string
 }
 
 export class ApiError extends Error {

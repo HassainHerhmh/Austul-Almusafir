@@ -6,6 +6,7 @@ import {
   DEFAULT_TLB_PERMISSIONS,
   formatTlbAuthorityError,
   getActiveTlbApiKey,
+  normalizeTlbCredential,
   normalizeTlbPermissions,
   sendTlbPassengerForBooking,
   type TlbPermissions,
@@ -87,10 +88,10 @@ tlbApiKeysRouter.post(
     const permissions: TlbPermissions = normalizeTlbPermissions(body.data.permissions)
     const row = await prisma.tlbApiKey.create({
       data: {
-        companyId: body.data.companyId,
+        companyId: normalizeTlbCredential(body.data.companyId),
         apiNAme: body.data.apiNAme?.trim() || null,
-        apiKey: body.data.apiKey,
-        apiSecret: body.data.apiSecret,
+        apiKey: normalizeTlbCredential(body.data.apiKey),
+        apiSecret: normalizeTlbCredential(body.data.apiSecret),
         apiBaseUrl: body.data.apiBaseUrl?.trim() ?? '',
         isActive: body.data.isActive ?? 1,
         permissions,
@@ -124,10 +125,14 @@ tlbApiKeysRouter.put(
     const row = await prisma.tlbApiKey.update({
       where: { apiId },
       data: {
-        ...(body.data.companyId !== undefined ? { companyId: body.data.companyId } : {}),
+        ...(body.data.companyId !== undefined
+          ? { companyId: normalizeTlbCredential(body.data.companyId) }
+          : {}),
         ...(body.data.apiNAme !== undefined ? { apiNAme: body.data.apiNAme.trim() || null } : {}),
-        ...(body.data.apiKey !== undefined ? { apiKey: body.data.apiKey } : {}),
-        ...(body.data.apiSecret !== undefined ? { apiSecret: body.data.apiSecret } : {}),
+        ...(body.data.apiKey !== undefined ? { apiKey: normalizeTlbCredential(body.data.apiKey) } : {}),
+        ...(body.data.apiSecret !== undefined
+          ? { apiSecret: normalizeTlbCredential(body.data.apiSecret) }
+          : {}),
         ...(body.data.apiBaseUrl !== undefined ? { apiBaseUrl: body.data.apiBaseUrl } : {}),
         ...(body.data.isActive !== undefined ? { isActive: body.data.isActive } : {}),
         ...(body.data.permissions !== undefined

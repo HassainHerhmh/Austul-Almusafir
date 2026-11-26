@@ -47,7 +47,6 @@ export function OfficeBookingsPage() {
     createBooking,
     refreshBookings,
     updateBooking,
-    refreshBookings,
     ensureTripSeats,
   } = useApp()
   const { name: companyName, logoUrl, phones } = useBrand()

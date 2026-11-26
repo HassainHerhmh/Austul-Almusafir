@@ -114,11 +114,13 @@ export function TripsPage() {
       alert('أدخل سعر التذكرة للرحلة')
       return
     }
+    const existingTrip = editId ? state.trips.find((t) => t.id === editId) : undefined
     upsertTrip(
       editId
         ? {
             ...form,
             id: editId,
+            tripNumber: existingTrip?.tripNumber ?? null,
             tripKind: form.tripKind,
             campaignOfficeId:
               form.tripKind === 'campaign' ? form.campaignOfficeId || null : null,
@@ -128,6 +130,7 @@ export function TripsPage() {
           }
         : {
             ...form,
+            tripNumber: null,
             tripKind: form.tripKind,
             campaignOfficeId:
               form.tripKind === 'campaign' ? form.campaignOfficeId || null : null,

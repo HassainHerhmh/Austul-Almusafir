@@ -7,7 +7,7 @@ import { PAYMENT_LABELS, formatMoney, formatTimeAr, todayStr } from '../../compo
 import { useApp } from '../../context/AppContext'
 import { useBrand } from '../../context/BrandContext'
 import { serverApi } from '../../api/serverApi'
-import type { Booking, PaymentMethod } from '../../types'
+import type { Booking, PaymentMethod, TlbPassengerInput } from '../../types'
 import { printTableReport, downloadExcelReport } from '../../utils/importExport'
 
 const PRINT_COLUMNS = [
@@ -102,6 +102,22 @@ export function OfficeBookingsPage() {
   const [arrivalDestinationId, setArrivalDestinationId] = useState('')
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
   const [notes, setNotes] = useState('')
+  const [tlbRequired, setTlbRequired] = useState(false)
+  const [tlb, setTlb] = useState<TlbPassengerInput>({
+    TransltName: '',
+    TransltScondName: '',
+    TransltThreeName: '',
+    TransltLastName: '',
+    NumberPaspport: '',
+    TransltNationlity: '',
+    numbervisa: '',
+    MobileTranslt: '',
+    SexTranslte: '',
+    PlaceAcess: '',
+    DateCard: '',
+    PlaceCard: '',
+    typevisa2: '',
+  })
   const [error, setError] = useState<string | null>(null)
   const [ticketBooking, setTicketBooking] = useState<Booking | null>(null)
   const [editBooking, setEditBooking] = useState<Booking | null>(null)
@@ -123,6 +139,42 @@ export function OfficeBookingsPage() {
   const [editError, setEditError] = useState<string | null>(null)
   const [editBusy, setEditBusy] = useState(false)
   const [bookingBusy, setBookingBusy] = useState(false)
+
+  useEffect(() => {
+    void serverApi.tlbApiKeys
+      .active()
+      .then((r) => {
+        const on =
+          r.configured &&
+          r.key?.permissions?.passengerSend &&
+          r.key?.permissions?.autoOnBooking
+        setTlbRequired(!!on)
+      })
+      .catch(() => setTlbRequired(false))
+  }, [])
+
+  useEffect(() => {
+    if (!passengerName.trim()) return
+    const parts = passengerName.trim().split(/\s+/).filter(Boolean)
+    setTlb((prev) => ({
+      ...prev,
+      TransltName: prev.TransltName || parts[0] || '',
+      TransltScondName: prev.TransltScondName || parts[1] || '',
+      TransltThreeName: prev.TransltThreeName || parts[2] || '',
+      TransltLastName:
+        prev.TransltLastName ||
+        (parts.length > 3 ? parts.slice(3).join(' ') : parts[3] || parts[2] || ''),
+    }))
+  }, [passengerName])
+
+  useEffect(() => {
+    setTlb((prev) => ({
+      ...prev,
+      NumberPaspport: passportNumber || prev.NumberPaspport,
+      MobileTranslt: phone || prev.MobileTranslt,
+      typevisa2: state.visaTypes.find((v) => v.id === visaTypeId)?.name ?? prev.typevisa2,
+    }))
+  }, [passportNumber, phone, visaTypeId, state.visaTypes])
 
   const selectedTrip = useMemo(
     () => state.trips.find((t) => t.id === tripId) ?? null,
@@ -317,6 +369,7 @@ export function OfficeBookingsPage() {
     setBookingBusy(true)
     setError(null)
     try {
+      const arrivalName = getDestination(arrivalDestinationId)?.name ?? ''
       const result = await createBooking({
         tripId,
         officeId,
@@ -327,6 +380,11 @@ export function OfficeBookingsPage() {
         visaTypeId,
         boardingDestinationId,
         arrivalDestinationId,
+        ...tlb,
+        NumberPaspport: tlb.NumberPaspport || passportNumber,
+        MobileTranslt: tlb.MobileTranslt || phone,
+        PlaceAcess: tlb.PlaceAcess || arrivalName,
+        typevisa2: tlb.typevisa2 || state.visaTypes.find((v) => v.id === visaTypeId)?.name || '',
         seatNumber: seat,
         paymentMethod,
         notes,
@@ -573,6 +631,95 @@ export function OfficeBookingsPage() {
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="اختياري"
                 />
+              </div>
+            </div>
+
+            <div className="panel" style={{ marginTop: '1rem', padding: '0.75rem' }}>
+              <h3 style={{ margin: '0 0 0.75rem' }}>
+                بيانات الهيئة (PassengerApi)
+                {tlbRequired ? ' *' : ''}
+              </h3>
+              <div className="form-grid">
+                <div className="field">
+                  <label>TransltName</label>
+                  <input
+                    value={tlb.TransltName ?? ''}
+                    onChange={(e) => setTlb((p) => ({ ...p, TransltName: e.target.value }))}
+                    required={tlbRequired}
+                  />
+                </div>
+                <div className="field">
+                  <label>TransltScondName</label>
+                  <input
+                    value={tlb.TransltScondName ?? ''}
+                    onChange={(e) => setTlb((p) => ({ ...p, TransltScondName: e.target.value }))}
+                  />
+                </div>
+                <div className="field">
+                  <label>TransltThreeName</label>
+                  <input
+                    value={tlb.TransltThreeName ?? ''}
+                    onChange={(e) => setTlb((p) => ({ ...p, TransltThreeName: e.target.value }))}
+                  />
+                </div>
+                <div className="field">
+                  <label>TransltLastName</label>
+                  <input
+                    value={tlb.TransltLastName ?? ''}
+                    onChange={(e) => setTlb((p) => ({ ...p, TransltLastName: e.target.value }))}
+                    required={tlbRequired}
+                  />
+                </div>
+                <div className="field">
+                  <label>TransltNationlity</label>
+                  <input
+                    value={tlb.TransltNationlity ?? ''}
+                    onChange={(e) => setTlb((p) => ({ ...p, TransltNationlity: e.target.value }))}
+                  />
+                </div>
+                <div className="field">
+                  <label>numbervisa</label>
+                  <input
+                    value={tlb.numbervisa ?? ''}
+                    onChange={(e) => setTlb((p) => ({ ...p, numbervisa: e.target.value }))}
+                  />
+                </div>
+                <div className="field">
+                  <label>SexTranslte</label>
+                  <select
+                    value={tlb.SexTranslte ?? ''}
+                    onChange={(e) => setTlb((p) => ({ ...p, SexTranslte: e.target.value }))}
+                    required={tlbRequired}
+                  >
+                    <option value="">اختر</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                  </select>
+                </div>
+                <div className="field">
+                  <label>DateCard</label>
+                  <input
+                    type="date"
+                    value={tlb.DateCard ?? ''}
+                    onChange={(e) => setTlb((p) => ({ ...p, DateCard: e.target.value }))}
+                    required={tlbRequired}
+                  />
+                </div>
+                <div className="field">
+                  <label>PlaceCard</label>
+                  <input
+                    value={tlb.PlaceCard ?? ''}
+                    onChange={(e) => setTlb((p) => ({ ...p, PlaceCard: e.target.value }))}
+                    required={tlbRequired}
+                  />
+                </div>
+                <div className="field">
+                  <label>PlaceAcess</label>
+                  <input
+                    value={tlb.PlaceAcess ?? ''}
+                    onChange={(e) => setTlb((p) => ({ ...p, PlaceAcess: e.target.value }))}
+                  />
+                </div>
               </div>
             </div>
 

@@ -178,6 +178,39 @@ export interface Booking {
   status: BookingStatus
   bookedAt: string
   bookedBy: string
+  /** بيانات PassengerApi للهيئة */
+  TransltName?: string
+  TransltScondName?: string
+  TransltThreeName?: string
+  TransltLastName?: string
+  NumberPaspport?: string
+  TransltNationlity?: string
+  numbervisa?: string
+  MobileTranslt?: string
+  SexTranslte?: string
+  PlaceAcess?: string
+  DateCard?: string
+  PlaceCard?: string
+  typevisa2?: string
+  tlbSyncStatus?: string
+  tlbSyncAt?: string | null
+  tlbSyncError?: string
+}
+
+export type TlbPassengerInput = {
+  TransltName?: string
+  TransltScondName?: string
+  TransltThreeName?: string
+  TransltLastName?: string
+  NumberPaspport?: string
+  TransltNationlity?: string
+  numbervisa?: string
+  MobileTranslt?: string
+  SexTranslte?: string
+  PlaceAcess?: string
+  DateCard?: string
+  PlaceCard?: string
+  typevisa2?: string
 }
 
 export interface Voucher {

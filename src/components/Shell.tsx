@@ -26,8 +26,6 @@ import {
   Link2,
   Wrench,
   Shield,
-  Cog,
-  Layers,
   X,
   type LucideIcon,
 } from 'lucide-react'
@@ -45,8 +43,6 @@ const adminLinks: { to: string; end?: boolean; label: string; icon: LucideIcon }
   { to: '/admin/offices', label: 'المكاتب', icon: Building2 },
   { to: '/admin/users', label: 'المستخدمون', icon: Users },
   { to: '/admin/fleet/buses', label: 'الحافلات', icon: Bus },
-  { to: '/admin/fleet/types', label: 'أنواع الحافلات', icon: Cog },
-  { to: '/admin/fleet/models', label: 'موديلات الحافلات', icon: Layers },
   { to: '/admin/insurance-companies', label: 'شركات التأمين', icon: Shield },
   { to: '/admin/maintenance', label: 'صيانات الحافلات', icon: Wrench },
   { to: '/admin/drivers', label: 'السائقون', icon: UserCircle2 },

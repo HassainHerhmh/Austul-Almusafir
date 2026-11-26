@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { API_BASE } from '../../api/client'
 import { serverApi } from '../../api/serverApi'
 import { useApp } from '../../context/AppContext'
+import { TlbApiPanel } from './TlbApiPanel'
 
 type PartnerPerms = {
   bookingsCreate: boolean
@@ -183,13 +184,15 @@ export function PartnerApiPage() {
           <h1>ربط API</h1>
         </div>
         <button type="button" className="btn btn-amber" onClick={openCreate}>
-          رابط جديد
+          رابط منصة خارجية
         </button>
       </header>
 
+      <TlbApiPanel />
+
       <div className="panel" style={{ marginBottom: '1rem' }}>
         <div className="panel-head">
-          <h2>عنوان الأساس للجهة</h2>
+          <h2>ربط المنصات الخارجية — العنوان الأساسي</h2>
         </div>
         <div className="actions" style={{ flexWrap: 'wrap', gap: 8 }}>
           <code style={{ direction: 'ltr', fontSize: 13 }}>{baseUrl}</code>

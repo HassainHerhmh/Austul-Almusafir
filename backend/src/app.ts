@@ -26,6 +26,7 @@ import { usersRouter } from './routes/users'
 import { partnerKeysRouter } from './routes/partnerKeys'
 import { partnerApiRouter } from './routes/partnerApi'
 import { maintenanceRouter } from './routes/maintenance'
+import { tlbApiKeysRouter } from './routes/tlbApiKeys'
 import { logger } from './utils/logger'
 
 export function createApp() {
@@ -110,6 +111,7 @@ export function createApp() {
   app.use('/api/accounts', accountsRouter)
   app.use('/api/settings', settingsRouter)
   app.use('/api/tracking', trackingRouter)
+  app.use('/api/tlb-api-keys', tlbApiKeysRouter)
   app.use('/api/partner-keys', partnerKeysRouter)
   app.use('/api/partner/v1', partnerApiRouter)
   app.use('/api/maintenance', maintenanceRouter)

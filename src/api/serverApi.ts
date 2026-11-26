@@ -79,6 +79,26 @@ function asBooking(b: any): Booking {
     status: b.status,
     bookedAt: typeof b.bookedAt === 'string' ? b.bookedAt : new Date(b.bookedAt).toISOString(),
     bookedBy: b.bookedBy ?? b.bookedById,
+    TransltName: b.TransltName ?? '',
+    TransltScondName: b.TransltScondName ?? '',
+    TransltThreeName: b.TransltThreeName ?? '',
+    TransltLastName: b.TransltLastName ?? '',
+    NumberPaspport: b.NumberPaspport ?? '',
+    TransltNationlity: b.TransltNationlity ?? '',
+    numbervisa: b.numbervisa ?? '',
+    MobileTranslt: b.MobileTranslt ?? '',
+    SexTranslte: b.SexTranslte ?? '',
+    PlaceAcess: b.PlaceAcess ?? '',
+    DateCard: b.DateCard ?? '',
+    PlaceCard: b.PlaceCard ?? '',
+    typevisa2: b.typevisa2 ?? '',
+    tlbSyncStatus: b.tlbSyncStatus ?? '',
+    tlbSyncAt: b.tlbSyncAt
+      ? typeof b.tlbSyncAt === 'string'
+        ? b.tlbSyncAt
+        : new Date(b.tlbSyncAt).toISOString()
+      : null,
+    tlbSyncError: b.tlbSyncError ?? '',
   }
 }
 
@@ -365,6 +385,56 @@ export const serverApi = {
       }),
     remove: (id: string) =>
       apiRequest<{ deleted: boolean }>(`/api/bookings/${id}`, { method: 'DELETE' }),
+    sendTlb: (id: string) =>
+      apiRequest<{ ok?: boolean; statusCode?: number; responseBody?: string }>(
+        `/api/bookings/${id}/tlb-send`,
+        { method: 'POST' },
+      ),
+  },
+
+  tlbApiKeys: {
+    list: () =>
+      apiRequest<{ list: unknown[]; active: boolean }>('/api/tlb-api-keys'),
+    active: () =>
+      apiRequest<{ configured: boolean; key?: { permissions: Record<string, boolean> } }>(
+        '/api/tlb-api-keys/active',
+      ),
+    create: (data: {
+      companyId: string
+      apiNAme?: string
+      apiKey: string
+      apiSecret: string
+      apiBaseUrl?: string
+      isActive?: number
+      permissions?: Record<string, boolean>
+    }) =>
+      apiRequest<{ key: unknown }>('/api/tlb-api-keys', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    update: (
+      id: string,
+      data: {
+        companyId?: string
+        apiNAme?: string
+        apiKey?: string
+        apiSecret?: string
+        apiBaseUrl?: string
+        isActive?: number
+        permissions?: Record<string, boolean>
+      },
+    ) =>
+      apiRequest<{ key: unknown }>(`/api/tlb-api-keys/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    remove: (id: string) =>
+      apiRequest<{ deleted: boolean }>(`/api/tlb-api-keys/${id}`, { method: 'DELETE' }),
+    testPassenger: (bookingId: string) =>
+      apiRequest<{ ok?: boolean }>('/api/tlb-api-keys/test-passenger', {
+        method: 'POST',
+        body: JSON.stringify({ bookingId }),
+      }),
   },
 
   customers: {

@@ -37,6 +37,22 @@ const ADD_COLUMNS = [
   'ALTER TABLE `Bus` ADD COLUMN `operatingCardExpiry` VARCHAR(191) NOT NULL DEFAULT \'\'',
   'ALTER TABLE `Bus` ADD COLUMN `initialOdometer` VARCHAR(191) NOT NULL DEFAULT \'\'',
   'ALTER TABLE `Bus` ADD COLUMN `notes` VARCHAR(500) NOT NULL DEFAULT \'\'',
+  'ALTER TABLE `Booking` ADD COLUMN `TransltName` VARCHAR(191) NOT NULL DEFAULT \'\'',
+  'ALTER TABLE `Booking` ADD COLUMN `TransltScondName` VARCHAR(191) NOT NULL DEFAULT \'\'',
+  'ALTER TABLE `Booking` ADD COLUMN `TransltThreeName` VARCHAR(191) NOT NULL DEFAULT \'\'',
+  'ALTER TABLE `Booking` ADD COLUMN `TransltLastName` VARCHAR(191) NOT NULL DEFAULT \'\'',
+  'ALTER TABLE `Booking` ADD COLUMN `NumberPaspport` VARCHAR(191) NOT NULL DEFAULT \'\'',
+  'ALTER TABLE `Booking` ADD COLUMN `TransltNationlity` VARCHAR(191) NOT NULL DEFAULT \'\'',
+  'ALTER TABLE `Booking` ADD COLUMN `numbervisa` VARCHAR(191) NOT NULL DEFAULT \'\'',
+  'ALTER TABLE `Booking` ADD COLUMN `MobileTranslt` VARCHAR(191) NOT NULL DEFAULT \'\'',
+  'ALTER TABLE `Booking` ADD COLUMN `SexTranslte` VARCHAR(191) NOT NULL DEFAULT \'\'',
+  'ALTER TABLE `Booking` ADD COLUMN `PlaceAcess` VARCHAR(191) NOT NULL DEFAULT \'\'',
+  'ALTER TABLE `Booking` ADD COLUMN `DateCard` VARCHAR(191) NOT NULL DEFAULT \'\'',
+  'ALTER TABLE `Booking` ADD COLUMN `PlaceCard` VARCHAR(191) NOT NULL DEFAULT \'\'',
+  'ALTER TABLE `Booking` ADD COLUMN `typevisa2` VARCHAR(191) NOT NULL DEFAULT \'\'',
+  'ALTER TABLE `Booking` ADD COLUMN `tlbSyncStatus` VARCHAR(191) NOT NULL DEFAULT \'\'',
+  'ALTER TABLE `Booking` ADD COLUMN `tlbSyncAt` DATETIME(3) NULL',
+  'ALTER TABLE `Booking` ADD COLUMN `tlbSyncError` VARCHAR(500) NOT NULL DEFAULT \'\'',
 ]
 
 const INDEXES = [
@@ -115,6 +131,36 @@ const CREATE_TABLES = [
     PRIMARY KEY (\`id\`),
     INDEX \`InsuranceCompany_branchId_idx\` (\`branchId\`)
   ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`,
+  `CREATE TABLE IF NOT EXISTS \`TlbApiKey\` (
+    \`ApiID\` INT NOT NULL AUTO_INCREMENT,
+    \`CompanyId\` VARCHAR(100) NOT NULL,
+    \`ApiNAme\` VARCHAR(200) NULL,
+    \`ApiKey\` TEXT NOT NULL,
+    \`ApiSecret\` TEXT NOT NULL,
+    \`ApiSecretProtected\` TEXT NULL,
+    \`apiBaseUrl\` VARCHAR(500) NOT NULL DEFAULT '',
+    \`IsActive\` INT NOT NULL DEFAULT 1,
+    \`permissions\` JSON NOT NULL,
+    \`createdAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    \`updatedAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (\`ApiID\`)
+  ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`,
+  `CREATE TABLE IF NOT EXISTS \`TlbPassengerLog\` (
+    \`id\` VARCHAR(191) NOT NULL,
+    \`bookingId\` VARCHAR(191) NOT NULL,
+    \`success\` BOOLEAN NOT NULL,
+    \`statusCode\` INT NULL,
+    \`requestJson\` TEXT NOT NULL,
+    \`responseBody\` TEXT NOT NULL,
+    \`errorMessage\` VARCHAR(500) NOT NULL DEFAULT '',
+    \`createdAt\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    PRIMARY KEY (\`id\`),
+    INDEX \`TlbPassengerLog_bookingId_idx\` (\`bookingId\`)
+  ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`,
+]
+
+const TLB_FKS = [
+  'ALTER TABLE `TlbPassengerLog` ADD CONSTRAINT `TlbPassengerLog_bookingId_fkey` FOREIGN KEY (`bookingId`) REFERENCES `Booking`(`id`) ON DELETE CASCADE ON UPDATE CASCADE',
 ]
 
 const MAINTENANCE_FKS = [
@@ -151,6 +197,7 @@ export async function ensureBranchColumnsRaw(): Promise<void> {
 
   const cols = await runSqlBatch('db-columns', ADD_COLUMNS)
   const tables = await runSqlBatch('db-schema', CREATE_TABLES)
+  await runSqlBatch('db-schema', TLB_FKS)
   await runSqlBatch('db-schema', MAINTENANCE_FKS)
   await runSqlBatch('db-columns', INDEXES)
   try {

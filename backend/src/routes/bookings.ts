@@ -13,6 +13,28 @@ import { asyncHandler, fail, ok, paramId } from '../utils/http'
 import { resolveOfficeLedgerAccountId } from '../services/officeLedger'
 import { allocateBookingNumber } from '../services/bookingNumber'
 import { officeIdsForUser, officeIdWhere } from '../utils/branchScope'
+import {
+  getActiveTlbApiKey,
+  mergeTlbPassengerFields,
+  sendTlbPassengerForBooking,
+  tryAutoSendTlbPassenger,
+} from '../services/tlbPassengerApi'
+
+const tlbPassengerBodyFields = {
+  TransltName: z.string().optional(),
+  TransltScondName: z.string().optional(),
+  TransltThreeName: z.string().optional(),
+  TransltLastName: z.string().optional(),
+  NumberPaspport: z.string().optional(),
+  TransltNationlity: z.string().optional(),
+  numbervisa: z.string().optional(),
+  MobileTranslt: z.string().optional(),
+  SexTranslte: z.string().optional(),
+  PlaceAcess: z.string().optional(),
+  DateCard: z.string().optional(),
+  PlaceCard: z.string().optional(),
+  typevisa2: z.string().optional(),
+}
 
 export const bookingsRouter = Router()
 bookingsRouter.use(authRequired)
@@ -99,9 +121,33 @@ bookingsRouter.post(
         seatNumber: z.number().int().positive(),
         paymentMethod: z.enum(['cash', 'transfer', 'credit']).default('cash'),
         notes: z.string().optional(),
+        ...tlbPassengerBodyFields,
       })
       .safeParse(req.body)
     if (!body.success) return fail(res, 'بيانات الحجز غير صالحة')
+
+    const tlbFields = mergeTlbPassengerFields({
+      passengerName: body.data.passengerName,
+      passportNumber: body.data.passportNumber,
+      phone: body.data.phone,
+      notes: body.data.notes,
+      ...body.data,
+    })
+
+    const tlbKey = await getActiveTlbApiKey()
+    if (tlbKey?.permissions.autoOnBooking && tlbKey.permissions.passengerSend) {
+      const missing: string[] = []
+      if (!tlbFields.TransltName) missing.push('الاسم الأول')
+      if (!tlbFields.TransltLastName) missing.push('اللقب')
+      if (!tlbFields.NumberPaspport) missing.push('رقم الجواز')
+      if (!tlbFields.MobileTranslt) missing.push('الجوال')
+      if (!tlbFields.SexTranslte) missing.push('الجنس')
+      if (!tlbFields.DateCard) missing.push('تاريخ إصدار الجواز')
+      if (!tlbFields.PlaceCard) missing.push('مكان إصدار الجواز')
+      if (missing.length) {
+        return fail(res, `بيانات الهيئة مطلوبة: ${missing.join('، ')}`)
+      }
+    }
 
     const officeId =
       req.user!.role === 'admin'
@@ -247,6 +293,9 @@ bookingsRouter.post(
           notes: body.data.notes?.trim() ?? '',
           status: 'confirmed',
           bookedById: req.user!.id,
+          ...tlbFields,
+          NumberPaspport: tlbFields.NumberPaspport || body.data.passportNumber.trim(),
+          MobileTranslt: tlbFields.MobileTranslt || phone,
         },
       })
     })
@@ -280,6 +329,8 @@ bookingsRouter.post(
       })
     }
 
+    tryAutoSendTlbPassenger(booking.id)
+
     return ok(
       res,
       {
@@ -291,6 +342,25 @@ bookingsRouter.post(
       },
       201,
     )
+  }),
+)
+
+bookingsRouter.post(
+  '/:id/tlb-send',
+  requireRoles('admin'),
+  asyncHandler(async (req, res) => {
+    const result = await sendTlbPassengerForBooking(paramId(req), { force: true })
+    if (result.skipped) return fail(res, `تخطي الإرسال: ${result.reason}`, 400)
+    if (!result.ok) {
+      const detail =
+        'responseBody' in result && result.responseBody
+          ? String(result.responseBody).slice(0, 400)
+          : 'error' in result
+            ? result.error
+            : 'رفض سيرفر الهيئة'
+      return fail(res, detail ?? 'رفض سيرفر الهيئة', 502)
+    }
+    return ok(res, result)
   }),
 )
 

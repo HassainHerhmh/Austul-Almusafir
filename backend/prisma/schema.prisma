@@ -374,10 +374,60 @@ model Booking {
   bookedById     String?
   bookedBy       User?     @relation("BookedBy", fields: [bookedById], references: [id])
   vouchers       Voucher[]
+  /** حقول مسافر الهيئة العامة للنقل (مطابقة لوثيقة PassengerApi) */
+  TransltName         String @default("")
+  TransltScondName    String @default("")
+  TransltThreeName    String @default("")
+  TransltLastName     String @default("")
+  NumberPaspport      String @default("")
+  TransltNationlity   String @default("")
+  numbervisa          String @default("")
+  MobileTranslt       String @default("")
+  SexTranslte         String @default("")
+  PlaceAcess          String @default("")
+  DateCard            String @default("")
+  PlaceCard           String @default("")
+  typevisa2           String @default("")
+  tlbSyncStatus       String @default("")
+  tlbSyncAt           DateTime?
+  tlbSyncError        String @default("") @db.VarChar(500)
+  tlbPassengerLogs    TlbPassengerLog[]
 
   @@index([officeId])
   @@index([tripId])
   @@index([tripId, seatNumber])
+}
+
+/** مفاتيح ربط الهيئة العامة لتنظيم النقل — مطابق لجدول TlbApiKey في وثيقة API */
+model TlbApiKey {
+  apiId              Int      @id @default(autoincrement()) @map("ApiID")
+  companyId          String   @map("CompanyId") @db.VarChar(100)
+  apiNAme            String?  @map("ApiNAme") @db.VarChar(200)
+  apiKey             String   @map("ApiKey") @db.Text
+  apiSecret          String   @map("ApiSecret") @db.Text
+  apiSecretProtected String?  @map("ApiSecretProtected") @db.Text
+  apiBaseUrl         String   @default("") @db.VarChar(500)
+  isActive           Int      @default(1) @map("IsActive")
+  permissions        Json
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@map("TlbApiKey")
+}
+
+model TlbPassengerLog {
+  id           String   @id @default(cuid())
+  bookingId    String
+  booking      Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  success      Boolean
+  statusCode   Int?
+  requestJson  String   @db.Text
+  responseBody String   @db.Text
+  errorMessage String   @default("") @db.VarChar(500)
+  createdAt    DateTime @default(now())
+
+  @@index([bookingId])
+  @@map("TlbPassengerLog")
 }
 
 model Voucher {

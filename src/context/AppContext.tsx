@@ -105,7 +105,7 @@ interface AppContextValue {
     paymentMethod: PaymentMethod
     notes?: string
     bookedBy: string
-  }) => Promise<Booking | string>
+  } & Partial<import('../types').TlbPassengerInput>) => Promise<Booking | string>
   updateBooking: (
     id: string,
     patch: Partial<
@@ -921,20 +921,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const createBooking: AppContextValue['createBooking'] = async (input) => {
     try {
-      const res = await serverApi.bookings.create({
-        tripId: input.tripId,
-        officeId: input.officeId,
-        passengerName: input.passengerName,
-        ticketNumber: input.ticketNumber,
-        phone: input.phone,
-        passportNumber: input.passportNumber,
-        visaTypeId: input.visaTypeId,
-        boardingDestinationId: input.boardingDestinationId,
-        arrivalDestinationId: input.arrivalDestinationId,
-        seatNumber: input.seatNumber,
-        paymentMethod: input.paymentMethod,
-        notes: input.notes,
-      })
+      const { bookedBy: _bookedBy, ...payload } = input
+      const res = await serverApi.bookings.create(payload)
       const booking = asBooking(res.booking)
       setState((s) => ({
         ...s,

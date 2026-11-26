@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { serverApi } from '../api/serverApi'
 import type { Booking } from '../types'
+import { formatTlbUploadError } from '../utils/tlbUploadError'
 
 type Props = {
   booking: Booking
@@ -35,6 +36,7 @@ export function TlbConfirmUploadButton({ booking, onSuccess, className = 'btn bt
   }
 
   const failed = booking.tlbSyncStatus === 'failed'
+  const failTitle = booking.tlbSyncError?.trim() || undefined
 
   const submit = async () => {
     const msg = failed
@@ -47,7 +49,7 @@ export function TlbConfirmUploadButton({ booking, onSuccess, className = 'btn bt
       alert('تم رفع التذكرة للهيئة بنجاح')
       onSuccess?.()
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'فشل الرفع للهيئة')
+      alert(formatTlbUploadError(e))
       onSuccess?.()
     } finally {
       setBusy(false)
@@ -55,7 +57,13 @@ export function TlbConfirmUploadButton({ booking, onSuccess, className = 'btn bt
   }
 
   return (
-    <button type="button" className={className} disabled={busy} onClick={() => void submit()}>
+    <button
+      type="button"
+      className={className}
+      disabled={busy}
+      title={failed ? failTitle : undefined}
+      onClick={() => void submit()}
+    >
       {busy ? 'جاري الرفع…' : failed ? 'إعادة تأكيد الرفع' : 'تأكيد الرفع'}
     </button>
   )

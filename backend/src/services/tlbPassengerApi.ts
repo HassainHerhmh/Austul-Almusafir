@@ -31,6 +31,26 @@ function defaultBaseUrl() {
   return 'https://apicomny-001-site1.htempurl.com/'
 }
 
+export type TlbSendDiagnostics = {
+  requestUrl: string
+  authMode: 'hmac' | 'api_key_header'
+  companyId: string
+  /** آخر 4 أحرف من المفتاح للمطابقة دون كشف السر */
+  apiKeySuffix: string
+  httpStatus: number | null
+  /** تم الاتصال بالرابط وتلقي رد HTTP (حتى لو 401) */
+  reachedAuthority: boolean
+  rawResponseBody: string
+  hintAr: string
+  tlbApiKeyId?: number
+}
+
+function maskApiKeySuffix(key: string) {
+  const k = key.trim()
+  if (k.length <= 4) return '****'
+  return `…${k.slice(-4)}`
+}
+
 /** رسالة عربية من استجابة JSON لسيرفر الهيئة */
 export function formatTlbAuthorityError(raw: string): string {
   const t = raw.trim()
@@ -244,9 +264,16 @@ async function postPassenger(
     headers['X-API-KEY'] = apiKey
   }
 
+  const requestUrl = url.toString()
   const res = await fetch(url, { method: 'POST', headers, body: jsonBody })
   const responseBody = await res.text()
-  return { statusCode: res.status, responseBody, ok: res.ok }
+  return {
+    statusCode: res.status,
+    responseBody,
+    ok: res.ok,
+    requestUrl,
+    authMode: config.useHmacSignature ? ('hmac' as const) : ('api_key_header' as const),
+  }
 }
 
 export function validateTlbPassengerFields(booking: {
@@ -326,18 +353,47 @@ export async function sendTlbPassengerForBooking(bookingId: string, opts?: { for
 
   const jsonBody = JSON.stringify(payload)
   const baseUrl = (keyRow.apiBaseUrl || defaultBaseUrl()).trim() || defaultBaseUrl()
+  const authConfig = {
+    companyId: keyRow.companyId.trim(),
+    apiKey: keyRow.apiKey.trim(),
+    apiSecret: keyRow.apiSecret.trim(),
+    useHmacSignature: keyRow.permissions.useHmacSignature,
+  }
+
+  const buildDiagnostics = (
+    partial: Pick<TlbSendDiagnostics, 'requestUrl' | 'httpStatus' | 'reachedAuthority' | 'rawResponseBody'>,
+  ): TlbSendDiagnostics => ({
+    requestUrl: partial.requestUrl,
+    authMode: authConfig.useHmacSignature ? 'hmac' : 'api_key_header',
+    companyId: authConfig.companyId,
+    apiKeySuffix: maskApiKeySuffix(authConfig.apiKey),
+    httpStatus: partial.httpStatus,
+    reachedAuthority: partial.reachedAuthority,
+    rawResponseBody: partial.rawResponseBody,
+    hintAr: formatTlbAuthorityError(partial.rawResponseBody),
+    tlbApiKeyId: keyRow.apiId,
+  })
 
   try {
-    const result = await postPassenger(
-      baseUrl,
-      {
-        companyId: keyRow.companyId.trim(),
-        apiKey: keyRow.apiKey.trim(),
-        apiSecret: keyRow.apiSecret.trim(),
-        useHmacSignature: keyRow.permissions.useHmacSignature,
-      },
-      jsonBody,
-    )
+    const result = await postPassenger(baseUrl, authConfig, jsonBody)
+    const diagnostics = buildDiagnostics({
+      requestUrl: result.requestUrl,
+      httpStatus: result.statusCode,
+      reachedAuthority: true,
+      rawResponseBody: result.responseBody,
+    })
+
+    logger.warn('tlb-passenger', {
+      bookingId,
+      ok: result.ok,
+      requestUrl: result.requestUrl,
+      httpStatus: result.statusCode,
+      authMode: diagnostics.authMode,
+      companyId: diagnostics.companyId,
+      apiKeySuffix: diagnostics.apiKeySuffix,
+      tlbApiKeyId: keyRow.apiId,
+      responseBody: result.responseBody.slice(0, 2500),
+    })
 
     await prisma.tlbPassengerLog.create({
       data: {
@@ -346,16 +402,22 @@ export async function sendTlbPassengerForBooking(bookingId: string, opts?: { for
         statusCode: result.statusCode,
         requestJson: jsonBody,
         responseBody: result.responseBody.slice(0, 8000),
-        errorMessage: result.ok ? '' : `HTTP ${result.statusCode}`,
+        errorMessage: result.ok
+          ? ''
+          : `HTTP ${result.statusCode} | ${result.responseBody.slice(0, 450)}`,
       },
     })
+
+    const syncError = result.ok
+      ? ''
+      : `${diagnostics.hintAr}\nالرابط: ${diagnostics.requestUrl}\nHTTP ${result.statusCode}\nالرد: ${result.responseBody.slice(0, 280)}`
 
     await prisma.booking.update({
       where: { id: booking.id },
       data: {
         tlbSyncStatus: result.ok ? 'sent' : 'failed',
         tlbSyncAt: new Date(),
-        tlbSyncError: result.ok ? '' : formatTlbAuthorityError(result.responseBody).slice(0, 500),
+        tlbSyncError: syncError.slice(0, 500),
       },
     })
 
@@ -364,10 +426,19 @@ export async function sendTlbPassengerForBooking(bookingId: string, opts?: { for
       ok: result.ok,
       statusCode: result.statusCode,
       responseBody: result.responseBody,
+      diagnostics,
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
-    logger.error('tlb-passenger', { bookingId, msg })
+    const requestUrl = new URL('api/passenger', baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`).toString()
+    const diagnostics = buildDiagnostics({
+      requestUrl,
+      httpStatus: null,
+      reachedAuthority: false,
+      rawResponseBody: msg,
+    })
+
+    logger.error('tlb-passenger', { bookingId, msg, requestUrl, diagnostics })
     await prisma.tlbPassengerLog.create({
       data: {
         bookingId: booking.id,
@@ -375,7 +446,7 @@ export async function sendTlbPassengerForBooking(bookingId: string, opts?: { for
         statusCode: null,
         requestJson: jsonBody,
         responseBody: '',
-        errorMessage: msg.slice(0, 500),
+        errorMessage: `اتصال فاشل: ${msg.slice(0, 450)}`,
       },
     })
     await prisma.booking.update({
@@ -383,10 +454,10 @@ export async function sendTlbPassengerForBooking(bookingId: string, opts?: { for
       data: {
         tlbSyncStatus: 'failed',
         tlbSyncAt: new Date(),
-        tlbSyncError: msg.slice(0, 500),
+        tlbSyncError: `تعذر الوصول للرابط (${requestUrl}): ${msg}`.slice(0, 500),
       },
     })
-    return { skipped: false as const, ok: false, error: msg }
+    return { skipped: false as const, ok: false, error: msg, diagnostics }
   }
 }
 

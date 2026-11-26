@@ -15,13 +15,37 @@ export function setToken(token: string | null) {
 }
 
 type ApiOk<T> = { success: true } & T
-type ApiFail = { success: false; message?: string }
+type ApiFail = {
+  success: false
+  message?: string
+  diagnostics?: TlbApiDiagnostics
+  responseBody?: string
+  statusCode?: number | null
+}
+
+export type TlbApiDiagnostics = {
+  requestUrl: string
+  authMode: 'hmac' | 'api_key_header'
+  companyId: string
+  apiKeySuffix: string
+  httpStatus: number | null
+  reachedAuthority: boolean
+  rawResponseBody: string
+  hintAr: string
+  tlbApiKeyId?: number
+}
 
 export class ApiError extends Error {
   status: number
-  constructor(message: string, status = 400) {
+  tlb?: {
+    diagnostics?: TlbApiDiagnostics
+    responseBody?: string
+    statusCode?: number | null
+  }
+  constructor(message: string, status = 400, tlb?: ApiError['tlb']) {
     super(message)
     this.status = status
+    this.tlb = tlb
   }
 }
 
@@ -66,7 +90,11 @@ export async function apiRequest<T extends Record<string, unknown>>(
       setToken(null)
       window.dispatchEvent(new CustomEvent(ACCOUNT_SUSPENDED_EVENT, { detail: msg }))
     }
-    throw new ApiError(msg, res.status)
+    throw new ApiError(msg, res.status, {
+      diagnostics: fail.diagnostics,
+      responseBody: fail.responseBody,
+      statusCode: fail.statusCode,
+    })
   }
   return data
 }

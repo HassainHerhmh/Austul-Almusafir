@@ -357,7 +357,12 @@ bookingsRouter.post(
             ? result.error
             : ''
       const msg = raw ? formatTlbAuthorityError(raw) : 'رفض سيرفر الهيئة'
-      return fail(res, msg, result.error ? 400 : 502)
+      const diagnostics = 'diagnostics' in result ? result.diagnostics : undefined
+      return fail(res, msg, result.error ? 400 : 502, {
+        diagnostics,
+        responseBody: raw ? raw.slice(0, 4000) : undefined,
+        statusCode: 'statusCode' in result ? result.statusCode : null,
+      })
     }
     const updated = await prisma.booking.findUnique({ where: { id: booking.id } })
     return ok(res, {

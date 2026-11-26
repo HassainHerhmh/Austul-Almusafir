@@ -163,7 +163,12 @@ tlbApiKeysRouter.post(
           : 'error' in result && result.error
             ? result.error
             : ''
-      return fail(res, raw ? formatTlbAuthorityError(raw) : 'رفض السيرفر', 502)
+      const diagnostics = 'diagnostics' in result ? result.diagnostics : undefined
+      return fail(res, raw ? formatTlbAuthorityError(raw) : 'رفض السيرفر', 502, {
+        diagnostics,
+        responseBody: raw ? raw.slice(0, 4000) : undefined,
+        statusCode: 'statusCode' in result ? result.statusCode : null,
+      })
     }
     return ok(res, result)
   }),

@@ -14,6 +14,7 @@ import {
   DEFAULT_TLB_PERMISSIONS,
   normalizeTlbCredential,
   normalizeTlbPermissions,
+  validateTlbApiSecret,
 } from '../src/services/tlbPassengerApi'
 
 async function main() {
@@ -29,6 +30,11 @@ async function main() {
 
   if (!apiKey || !apiSecret) {
     console.error('عيّن TLB_API_KEY و TLB_API_SECRET')
+    process.exit(1)
+  }
+  const secretErr = validateTlbApiSecret(apiSecret)
+  if (secretErr) {
+    console.error(secretErr)
     process.exit(1)
   }
 

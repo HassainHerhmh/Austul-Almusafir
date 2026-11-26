@@ -59,7 +59,19 @@ export function normalizeTlbCredential(value: string) {
   return value
     .replace(/\uFEFF/g, '')
     .replace(/\r/g, '')
+    .replace(/\n/g, '')
     .trim()
+}
+
+/** تحقق من طول السر — hex من الهيئة غالباً 64 حرف */
+export function validateTlbApiSecret(apiSecret: string): string | null {
+  const s = normalizeTlbCredential(apiSecret)
+  if (!s) return 'ApiSecret مطلوب'
+  if (/^[0-9a-fA-F]+$/.test(s)) {
+    if (s.length === 64 || s.length === 32) return null
+    return `طول ApiSecret ${s.length} حرف — إذا كان hex من الهيئة يجب أن يكون 64 حرف (قد يكون لصق زائد مثل 467 في النهاية)`
+  }
+  return null
 }
 
 function defaultBaseUrl() {

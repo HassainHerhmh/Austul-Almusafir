@@ -9,6 +9,7 @@ import {
   normalizeTlbCredential,
   normalizeTlbPermissions,
   sendTlbPassengerForBooking,
+  validateTlbApiSecret,
   type TlbPermissions,
 } from '../services/tlbPassengerApi'
 import { asyncHandler, fail, ok, paramId } from '../utils/http'
@@ -84,6 +85,8 @@ tlbApiKeysRouter.post(
       })
       .safeParse(req.body)
     if (!body.success) return fail(res, 'بيانات غير صالحة')
+    const secretErr = validateTlbApiSecret(body.data.apiSecret)
+    if (secretErr) return fail(res, secretErr, 400)
 
     const permissions: TlbPermissions = normalizeTlbPermissions(body.data.permissions)
     const row = await prisma.tlbApiKey.create({
@@ -121,6 +124,10 @@ tlbApiKeysRouter.put(
       })
       .safeParse(req.body)
     if (!body.success) return fail(res, 'بيانات غير صالحة')
+    if (body.data.apiSecret !== undefined) {
+      const secretErr = validateTlbApiSecret(body.data.apiSecret)
+      if (secretErr) return fail(res, secretErr, 400)
+    }
 
     const row = await prisma.tlbApiKey.update({
       where: { apiId },

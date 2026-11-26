@@ -30,7 +30,14 @@ export function formatTlbUploadError(err: unknown): string {
         `طريقة مفتاح HMAC: ${diag.hmacKeyEncoding === 'hex' ? 'تحويل hex → بايتات' : 'نص UTF-8'}`,
       )
     }
-    if (diag.apiSecretLength != null) lines.push(`طول ApiSecret المحفوظ: ${diag.apiSecretLength} حرف`)
+    if (diag.apiSecretLength != null) {
+      lines.push(`طول ApiSecret المحفوظ: ${diag.apiSecretLength} حرف`)
+      if (diag.apiSecretLength === 67) {
+        lines.push(
+          'تنبيه: 67 حرف غالباً لصق خاطئ — ApiSecret hex الصحيح من الهيئة = 64 حرف (احذف الأحرف الزائدة في آخر السر)',
+        )
+      }
+    }
     if (diag.bodySha256Hex) lines.push(`SHA256 للجسم (hex): ${diag.bodySha256Hex}`)
     if (diag.canonicalString) {
       lines.push('', 'نص التوقيع المعتمد (للهيئة):', diag.canonicalString.slice(0, 500))

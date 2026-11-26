@@ -826,6 +826,27 @@ h3 {
   overflow-x: auto;
 }
 
+/* جدول الرحلات: أول عمود (رقم الرحلة) ثابت عند التمرير الأفقي */
+table.data.trips-table th.trips-col-trip-number,
+table.data.trips-table td.trips-col-trip-number {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  min-width: 5.5rem;
+  background: var(--panel, #fff);
+  box-shadow: 4px 0 8px rgba(0, 0, 0, 0.06);
+  text-align: right;
+}
+
+table.data.trips-table thead th.trips-col-trip-number {
+  z-index: 2;
+}
+
+[data-theme='dark'] table.data.trips-table th.trips-col-trip-number,
+[data-theme='dark'] table.data.trips-table td.trips-col-trip-number {
+  background: var(--panel);
+}
+
 table.data {
   width: 100%;
   border-collapse: collapse;

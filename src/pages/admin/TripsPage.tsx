@@ -206,10 +206,10 @@ export function TripsPage() {
 
       <div className="panel">
         <div className="table-wrap">
-          <table className="data">
+          <table className="data trips-table" dir="ltr">
             <thead>
               <tr>
-                <th>رقم الرحلة</th>
+                <th className="trips-col-trip-number">رقم الرحلة</th>
                 <th>خط السير</th>
                 <th>المحطات</th>
                 <th>التاريخ</th>
@@ -238,7 +238,7 @@ export function TripsPage() {
                   const seats = getTripSeats(t.id)
                   return (
                     <tr key={t.id}>
-                      <td>
+                      <td className="trips-col-trip-number">
                         <strong>{t.tripNumber ?? '—'}</strong>
                       </td>
                       <td>

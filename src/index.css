@@ -826,15 +826,15 @@ h3 {
   overflow-x: auto;
 }
 
-/* جدول الرحلات: أول عمود (رقم الرحلة) ثابت عند التمرير الأفقي */
+/* جدول الرحلات: رقم الرحلة أول عمود (يمين في RTL) ثابت عند التمرير */
 table.data.trips-table th.trips-col-trip-number,
 table.data.trips-table td.trips-col-trip-number {
   position: sticky;
-  left: 0;
+  right: 0;
   z-index: 1;
   min-width: 5.5rem;
   background: var(--panel, #fff);
-  box-shadow: 4px 0 8px rgba(0, 0, 0, 0.06);
+  box-shadow: -4px 0 8px rgba(0, 0, 0, 0.06);
   text-align: right;
 }
 

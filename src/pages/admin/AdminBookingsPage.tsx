@@ -6,6 +6,7 @@ import { useApp } from '../../context/AppContext'
 import { useBrand } from '../../context/BrandContext'
 import type { Booking, PaymentMethod } from '../../types'
 import { printTableReport } from '../../utils/importExport'
+import { tripNumberLabel } from '../../utils/trip'
 
 const PRINT_COLUMNS = [
   { key: 'passenger', label: 'الراكب' },
@@ -377,6 +378,7 @@ export function AdminBookingsPage() {
             <thead>
               <tr>
                 {isBranchAdmin && <th style={{ width: 88 }}>طباعة</th>}
+                <th>رقم الرحلة</th>
                 <th>الراكب</th>
                 <th>رقم التذكرة</th>
                 <th>رقم الجواز</th>
@@ -414,6 +416,7 @@ export function AdminBookingsPage() {
                           )}
                         </td>
                       )}
+                      <td>{trip ? (tripNumberLabel(trip) ?? '—') : '—'}</td>
                       <td>{b.passengerName}</td>
                       <td>{b.ticketNumber || '—'}</td>
                       <td>{b.passportNumber || '—'}</td>

@@ -209,7 +209,7 @@ export function TripsPage() {
 
       <div className="panel">
         <div className="table-wrap">
-          <table className="data trips-table" dir="ltr">
+          <table className="data trips-table">
             <thead>
               <tr>
                 <th className="trips-col-trip-number">رقم الرحلة</th>
@@ -232,11 +232,14 @@ export function TripsPage() {
             </thead>
             <tbody>
               {[...state.trips]
-                .sort(
-                  (a, b) =>
-                    a.date.localeCompare(b.date) ||
-                    a.departureTime.localeCompare(b.departureTime),
-                )
+                .sort((a, b) => {
+                  const byDate =
+                    b.date.localeCompare(a.date) || b.departureTime.localeCompare(a.departureTime)
+                  if (byDate !== 0) return byDate
+                  const an = a.tripNumber ?? 0
+                  const bn = b.tripNumber ?? 0
+                  return bn - an
+                })
                 .map((t) => {
                   const seats = getTripSeats(t.id)
                   return (

@@ -111,3 +111,14 @@ export function tripRoutePoints(trip: Trip): string {
     .filter(Boolean)
     .join(' ← ')
 }
+
+export function tripNumberLabel(trip: Pick<Trip, 'tripNumber'>): string | null {
+  if (trip.tripNumber == null || trip.tripNumber <= 0) return null
+  return String(trip.tripNumber)
+}
+
+/** عنوان الرحلة مع رقمها الظاهر */
+export function tripDisplayTitle(trip: Trip, routeLabel: string): string {
+  const n = tripNumberLabel(trip)
+  return n ? `${n} — ${routeLabel}` : routeLabel
+}

@@ -15,9 +15,11 @@ import {
   buildPassengerDisplayName,
   emptyTlbPassengerInput,
 } from '../../utils/tlbFields'
+import { tripNumberLabel } from '../../utils/trip'
 
 const PRINT_COLUMNS = [
   { key: 'passenger', label: 'الراكب' },
+  { key: 'tripNumber', label: 'رقم الرحلة' },
   { key: 'ticketNumber', label: 'رقم التذكرة' },
   { key: 'passport', label: 'رقم الجواز' },
   { key: 'visa', label: 'نوع التأشيرة' },
@@ -29,7 +31,9 @@ const PRINT_COLUMNS = [
   { key: 'notes', label: 'الملاحظات' },
   { key: 'status', label: 'الحالة' },
   { key: 'price', label: 'السعر' },
+  { key: 'bookedAt', label: 'تاريخ الحجز' },
   { key: 'addedBy', label: 'أضافه' },
+  { key: 'tlb', label: 'رفع للهيئة' },
 ] as const
 
 type PrintColKey = (typeof PRINT_COLUMNS)[number]['key']
@@ -218,6 +222,8 @@ export function OfficeBookingsPage() {
     switch (key) {
       case 'passenger':
         return b.passengerName
+      case 'tripNumber':
+        return trip ? tripNumberLabel(trip) ?? '—' : '—'
       case 'ticketNumber':
         return b.ticketNumber || '—'
       case 'passport':
@@ -242,6 +248,14 @@ export function OfficeBookingsPage() {
         return trip?.tripKind === 'campaign' ? 'حملة' : formatMoney(b.price)
       case 'addedBy':
         return state.users.find((u) => u.id === b.bookedBy)?.name || '—'
+      case 'bookedAt':
+        return b.bookedAt.slice(0, 16).replace('T', ' ')
+      case 'tlb':
+        return b.tlbSyncStatus === 'sent'
+          ? 'مُرفَع'
+          : b.tlbSyncStatus === 'failed'
+            ? 'فشل'
+            : '—'
       default:
         return '—'
     }
@@ -516,6 +530,7 @@ export function OfficeBookingsPage() {
                     return (
                       <option key={t.id} value={t.id}>
                         {t.tripKind === 'campaign' ? '[حملة] ' : ''}
+                        {tripNumberLabel(t) ? `رقم ${tripNumberLabel(t)} · ` : ''}
                         {getTripLabel(t)} — {t.date} {formatTimeAr(t.departureTime)} (متبقي{' '}
                         {s.remaining} | حجوزاتك {officeBookedCount})
                       </option>
@@ -811,6 +826,7 @@ export function OfficeBookingsPage() {
             <thead>
               <tr>
                 <th>#</th>
+                <th>رقم الرحلة</th>
                 <th>الراكب</th>
                 <th>رقم التذكرة</th>
                 <th>رقم الجواز</th>
@@ -823,7 +839,9 @@ export function OfficeBookingsPage() {
                 <th>الملاحظات</th>
                 <th>الحالة</th>
                 <th>السعر</th>
+                <th>تاريخ الحجز</th>
                 <th>أضافه</th>
+                <th>رفع للهيئة</th>
                 <th></th>
               </tr>
             </thead>
@@ -834,6 +852,7 @@ export function OfficeBookingsPage() {
                 return (
                   <tr key={b.id}>
                     <td>{idx + 1}</td>
+                    <td>{trip ? (tripNumberLabel(trip) ?? '—') : '—'}</td>
                     <td>{b.passengerName}</td>
                     <td>{b.ticketNumber || '—'}</td>
                     <td>{b.passportNumber || '—'}</td>
@@ -856,7 +875,18 @@ export function OfficeBookingsPage() {
                     <td>
                       {trip?.tripKind === 'campaign' ? 'حملة' : formatMoney(b.price)}
                     </td>
+                    <td>{b.bookedAt.slice(0, 16).replace('T', ' ')}</td>
                     <td>{addedBy?.name || '—'}</td>
+                    <td>
+                      {b.status === 'confirmed' ? (
+                        <TlbConfirmUploadButton
+                          booking={b}
+                          onSuccess={() => void refreshBookings()}
+                        />
+                      ) : (
+                        '—'
+                      )}
+                    </td>
                     <td>
                       <div className="actions">
                         {can('print_ticket') && b.status === 'confirmed' && trip && (
@@ -888,12 +918,6 @@ export function OfficeBookingsPage() {
                             إلغاء
                           </button>
                         )}
-                        {b.status === 'confirmed' && (
-                          <TlbConfirmUploadButton
-                            booking={b}
-                            onSuccess={() => void refreshBookings()}
-                          />
-                        )}
                       </div>
                     </td>
                   </tr>
@@ -901,7 +925,7 @@ export function OfficeBookingsPage() {
               })}
               {myBookings.length === 0 && (
                 <tr>
-                  <td colSpan={15} className="empty">
+                  <td colSpan={18} className="empty">
                     لا توجد حجوزات لهذا اليوم
                   </td>
                 </tr>

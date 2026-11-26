@@ -4,7 +4,7 @@ import type { Trip } from '../types'
 import { useApp } from '../context/AppContext'
 import { formatDateAr, formatMoney, formatTimeAr } from './utils'
 import { busTypeLabel } from '../utils/busDisplay'
-import { tripRoutePoints } from '../utils/trip'
+import { tripNumberLabel, tripRoutePoints } from '../utils/trip'
 
 type SeatInfo = { remaining: number; booked: number; total: number }
 
@@ -39,6 +39,8 @@ export function TripOfferCard({ trip, title, busType, seats, badges, action, foo
   const isCampaign = trip.tripKind === 'campaign'
   const childPrice =
     !isCampaign && trip.childPrice != null && trip.childPrice >= 0 ? trip.childPrice : trip.price
+  const tripNum = tripNumberLabel(trip)
+
   const adultLabel = isCampaign
     ? 'حملة'
     : trip.pricingMode === 'boarding'
@@ -48,7 +50,14 @@ export function TripOfferCard({ trip, title, busType, seats, badges, action, foo
   return (
     <article className="trip-offer-card">
       <header className="trip-offer-head">
-        <h3 className="trip-offer-title">{title}</h3>
+        <div>
+          {tripNum ? (
+            <span className="badge badge-info" style={{ marginBottom: '0.35rem' }}>
+              رقم الرحلة {tripNum}
+            </span>
+          ) : null}
+          <h3 className="trip-offer-title">{title}</h3>
+        </div>
         {badges ? <div className="trip-offer-badges">{badges}</div> : null}
       </header>
 

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { serverApi } from '../../api/serverApi'
 
 type TlbPerms = {
@@ -144,7 +145,133 @@ export function TlbApiPanel() {
     }
   }
 
+  const modal =
+    open &&
+    createPortal(
+      <div
+        className="modal-backdrop"
+        role="presentation"
+        onClick={() => setOpen(false)}
+      >
+        <div
+          className="modal modal-wide"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="tlb-api-modal-title"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <h2 id="tlb-api-modal-title">{editId ? 'تعديل ربط الهيئة' : 'إعداد ربط الهيئة'}</h2>
+          <form onSubmit={save}>
+            {err && <p className="error-msg">{err}</p>}
+            <div className="form-grid">
+              <div className="field">
+                <label>كود الشركة (CompanyId) *</label>
+                <input
+                  required
+                  value={companyId}
+                  onChange={(e) => setCompanyId(e.target.value)}
+                  placeholder="BUS 001"
+                  dir="ltr"
+                  autoFocus
+                />
+              </div>
+              <div className="field">
+                <label>اسم الربط (ApiNAme)</label>
+                <input
+                  value={apiNAme}
+                  onChange={(e) => setApiNAme(e.target.value)}
+                  placeholder="مثال: وكالة عدن"
+                />
+              </div>
+              <div className="field">
+                <label>مفتاح API (ApiKey) *</label>
+                <input
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  required={!editId}
+                  placeholder={editId ? 'اتركه فارغاً للإبقاء على الحالي' : ''}
+                  dir="ltr"
+                  autoComplete="off"
+                />
+              </div>
+              <div className="field">
+                <label>السر (ApiSecret) *</label>
+                <input
+                  value={apiSecret}
+                  onChange={(e) => setApiSecret(e.target.value)}
+                  required={!editId}
+                  placeholder={editId ? 'اتركه فارغاً للإبقاء على الحالي' : ''}
+                  dir="ltr"
+                  type="password"
+                  autoComplete="new-password"
+                />
+              </div>
+              <div className="field" style={{ gridColumn: '1 / -1' }}>
+                <label>عنوان سيرفر الهيئة (apiBaseUrl)</label>
+                <input
+                  value={apiBaseUrl}
+                  onChange={(e) => setApiBaseUrl(e.target.value)}
+                  dir="ltr"
+                  placeholder={DEFAULT_BASE}
+                />
+              </div>
+              <div className="field">
+                <label>الحالة (IsActive)</label>
+                <select value={isActive} onChange={(e) => setIsActive(Number(e.target.value))}>
+                  <option value={1}>فعال (1)</option>
+                  <option value={0}>موقوف (0)</option>
+                </select>
+              </div>
+            </div>
+
+            <div style={{ marginTop: '1rem' }}>
+              <strong>صلاحيات الإرسال</strong>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+                  gap: 8,
+                  marginTop: 8,
+                }}
+              >
+                {PERM_LABELS.map((p) => (
+                  <label
+                    key={p.key}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={permissions[p.key]}
+                      onChange={(e) =>
+                        setPermissions((prev) => ({ ...prev, [p.key]: e.target.checked }))
+                      }
+                    />
+                    {p.key === 'passengerSend'
+                      ? 'إرسال بيانات المسافر'
+                      : p.key === 'autoOnBooking'
+                        ? 'إرسال تلقائي عند التذكرة'
+                        : p.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="actions" style={{ marginTop: '1rem' }}>
+              <button type="submit" className="btn btn-primary" disabled={saving}>
+                {saving ? 'جاري الحفظ…' : 'حفظ'}
+              </button>
+              <button type="button" className="btn btn-ghost" onClick={() => setOpen(false)}>
+                إلغاء
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>,
+      document.body,
+    )
+
   return (
+  <>
     <div className="panel" style={{ marginBottom: '1rem' }}>
       <div className="page-header" style={{ marginBottom: '0.75rem' }}>
         <div>
@@ -226,107 +353,8 @@ export function TlbApiPanel() {
           </tbody>
         </table>
       </div>
-
-      {open && (
-        <div className="modal-backdrop" onClick={() => setOpen(false)}>
-          <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
-            <h2>{editId ? 'تعديل TlbApiKey' : 'إعداد TlbApiKey'}</h2>
-            <form onSubmit={save}>
-              {err && <p className="error-msg">{err}</p>}
-              <div className="form-grid">
-                <div className="field">
-                  <label>CompanyId *</label>
-                  <input
-                    required
-                    value={companyId}
-                    onChange={(e) => setCompanyId(e.target.value)}
-                    placeholder="BUS 001"
-                    dir="ltr"
-                  />
-                </div>
-                <div className="field">
-                  <label>ApiNAme</label>
-                  <input value={apiNAme} onChange={(e) => setApiNAme(e.target.value)} />
-                </div>
-                <div className="field">
-                  <label>ApiKey *</label>
-                  <input
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    required={!editId}
-                    placeholder={editId ? 'اتركه فارغاً للإبقاء' : ''}
-                    dir="ltr"
-                  />
-                </div>
-                <div className="field">
-                  <label>ApiSecret *</label>
-                  <input
-                    value={apiSecret}
-                    onChange={(e) => setApiSecret(e.target.value)}
-                    required={!editId}
-                    placeholder={editId ? 'اتركه فارغاً للإبقاء' : ''}
-                    dir="ltr"
-                    type="password"
-                    autoComplete="new-password"
-                  />
-                </div>
-                <div className="field" style={{ gridColumn: '1 / -1' }}>
-                  <label>عنوان السيرفر (apiBaseUrl)</label>
-                  <input
-                    value={apiBaseUrl}
-                    onChange={(e) => setApiBaseUrl(e.target.value)}
-                    dir="ltr"
-                  />
-                </div>
-                <div className="field">
-                  <label>IsActive</label>
-                  <select value={isActive} onChange={(e) => setIsActive(Number(e.target.value))}>
-                    <option value={1}>فعال (1)</option>
-                    <option value={0}>موقوف (0)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div style={{ marginTop: '1rem' }}>
-                <strong>الصلاحيات</strong>
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-                    gap: 8,
-                    marginTop: 8,
-                  }}
-                >
-                  {PERM_LABELS.map((p) => (
-                    <label
-                      key={p.key}
-                      style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={permissions[p.key]}
-                        onChange={(e) =>
-                          setPermissions((prev) => ({ ...prev, [p.key]: e.target.checked }))
-                        }
-                      />
-                      {p.label}
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div className="actions" style={{ marginTop: '1rem' }}>
-                <button type="submit" className="btn btn-primary" disabled={saving}>
-                  {saving ? 'جاري الحفظ…' : 'حفظ'}
-                </button>
-                <button type="button" className="btn btn-ghost" onClick={() => setOpen(false)}>
-                  إلغاء
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
+    {modal}
+  </>
   )
 }

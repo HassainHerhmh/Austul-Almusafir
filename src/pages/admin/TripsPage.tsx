@@ -209,6 +209,7 @@ export function TripsPage() {
           <table className="data">
             <thead>
               <tr>
+                <th>رقم الرحلة</th>
                 <th>خط السير</th>
                 <th>المحطات</th>
                 <th>التاريخ</th>
@@ -237,6 +238,9 @@ export function TripsPage() {
                   const seats = getTripSeats(t.id)
                   return (
                     <tr key={t.id}>
+                      <td>
+                        <strong>{t.tripNumber ?? '—'}</strong>
+                      </td>
                       <td>
                         <strong>{getTripLabel(t)}</strong>
                         <div style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>

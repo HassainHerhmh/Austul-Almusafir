@@ -54,6 +54,7 @@ export function normalizeTrip(trip: LegacyTrip): Trip {
 
   return {
     id: trip.id,
+    tripNumber: trip.tripNumber != null ? Number(trip.tripNumber) : null,
     busId: trip.busId,
     driverId: trip.driverId,
     assistantName: trip.assistantName ?? '',

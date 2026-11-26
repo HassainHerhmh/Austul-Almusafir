@@ -120,6 +120,8 @@ export interface TripStop {
 
 export interface Trip {
   id: string
+  /** رقم الرحلة الظاهر (يُرسل للهيئة كـ IDLocalex) */
+  tripNumber: number | null
   busId: string
   driverId: string
   /** اسم السائق المعاون (إدخال مباشر) */

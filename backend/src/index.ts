@@ -2,6 +2,7 @@ import 'dotenv/config'
 import { createApp } from './app'
 import { config, prisma } from './config'
 import { ensureBookingNumbers } from './services/bookingNumber'
+import { ensureTripNumbers } from './services/tripNumber'
 import { ensureDatabaseSchema } from './services/ensureSchema'
 import { ensureBranchColumnsRaw } from './services/ensureSchemaColumns'
 import { ensurePrismaConnected } from './services/dbBootstrap'
@@ -37,6 +38,7 @@ async function bootstrap() {
     try {
       await migrateLegacyBookableTrips()
       await ensureBookingNumbers()
+      await ensureTripNumbers()
     } catch (err) {
       logger.error('migration', err)
     }

@@ -240,6 +240,8 @@ model Driver {
 
 model Trip {
   id                 String     @id @default(cuid())
+  /** رقم الرحلة الظاهر (IDLocalex للهيئة) */
+  tripNumber         Int?       @unique
   busId              String
   bus                Bus        @relation(fields: [busId], references: [id])
   driverId           String

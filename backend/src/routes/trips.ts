@@ -8,6 +8,7 @@ import {
   resolveTicketRevenueTransitAccount,
   reverseCampaignCharge,
 } from '../services/ledger'
+import { allocateTripNumber } from '../services/tripNumber'
 import { asyncHandler, fail, ok, paramId } from '../utils/http'
 
 export const tripsRouter = Router()
@@ -29,6 +30,7 @@ const stopSchema = z.object({
 
 function mapTrip(t: {
   id: string
+  tripNumber: number | null
   busId: string
   driverId: string
   assistantName: string
@@ -46,6 +48,7 @@ function mapTrip(t: {
 }) {
   return {
     id: t.id,
+    tripNumber: t.tripNumber,
     busId: t.busId,
     driverId: t.driverId,
     assistantName: t.assistantName ?? '',
@@ -223,8 +226,11 @@ tripsRouter.post(
       return fail(res, 'اختر باصاً وسائقاً من أسطول الوكالة', 400)
     }
 
-    const trip = await prisma.trip.create({
+    const trip = await prisma.$transaction(async (tx) => {
+      const tripNumber = await allocateTripNumber(tx)
+      return tx.trip.create({
       data: {
+        tripNumber,
         branchId: branchIdOnCreate(req.user!),
         busId: body.data.busId,
         driverId: body.data.driverId,
@@ -249,6 +255,7 @@ tripsRouter.post(
         },
       },
       include: { stops: true },
+    })
     })
     return ok(res, { trip: mapTrip(trip) }, 201)
   }),

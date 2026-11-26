@@ -53,6 +53,7 @@ const ADD_COLUMNS = [
   'ALTER TABLE `Booking` ADD COLUMN `tlbSyncStatus` VARCHAR(191) NOT NULL DEFAULT \'\'',
   'ALTER TABLE `Booking` ADD COLUMN `tlbSyncAt` DATETIME(3) NULL',
   'ALTER TABLE `Booking` ADD COLUMN `tlbSyncError` VARCHAR(500) NOT NULL DEFAULT \'\'',
+  'ALTER TABLE `Trip` ADD COLUMN `tripNumber` INT NULL',
 ]
 
 const INDEXES = [

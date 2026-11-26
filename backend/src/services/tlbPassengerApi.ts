@@ -73,11 +73,14 @@ export function buildTlbPassengerPayload(input: {
     notes: string
   }
   tripId: string
+  tripNumber: number | null
   companyId: string
   visaTypeName: string
   arrivalPlace: string
 }) {
-  const { booking, tripId, companyId, visaTypeName, arrivalPlace } = input
+  const { booking, tripId, tripNumber, companyId, visaTypeName, arrivalPlace } = input
+  const idLocalex =
+    tripNumber != null && tripNumber > 0 ? String(tripNumber) : tripId
   const placeAccess =
     (booking.PlaceAcess || arrivalPlace || booking.notes || '').trim()
   const daterg = booking.bookedAt.toISOString().slice(0, 10)
@@ -94,7 +97,7 @@ export function buildTlbPassengerPayload(input: {
     PlaceAcess: placeAccess,
     DateCard: booking.DateCard.trim(),
     PlaceCard: booking.PlaceCard.trim(),
-    IDLocalex: tripId,
+    IDLocalex: idLocalex,
     IDTiktex: booking.ticketNumber.trim(),
     Ticketamountex: booking.price,
     CompanyId: companyId,
@@ -286,6 +289,7 @@ export async function sendTlbPassengerForBooking(bookingId: string, opts?: { for
   const payload = buildTlbPassengerPayload({
     booking,
     tripId: booking.tripId,
+    tripNumber: booking.trip.tripNumber,
     companyId: keyRow.companyId,
     visaTypeName,
     arrivalPlace,

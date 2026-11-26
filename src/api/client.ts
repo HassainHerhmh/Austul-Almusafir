@@ -49,7 +49,13 @@ export async function apiRequest<T extends Record<string, unknown>>(
   try {
     data = (await res.json()) as ApiOk<T> | ApiFail
   } catch {
-    throw new ApiError('تعذر الاتصال بالسيرفر', res.status)
+    const fallback =
+      res.status === 404
+        ? 'السيرفر لا يدعم هذا الطلب بعد — حدّث وشغّل API (npm run setup:hostinger)'
+        : res.status >= 502
+          ? 'السيرفر غير متاح مؤقتاً'
+          : 'تعذر الاتصال بالسيرفر — تحقق من عنوان API والسيرفر'
+    throw new ApiError(fallback, res.status)
   }
 
   if (!res.ok || !data.success) {

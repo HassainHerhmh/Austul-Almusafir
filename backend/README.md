@@ -82,3 +82,19 @@ npm run setup:hostinger
 ```
 
 أو `npm run db:sync` ثم إعادة تشغيل Node.
+
+### SSH (Hostinger)
+
+```text
+ssh -p 65002 u608667573@2.24.166.105
+```
+
+(من Windows: `powershell -File scripts/ssh-hostinger.ps1`)
+
+بعد الدخول، من **جذر المستودع** على السيرفر:
+
+```bash
+bash backend/scripts/hostinger-on-server.sh
+```
+
+مفاتيح الهيئة: انسخ `backend/.env.tlb.example` إلى `backend/.env.tlb` على السيرفر (قيم من خطاب الهيئة)، ثم شغّل السكرب أعلاه أو `npm run tlb:upsert-key`.

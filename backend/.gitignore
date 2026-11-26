@@ -1,6 +1,7 @@
 node_modules/
 dist/
 .env
+.env.tlb
 prisma/*.db
 prisma/*.db-journal
 *.db

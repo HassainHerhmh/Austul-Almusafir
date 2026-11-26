@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { TripOfferCard } from '../../components/TripOfferCard'
 import { SeatMap } from '../../components/SeatMap'
+import { TlbConfirmUploadButton } from '../../components/TlbConfirmUploadButton'
 import { TicketView } from '../../components/TicketView'
 import { PAYMENT_LABELS, formatMoney, formatTimeAr, todayStr } from '../../components/utils'
 import { useApp } from '../../context/AppContext'
@@ -44,6 +45,7 @@ export function OfficeBookingsPage() {
     getDestination,
     getDriver,
     createBooking,
+    refreshBookings,
     updateBooking,
     refreshBookings,
     ensureTripSeats,
@@ -102,7 +104,6 @@ export function OfficeBookingsPage() {
   const [arrivalDestinationId, setArrivalDestinationId] = useState('')
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash')
   const [notes, setNotes] = useState('')
-  const [tlbRequired, setTlbRequired] = useState(false)
   const [tlb, setTlb] = useState<TlbPassengerInput>({
     TransltName: '',
     TransltScondName: '',
@@ -139,19 +140,6 @@ export function OfficeBookingsPage() {
   const [editError, setEditError] = useState<string | null>(null)
   const [editBusy, setEditBusy] = useState(false)
   const [bookingBusy, setBookingBusy] = useState(false)
-
-  useEffect(() => {
-    void serverApi.tlbApiKeys
-      .active()
-      .then((r) => {
-        const on =
-          r.configured &&
-          r.key?.permissions?.passengerSend &&
-          r.key?.permissions?.autoOnBooking
-        setTlbRequired(!!on)
-      })
-      .catch(() => setTlbRequired(false))
-  }, [])
 
   useEffect(() => {
     if (!passengerName.trim()) return
@@ -636,8 +624,7 @@ export function OfficeBookingsPage() {
 
             <div className="panel" style={{ marginTop: '1rem', padding: '0.75rem' }}>
               <h3 style={{ margin: '0 0 0.75rem' }}>
-                بيانات الهيئة (PassengerApi)
-                {tlbRequired ? ' *' : ''}
+                بيانات الهيئة (PassengerApi) — تُرفع يدوياً من «تأكيد الرفع»
               </h3>
               <div className="form-grid">
                 <div className="field">
@@ -645,7 +632,6 @@ export function OfficeBookingsPage() {
                   <input
                     value={tlb.TransltName ?? ''}
                     onChange={(e) => setTlb((p) => ({ ...p, TransltName: e.target.value }))}
-                    required={tlbRequired}
                   />
                 </div>
                 <div className="field">
@@ -667,7 +653,6 @@ export function OfficeBookingsPage() {
                   <input
                     value={tlb.TransltLastName ?? ''}
                     onChange={(e) => setTlb((p) => ({ ...p, TransltLastName: e.target.value }))}
-                    required={tlbRequired}
                   />
                 </div>
                 <div className="field">
@@ -689,7 +674,6 @@ export function OfficeBookingsPage() {
                   <select
                     value={tlb.SexTranslte ?? ''}
                     onChange={(e) => setTlb((p) => ({ ...p, SexTranslte: e.target.value }))}
-                    required={tlbRequired}
                   >
                     <option value="">اختر</option>
                     <option value="Male">Male</option>
@@ -702,7 +686,6 @@ export function OfficeBookingsPage() {
                     type="date"
                     value={tlb.DateCard ?? ''}
                     onChange={(e) => setTlb((p) => ({ ...p, DateCard: e.target.value }))}
-                    required={tlbRequired}
                   />
                 </div>
                 <div className="field">
@@ -710,7 +693,6 @@ export function OfficeBookingsPage() {
                   <input
                     value={tlb.PlaceCard ?? ''}
                     onChange={(e) => setTlb((p) => ({ ...p, PlaceCard: e.target.value }))}
-                    required={tlbRequired}
                   />
                 </div>
                 <div className="field">
@@ -905,6 +887,12 @@ export function OfficeBookingsPage() {
                           >
                             إلغاء
                           </button>
+                        )}
+                        {b.status === 'confirmed' && (
+                          <TlbConfirmUploadButton
+                            booking={b}
+                            onSuccess={() => void refreshBookings()}
+                          />
                         )}
                       </div>
                     </td>

@@ -14,10 +14,8 @@ import { resolveOfficeLedgerAccountId } from '../services/officeLedger'
 import { allocateBookingNumber } from '../services/bookingNumber'
 import { officeIdsForUser, officeIdWhere } from '../utils/branchScope'
 import {
-  getActiveTlbApiKey,
   mergeTlbPassengerFields,
   sendTlbPassengerForBooking,
-  tryAutoSendTlbPassenger,
 } from '../services/tlbPassengerApi'
 
 const tlbPassengerBodyFields = {
@@ -133,21 +131,6 @@ bookingsRouter.post(
       notes: body.data.notes,
       ...body.data,
     })
-
-    const tlbKey = await getActiveTlbApiKey()
-    if (tlbKey?.permissions.autoOnBooking && tlbKey.permissions.passengerSend) {
-      const missing: string[] = []
-      if (!tlbFields.TransltName) missing.push('الاسم الأول')
-      if (!tlbFields.TransltLastName) missing.push('اللقب')
-      if (!tlbFields.NumberPaspport) missing.push('رقم الجواز')
-      if (!tlbFields.MobileTranslt) missing.push('الجوال')
-      if (!tlbFields.SexTranslte) missing.push('الجنس')
-      if (!tlbFields.DateCard) missing.push('تاريخ إصدار الجواز')
-      if (!tlbFields.PlaceCard) missing.push('مكان إصدار الجواز')
-      if (missing.length) {
-        return fail(res, `بيانات الهيئة مطلوبة: ${missing.join('، ')}`)
-      }
-    }
 
     const officeId =
       req.user!.role === 'admin'
@@ -329,8 +312,6 @@ bookingsRouter.post(
       })
     }
 
-    tryAutoSendTlbPassenger(booking.id)
-
     return ok(
       res,
       {
@@ -347,9 +328,31 @@ bookingsRouter.post(
 
 bookingsRouter.post(
   '/:id/tlb-send',
-  requireRoles('admin'),
+  requireRoles('admin', 'branch_admin', 'office_manager', 'booking_clerk'),
   asyncHandler(async (req, res) => {
-    const result = await sendTlbPassengerForBooking(paramId(req), { force: true })
+    const booking = await prisma.booking.findUnique({ where: { id: paramId(req) } })
+    if (!booking) return fail(res, 'الحجز غير موجود', 404)
+    if (booking.status !== 'confirmed') return fail(res, 'التذكرة غير مؤكدة', 400)
+
+    const role = req.user!.role
+    if (role === 'office_manager' || role === 'booking_clerk') {
+      if (booking.officeId !== req.user!.officeId) {
+        return fail(res, 'ليس لديك صلاحية', 403)
+      }
+    }
+    if (role === 'branch_admin') {
+      const office = await prisma.office.findUnique({
+        where: { id: booking.officeId },
+        select: { branchId: true },
+      })
+      if (office?.branchId !== req.user!.branchId) {
+        return fail(res, 'ليس لديك صلاحية', 403)
+      }
+    }
+
+    const result = await sendTlbPassengerForBooking(booking.id, {
+      force: booking.tlbSyncStatus === 'failed',
+    })
     if (result.skipped) return fail(res, `تخطي الإرسال: ${result.reason}`, 400)
     if (!result.ok) {
       const detail =
@@ -358,9 +361,21 @@ bookingsRouter.post(
           : 'error' in result
             ? result.error
             : 'رفض سيرفر الهيئة'
-      return fail(res, detail ?? 'رفض سيرفر الهيئة', 502)
+      const msg =
+        'error' in result && result.error ? result.error : (detail ?? 'رفض سيرفر الهيئة')
+      return fail(res, msg, result.error ? 400 : 502)
     }
-    return ok(res, result)
+    const updated = await prisma.booking.findUnique({ where: { id: booking.id } })
+    return ok(res, {
+      ...result,
+      booking: updated
+        ? {
+            ...updated,
+            bookedAt: updated.bookedAt.toISOString(),
+            bookedBy: updated.bookedById,
+          }
+        : null,
+    })
   }),
 )
 

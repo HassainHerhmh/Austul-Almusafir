@@ -10,7 +10,7 @@ export type TlbPermissions = {
 
 export const DEFAULT_TLB_PERMISSIONS: TlbPermissions = {
   passengerSend: true,
-  autoOnBooking: true,
+  autoOnBooking: false,
   useHmacSignature: true,
 }
 
@@ -217,6 +217,27 @@ async function postPassenger(
   return { statusCode: res.status, responseBody, ok: res.ok }
 }
 
+export function validateTlbPassengerFields(booking: {
+  TransltName: string
+  TransltLastName: string
+  NumberPaspport: string
+  passportNumber: string
+  MobileTranslt: string
+  SexTranslte: string
+  DateCard: string
+  PlaceCard: string
+}) {
+  const missing: string[] = []
+  if (!booking.TransltName.trim()) missing.push('الاسم الأول')
+  if (!booking.TransltLastName.trim()) missing.push('اللقب')
+  if (!bookingPassportNumber(booking)) missing.push('رقم الجواز')
+  if (!booking.MobileTranslt.trim()) missing.push('الجوال')
+  if (!booking.SexTranslte.trim()) missing.push('الجنس')
+  if (!booking.DateCard.trim()) missing.push('تاريخ إصدار الجواز')
+  if (!booking.PlaceCard.trim()) missing.push('مكان إصدار الجواز')
+  return missing
+}
+
 export async function sendTlbPassengerForBooking(bookingId: string, opts?: { force?: boolean }) {
   const keyRow = await getActiveTlbApiKey()
   if (!keyRow) {
@@ -237,6 +258,15 @@ export async function sendTlbPassengerForBooking(bookingId: string, opts?: { for
   }
   if (booking.tlbSyncStatus === 'sent' && !opts?.force) {
     return { skipped: true as const, reason: 'already_sent' }
+  }
+
+  const missing = validateTlbPassengerFields(booking)
+  if (missing.length) {
+    return {
+      skipped: false as const,
+      ok: false,
+      error: `بيانات الهيئة ناقصة: ${missing.join('، ')}`,
+    }
   }
 
   let visaTypeName = booking.typevisa2

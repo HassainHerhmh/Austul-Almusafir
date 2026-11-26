@@ -23,7 +23,7 @@ type TlbRow = {
 
 const PERM_LABELS: { key: keyof TlbPerms; label: string }[] = [
   { key: 'passengerSend', label: 'إرسال passenger' },
-  { key: 'autoOnBooking', label: 'إرسال تلقائي عند التذكرة' },
+  { key: 'autoOnBooking', label: 'إرسال تلقائي عند التذكرة (غير موصى به)' },
   { key: 'useHmacSignature', label: 'توقيع HMAC (X-Signature)' },
 ]
 
@@ -249,7 +249,7 @@ export function TlbApiPanel() {
                     {p.key === 'passengerSend'
                       ? 'إرسال بيانات المسافر'
                       : p.key === 'autoOnBooking'
-                        ? 'إرسال تلقائي عند التذكرة'
+                        ? 'إرسال تلقائي عند التذكرة (يفضّل إيقافه)'
                         : p.label}
                   </label>
                 ))}

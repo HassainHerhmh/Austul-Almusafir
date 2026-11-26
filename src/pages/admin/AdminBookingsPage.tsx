@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { TicketView } from '../../components/TicketView'
 import { PAYMENT_LABELS, formatMoney, formatTimeAr, todayStr } from '../../components/utils'
-import { serverApi } from '../../api/serverApi'
+import { TlbConfirmUploadButton } from '../../components/TlbConfirmUploadButton'
 import { useApp } from '../../context/AppContext'
 import { useBrand } from '../../context/BrandContext'
 import type { Booking, PaymentMethod } from '../../types'
@@ -39,6 +39,7 @@ export function AdminBookingsPage() {
     getDestination,
     updateBooking,
     deleteBooking,
+    refreshBookings,
     isBranchAdmin,
     currentBranch,
   } = useApp()
@@ -458,21 +459,10 @@ export function AdminBookingsPage() {
                             </button>
                           )}
                           {b.status === 'confirmed' && (
-                            <button
-                              type="button"
-                              className="btn btn-ghost btn-sm"
-                              title={b.tlbSyncStatus || 'لم يُرسل'}
-                              onClick={async () => {
-                                try {
-                                  await serverApi.bookings.sendTlb(b.id)
-                                  alert('تم إرسال التذكرة للهيئة')
-                                } catch (e) {
-                                  alert(e instanceof Error ? e.message : 'فشل الإرسال')
-                                }
-                              }}
-                            >
-                              إرسال للهيئة
-                            </button>
+                            <TlbConfirmUploadButton
+                              booking={b}
+                              onSuccess={() => void refreshBookings()}
+                            />
                           )}
                           <button
                             type="button"

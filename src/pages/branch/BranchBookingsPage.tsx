@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react'
+import { TlbConfirmUploadButton } from '../../components/TlbConfirmUploadButton'
 import { PAYMENT_LABELS, formatMoney } from '../../components/utils'
 import { useApp } from '../../context/AppContext'
 
 export function BranchBookingsPage() {
-  const { state, currentBranch, getTripLabel, getOffice } = useApp()
+  const { state, currentBranch, getTripLabel, getOffice, refreshBookings } = useApp()
   const branchOffices = useMemo(
     () => state.offices.filter((o) => o.branchId === currentBranch?.id),
     [state.offices, currentBranch?.id],
@@ -49,6 +50,7 @@ export function BranchBookingsPage() {
                 <th>الدفع</th>
                 <th>الحالة</th>
                 <th>تاريخ الحجز</th>
+                <th>رفع للهيئة</th>
               </tr>
             </thead>
             <tbody>
@@ -70,12 +72,18 @@ export function BranchBookingsPage() {
                       </span>
                     </td>
                     <td>{b.bookedAt.slice(0, 16).replace('T', ' ')}</td>
+                    <td>
+                      <TlbConfirmUploadButton
+                        booking={b}
+                        onSuccess={() => void refreshBookings()}
+                      />
+                    </td>
                   </tr>
                 )
               })}
               {rows.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="empty">
+                  <td colSpan={9} className="empty">
                     لا توجد حجوزات
                   </td>
                 </tr>

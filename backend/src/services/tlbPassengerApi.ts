@@ -27,6 +27,33 @@ function toHex(bytes: Buffer) {
   return bytes.toString('hex')
 }
 
+export type HmacKeyEncoding = 'utf8' | 'hex'
+
+function hmacKeyBuffer(apiSecret: string, encoding: HmacKeyEncoding): Buffer {
+  const s = normalizeTlbCredential(apiSecret)
+  if (encoding === 'hex') {
+    if (!/^[0-9a-fA-F]+$/.test(s) || s.length % 2 !== 0) {
+      return Buffer.from(s, 'utf8')
+    }
+    return Buffer.from(s, 'hex')
+  }
+  return Buffer.from(s, 'utf8')
+}
+
+function secretCanUseHexKey(apiSecret: string) {
+  const s = normalizeTlbCredential(apiSecret)
+  return /^[0-9a-fA-F]+$/.test(s) && s.length >= 32 && s.length % 2 === 0
+}
+
+function responseStage(raw: string): string {
+  try {
+    const j = JSON.parse(raw) as { stage?: string }
+    return (j.stage ?? '').trim()
+  } catch {
+    return ''
+  }
+}
+
 /** إزالة مسافات/أسطر زائدة من نسخ الهيئة */
 export function normalizeTlbCredential(value: string) {
   return value
@@ -55,6 +82,8 @@ export type TlbSendDiagnostics = {
   bodySha256Hex?: string
   /** نص التوقيع المعتمد (بدون السر) */
   canonicalString?: string
+  hmacKeyEncoding?: HmacKeyEncoding
+  apiSecretLength?: number
 }
 
 function maskApiKeySuffix(key: string) {
@@ -252,6 +281,7 @@ async function postPassenger(
     apiKey: string
     apiSecret: string
     useHmacSignature: boolean
+    hmacKeyEncoding?: HmacKeyEncoding
   },
   jsonBody: string,
 ) {
@@ -277,8 +307,9 @@ async function postPassenger(
     bodySha256Hex = bodyHash
     const canonical = `POST\n/api/passenger\n${timestamp}\n${nonce}\n${bodyHash}`
     canonicalString = canonical
+    const hmacKeyEncoding = config.hmacKeyEncoding ?? 'utf8'
     const signature = crypto
-      .createHmac('sha256', Buffer.from(apiSecret, 'utf8'))
+      .createHmac('sha256', hmacKeyBuffer(apiSecret, hmacKeyEncoding))
       .update(canonical, 'utf8')
       .digest('base64')
     headers['X-Company-Code'] = companyId
@@ -301,6 +332,7 @@ async function postPassenger(
     authMode: config.useHmacSignature ? ('hmac' as const) : ('api_key_header' as const),
     bodySha256Hex,
     canonicalString,
+    hmacKeyEncoding: config.hmacKeyEncoding ?? 'utf8',
   }
 }
 
@@ -403,7 +435,28 @@ export async function sendTlbPassengerForBooking(bookingId: string, opts?: { for
   })
 
   try {
-    const result = await postPassenger(baseUrl, authConfig, jsonBody)
+    let result = await postPassenger(
+      baseUrl,
+      { ...authConfig, hmacKeyEncoding: 'utf8' },
+      jsonBody,
+    )
+  if (
+      !result.ok &&
+      responseStage(result.responseBody) === 'SIGNATURE_MISMATCH' &&
+      secretCanUseHexKey(authConfig.apiSecret)
+    ) {
+      logger.warn('tlb-passenger', {
+        bookingId,
+        retry: 'hmac-key-hex',
+        apiSecretLength: authConfig.apiSecret.length,
+      })
+      result = await postPassenger(
+        baseUrl,
+        { ...authConfig, hmacKeyEncoding: 'hex' },
+        jsonBody,
+      )
+    }
+
     const diagnostics: TlbSendDiagnostics = {
       ...buildDiagnostics({
         requestUrl: result.requestUrl,
@@ -413,6 +466,8 @@ export async function sendTlbPassengerForBooking(bookingId: string, opts?: { for
       }),
       bodySha256Hex: result.bodySha256Hex,
       canonicalString: result.canonicalString,
+      hmacKeyEncoding: result.hmacKeyEncoding,
+      apiSecretLength: authConfig.apiSecret.length,
     }
 
     logger.warn('tlb-passenger', {

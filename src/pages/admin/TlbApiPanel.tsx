@@ -207,7 +207,31 @@ export function TlbApiPanel() {
                   dir="ltr"
                   type="password"
                   autoComplete="new-password"
+                  spellCheck={false}
                 />
+                {apiSecret.trim() ? (
+                  <p
+                    className="muted"
+                    style={{ marginTop: 4, fontSize: '0.85rem' }}
+                    dir="ltr"
+                  >
+                    {(() => {
+                      const s = apiSecret.replace(/\s/g, '')
+                      const hex = /^[0-9a-fA-F]+$/.test(s)
+                      if (hex && s.length !== 64) {
+                        return (
+                          <span style={{ color: 'var(--danger, #c62828)' }}>
+                            الطول: {s.length} — المطلوب 64 حرف hex (انسخ السطر كاملاً من الخطاب، بدون مسافات)
+                          </span>
+                        )
+                      }
+                      if (hex && s.length === 64) {
+                        return <span style={{ color: 'var(--ok, #2e7d32)' }}>الطول: 64 ✓</span>
+                      }
+                      return `الطول: ${s.length} حرف`
+                    })()}
+                  </p>
+                ) : null}
               </div>
               <div className="field" style={{ gridColumn: '1 / -1' }}>
                 <label>عنوان سيرفر الهيئة (apiBaseUrl)</label>

@@ -1,8 +1,10 @@
+import { useState } from 'react'
 import { formatTimeAr } from './utils'
 import type { Booking, Trip } from '../types'
 import { useApp } from '../context/AppContext'
 import { useBrand } from '../context/BrandContext'
 import { tripEndpoints, tripRoutePoints } from '../utils/trip'
+import { TicketShareModal } from './TicketShareModal'
 
 type Props = {
   booking: Booking
@@ -11,10 +13,14 @@ type Props = {
 }
 
 export function TicketView({ booking, trip, onClose }: Props) {
-  const { getTripLabel, getOffice, getDestination, getVisaType } = useApp()
+  const { state, getTripLabel, getOffice, getDestination, getVisaType } = useApp()
   const { name } = useBrand()
-  const office = getOffice(booking.officeId)
+  const [shareOpen, setShareOpen] = useState(false)
+  const customer = state.customers.find((c) => c.id === booking.customerId)
   const ends = tripEndpoints(trip)
+  const routeLine =
+    tripRoutePoints(trip) || (ends.fromPoint && ends.toPoint ? `${ends.fromPoint} ← ${ends.toPoint}` : '')
+  const office = getOffice(booking.officeId)
   const boardingName = getDestination(booking.boardingDestinationId)?.name
   const arrivalName = getDestination(booking.arrivalDestinationId)?.name
   const visaName = getVisaType(booking.visaTypeId)?.name
@@ -98,9 +104,12 @@ export function TicketView({ booking, trip, onClose }: Props) {
           </div>
         </div>
       </div>
-      <div className="actions no-print" style={{ justifyContent: 'center', marginTop: '1rem' }}>
-        <button type="button" className="btn btn-primary" onClick={() => window.print()}>
-          طباعة التذكرة
+      <div className="actions no-print" style={{ justifyContent: 'center', marginTop: '1rem', gap: '0.5rem' }}>
+        <button type="button" className="btn btn-primary" onClick={() => setShareOpen(true)}>
+          مشاركة
+        </button>
+        <button type="button" className="btn btn-ghost" onClick={() => window.print()}>
+          طباعة
         </button>
         {onClose && (
           <button type="button" className="btn btn-ghost" onClick={onClose}>
@@ -108,6 +117,22 @@ export function TicketView({ booking, trip, onClose }: Props) {
           </button>
         )}
       </div>
+
+      {shareOpen && (
+        <TicketShareModal
+          booking={booking}
+          brandName={name}
+          customerPhone={customer?.phone}
+          tripLine={`الرحلة: ${getTripLabel(trip)}`}
+          departureLine={`الانطلاق: ${trip.date} — ${formatTimeAr(trip.departureTime)}`}
+          routeLine={routeLine ? `المسار: ${routeLine}` : ''}
+          onSave={() => {
+            setShareOpen(false)
+            window.print()
+          }}
+          onClose={() => setShareOpen(false)}
+        />
+      )}
     </div>
   )
 }

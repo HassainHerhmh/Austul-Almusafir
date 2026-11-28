@@ -20,6 +20,7 @@ import PaymentTypes from '../pages/admin/accounts/setup/PaymentTypes'
 import ReceiptTypes from '../pages/admin/accounts/setup/ReceiptTypes'
 import TransitAccountsSettings from '../pages/admin/accounts/setup/TransitAccountsSettings'
 import { AdminBookingsPage } from '../pages/admin/AdminBookingsPage'
+import { BranchBookingsPage } from '../pages/branch/BranchBookingsPage'
 import { AdminTrackingPage } from '../pages/admin/AdminTrackingPage'
 import { AdminHome } from '../pages/admin/AdminHome'
 import { AdminReportsPage } from '../pages/admin/AdminReportsPage'
@@ -66,7 +67,10 @@ export function renderAdminPortalRoutes(showAgencyOnly: boolean) {
       <Route path="destinations" element={<DestinationsPage />} />
       <Route path="visa-types" element={<VisaTypesPage />} />
       <Route path="trips" element={<TripsPage />} />
-      <Route path="bookings" element={<AdminBookingsPage />} />
+      <Route
+        path="bookings"
+        element={showAgencyOnly ? <AdminBookingsPage /> : <BranchBookingsPage />}
+      />
       {showAgencyOnly && <Route path="tracking" element={<AdminTrackingPage />} />}
 
       {showAgencyOnly && (

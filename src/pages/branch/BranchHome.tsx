@@ -24,9 +24,14 @@ export function BranchHome() {
         <div>
           <h1>{currentBranch?.name ?? 'الفرع'}</h1>
         </div>
-        <Link to="/branch/offices" className="btn btn-primary">
-          إدارة المكاتب
-        </Link>
+        <div className="actions">
+          <Link to="/branch/bookings" className="btn btn-primary">
+            التذاكر
+          </Link>
+          <Link to="/branch/offices" className="btn btn-ghost">
+            إدارة المكاتب
+          </Link>
+        </div>
       </header>
       <div className="stats">
         <div className="stat">

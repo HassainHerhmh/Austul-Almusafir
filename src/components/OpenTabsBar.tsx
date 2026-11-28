@@ -60,7 +60,7 @@ const ROUTE_LABELS: { path: string; label: string; end?: boolean }[] = [
   { path: '/branch', label: 'لوحة الفرع', end: true },
   { path: '/branch/offices', label: 'مكاتب الفرع' },
   { path: '/branch/staff', label: 'موظفو الفرع' },
-  { path: '/branch/bookings', label: 'حجوزات الفرع' },
+  { path: '/branch/bookings', label: 'التذاكر' },
   { path: '/branch/statement', label: 'كشف ذمة الفرع' },
 ]
 

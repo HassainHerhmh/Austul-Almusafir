@@ -115,7 +115,9 @@ function buildPortalAdminLinks(base: '/admin' | '/branch', includeAgencyOnly: bo
       label:
         base === '/branch' && l.to === '/admin' && l.end
           ? 'لوحة الفرع'
-          : l.label,
+          : base === '/branch' && l.to === '/admin/bookings'
+            ? 'التذاكر'
+            : l.label,
     }))
 }
 
